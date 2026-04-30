@@ -8,8 +8,10 @@ REPO_ROOT="$(cd "$SRC_DIR/../.." && pwd)"
 DEST_DIR="$REPO_ROOT/.claude/skills/receive-ticket"
 
 mkdir -p "$DEST_DIR"
-cp "$SRC_DIR/SKILL.md" "$DEST_DIR/SKILL.md"
-cp -r "$SRC_DIR/scripts" "$DEST_DIR/scripts"
+# Relative symlinks so the repo stays portable across machines.
+# .claude/skills/<name>/{SKILL.md,scripts} → ../../../skills/<name>/{SKILL.md,scripts}
+ln -sfn ../../../skills/receive-ticket/SKILL.md "$DEST_DIR/SKILL.md"
+ln -sfn ../../../skills/receive-ticket/scripts "$DEST_DIR/scripts"
 
-echo "Installed receive-ticket → $DEST_DIR"
+echo "Linked receive-ticket → $DEST_DIR"
 echo "Restart Claude Code (or start a new session) to activate the skill."

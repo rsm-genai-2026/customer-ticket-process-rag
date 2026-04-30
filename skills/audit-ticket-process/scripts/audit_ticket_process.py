@@ -1,9 +1,10 @@
 """Step 0/N: tell the user what happened on a ticket and what to do next.
 
-Reads working tables first (live skill output) and falls back to the
-synthetic historical ``processed/`` tables for tickets that have only
-the simulated data. Builds a concise timeline and a state machine that
-maps to exactly one recommended next skill.
+Reads working tables first (live skill output). In live mode, it does
+not inspect synthetic historical ``processed/`` tables. In demo mode,
+it also includes historical rows for tutorial narration. Builds a
+concise timeline and a state machine that maps to exactly one
+recommended next skill.
 
 Run from the repo root::
 
@@ -24,7 +25,15 @@ if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
 from skills.ticketing_common.ticketing_common import (  # noqa: E402
+    DEFAULT_MODE,
+    MODE_DEMO,
+    MODE_LIVE,
+    STATUS_OK,
     append_action_log,
+    default_step_id,
+    default_workflow_run_id,
+    emit_envelope,
+    make_envelope,
     now_iso,
     pipe_join,
     read_csv,
@@ -34,10 +43,15 @@ from skills.ticketing_common.ticketing_common import (  # noqa: E402
 SKILL_NAME = "audit-ticket-process"
 
 
-def _filter_rows(df: pl.DataFrame, ticket_id: str) -> list[dict]:
+def _filter_rows(df: pl.DataFrame, ticket_id: str, *, workflow_run_id: str | None = None) -> list[dict]:
     if "ticket_id" not in df.columns:
         return []
-    return df.filter(pl.col("ticket_id") == ticket_id).to_dicts()
+    filtered = df.filter(pl.col("ticket_id") == ticket_id)
+    if workflow_run_id:
+        if "workflow_run_id" not in filtered.columns:
+            return []
+        filtered = filtered.filter(pl.col("workflow_run_id") == workflow_run_id)
+    return filtered.to_dicts()
 
 
 def _read_optional(path: Path) -> pl.DataFrame | None:
@@ -49,12 +63,25 @@ def _read_optional(path: Path) -> pl.DataFrame | None:
         return None
 
 
-def load_ticket_history(data_dir: Path, out_dir: Path, ticket_id: str) -> dict:
-    """Return all rows mentioning ``ticket_id`` across raw/processed/working.
+def load_ticket_history(
+    data_dir: Path,
+    out_dir: Path,
+    ticket_id: str,
+    *,
+    mode: str = MODE_DEMO,
+    workflow_run_id: str | None = None,
+) -> dict:
+    """Return all rows mentioning ``ticket_id`` across the ticket data.
 
-    Each working table is loaded if present. Processed tables are loaded
-    via ``read_csv`` so a missing-data-file error surfaces clearly. The
-    ``customer`` field is filled in opportunistically.
+    Working tables in ``data/working/`` are always loaded if present.
+
+    * ``mode="live"`` — the production-safe choice. The synthetic
+      ``data/processed/`` tables are NOT included in the timeline. The
+      audit reflects only the live workflow state.
+    * ``mode="demo"`` — also include rows from ``data/processed/``
+      tables so the audit can narrate a closed historical ticket end-to-end
+      against the seeded dataset. The historical rows in the timeline
+      are clearly tagged ``(historical)``.
     """
 
     ticket = require_ticket(data_dir, ticket_id)
@@ -69,23 +96,44 @@ def load_ticket_history(data_dir: Path, out_dir: Path, ticket_id: str) -> dict:
         "specialist_solutions": _read_optional(out_dir / "specialist_solutions.csv"),
         "customer_response_drafts": _read_optional(out_dir / "customer_response_drafts.csv"),
         "feedback_decisions": _read_optional(out_dir / "feedback_decisions.csv"),
+        "sent_messages": _read_optional(out_dir / "sent_messages.csv"),
     }
-    working_rows = {name: ([] if df is None else _filter_rows(df, ticket_id)) for name, df in working.items()}
-    historical = {
-        "ticket_triage": _filter_rows(read_csv(data_dir, "processed/ticket_triage.csv"), ticket_id),
-        "faq_checks": _filter_rows(read_csv(data_dir, "processed/faq_checks.csv"), ticket_id),
-        "specialist_escalations": _filter_rows(read_csv(data_dir, "processed/specialist_escalations.csv"), ticket_id),
-        "specialist_investigations": _filter_rows(
-            read_csv(data_dir, "processed/specialist_investigations.csv"), ticket_id
-        ),
-        "customer_messages": _filter_rows(read_csv(data_dir, "processed/customer_messages.csv"), ticket_id),
-        "resolution_feedback": _filter_rows(read_csv(data_dir, "processed/resolution_feedback.csv"), ticket_id),
+    working_rows = {
+        name: ([] if df is None else _filter_rows(df, ticket_id, workflow_run_id=workflow_run_id))
+        for name, df in working.items()
     }
+
+    if mode == MODE_DEMO:
+        historical = {
+            "ticket_triage": _filter_rows(read_csv(data_dir, "processed/ticket_triage.csv"), ticket_id),
+            "faq_checks": _filter_rows(read_csv(data_dir, "processed/faq_checks.csv"), ticket_id),
+            "specialist_escalations": _filter_rows(
+                read_csv(data_dir, "processed/specialist_escalations.csv"), ticket_id
+            ),
+            "specialist_investigations": _filter_rows(
+                read_csv(data_dir, "processed/specialist_investigations.csv"), ticket_id
+            ),
+            "customer_messages": _filter_rows(read_csv(data_dir, "processed/customer_messages.csv"), ticket_id),
+            "resolution_feedback": _filter_rows(read_csv(data_dir, "processed/resolution_feedback.csv"), ticket_id),
+        }
+    else:
+        # Live mode: do not look at the synthetic historical tables at all.
+        historical = {
+            "ticket_triage": [],
+            "faq_checks": [],
+            "specialist_escalations": [],
+            "specialist_investigations": [],
+            "customer_messages": [],
+            "resolution_feedback": [],
+        }
+
     return {
         "ticket": ticket,
         "customer": customer,
         "working": working_rows,
         "historical": historical,
+        "mode": mode,
+        "workflow_run_id": workflow_run_id or "",
     }
 
 
@@ -99,17 +147,78 @@ def _has_step(history: dict, working_table: str, historical_table: str) -> tuple
     return False, ""
 
 
+_STEP_NAME_TO_STATE = {
+    "triaged": "triaged_awaiting_faq_check",
+    "faq_checked": "faq_checked_awaiting_decision",
+    "escalated": "escalated_awaiting_specialist",
+    "specialist_done": "specialist_solution_ready_for_relay",
+    "response_drafted": "response_drafted_awaiting_send",
+    "response_sent": "response_sent_awaiting_customer",
+    "feedback": "feedback_recorded_action_pending",
+}
+
+
+def _collect_step_events(history: dict) -> list[tuple[str, str, dict]]:
+    """Return ``[(timestamp, step_name, row)]`` across working + historical.
+
+    Working rows win on ties because their timestamp comparison sorts
+    string-equal but lists are processed in working-then-historical
+    order; the orchestrator and the operator both expect live data to
+    take precedence over the synthetic seed.
+    """
+
+    events: list[tuple[str, str, dict]] = []
+    w = history["working"]
+    h = history["historical"]
+
+    def add(rows: list[dict], step: str, time_col: str) -> None:
+        for r in rows or []:
+            ts = r.get(time_col, "") or ""
+            if ts:
+                events.append((ts, step, r))
+
+    add(w["triage_decisions"], "triaged", "created_at")
+    add(w["faq_decisions"], "faq_checked", "created_at")
+    add(w["escalation_decisions"], "escalated", "created_at")
+    add(w["specialist_solutions"], "specialist_done", "created_at")
+    add(w["customer_response_drafts"], "response_drafted", "created_at")
+    add(w.get("sent_messages") or [], "response_sent", "sent_at")
+    add(w["feedback_decisions"], "feedback", "created_at")
+
+    add(h["ticket_triage"], "triaged", "triaged_at")
+    add(h["faq_checks"], "faq_checked", "faq_checked_at")
+    add(h["specialist_escalations"], "escalated", "escalated_at")
+    add(h["specialist_investigations"], "specialist_done", "solution_created_at")
+    # In demo mode a historical customer_messages row implies the message
+    # was actually sent — the human operator did not have a separate egress
+    # step in the seeded dataset.
+    add(h["customer_messages"], "response_sent", "sent_at")
+    add(h["resolution_feedback"], "feedback", "customer_reply_at")
+
+    return events
+
+
 def infer_current_state(history: dict) -> dict:
-    """Walk the workflow and return ``{"state": ..., "flags": {...}}``."""
+    """Return ``{"state": ..., "flags": {...}}`` based on the most recent step.
 
-    triaged, _ = _has_step(history, "triage_decisions", "ticket_triage")
-    faq_checked, _ = _has_step(history, "faq_decisions", "faq_checks")
-    escalated, _ = _has_step(history, "escalation_decisions", "specialist_escalations")
-    specialist_done, _ = _has_step(history, "specialist_solutions", "specialist_investigations")
-    response_sent, _ = _has_step(history, "customer_response_drafts", "customer_messages")
-    feedback, _ = _has_step(history, "feedback_decisions", "resolution_feedback")
+    State is determined by the **timestamp-latest** workflow event that
+    has been recorded for the ticket (working data preferred). This is
+    the only way the audit can advance correctly through a reopen
+    cycle: a stale ``feedback_recorded`` row no longer pins the state
+    once a fresh re-escalation, investigation, or send has happened.
+    """
 
-    # Most recent FAQ decision (working preferred)
+    events = _collect_step_events(history)
+
+    triaged = any(e[1] == "triaged" for e in events)
+    faq_checked = any(e[1] == "faq_checked" for e in events)
+    escalated = any(e[1] == "escalated" for e in events)
+    specialist_done = any(e[1] == "specialist_done" for e in events)
+    response_drafted = any(e[1] == "response_drafted" for e in events)
+    response_sent_to_customer = any(e[1] == "response_sent" for e in events)
+    feedback = any(e[1] == "feedback" for e in events)
+
+    # faq_match_found from the most-recent FAQ decision (working > historical)
     faq_match_found = None
     if history["working"]["faq_decisions"]:
         last = sorted(history["working"]["faq_decisions"], key=lambda r: r.get("created_at", ""))[-1]
@@ -118,12 +227,15 @@ def infer_current_state(history: dict) -> dict:
         last = history["historical"]["faq_checks"][0]
         faq_match_found = str(last.get("faq_match_found", "")).lower() == "true"
 
-    # Closure status from feedback table
+    # Closure status: only the LATEST feedback row counts. Any older
+    # reopen row is by definition no longer the current decision.
     closed = False
     closure_reason = ""
+    latest_feedback_next_action = ""
     if history["working"]["feedback_decisions"]:
         last = sorted(history["working"]["feedback_decisions"], key=lambda r: r.get("created_at", ""))[-1]
         next_action = last.get("next_action", "")
+        latest_feedback_next_action = next_action
         if next_action in {"close_ticket", "close_unresolved_vendor_followup"}:
             closed = True
             closure_reason = next_action
@@ -135,21 +247,17 @@ def infer_current_state(history: dict) -> dict:
 
     if closed:
         state = "closed"
-    elif feedback:
-        # Feedback exists but ticket not closed yet — we must still pick reopen / clarification
-        state = "feedback_recorded_action_pending"
-    elif response_sent:
-        state = "response_sent_awaiting_customer"
-    elif specialist_done:
-        state = "specialist_solution_ready_for_relay"
-    elif escalated:
-        state = "escalated_awaiting_specialist"
-    elif faq_checked:
-        state = "faq_checked_awaiting_decision"
-    elif triaged:
-        state = "triaged_awaiting_faq_check"
-    else:
+    elif not events:
         state = "submitted_awaiting_triage"
+    else:
+        latest_step = max(events, key=lambda e: e[0])[1]
+        # An old reopened feedback should not block forward progress: if
+        # the LATEST feedback row exists and is the timestamp-latest
+        # event, but it says "reopen", we still report
+        # ``feedback_recorded_action_pending`` so the orchestrator
+        # routes to escalate. Once a new escalation/specialist/send
+        # event arrives with a later timestamp, that step wins.
+        state = _STEP_NAME_TO_STATE.get(latest_step, "submitted_awaiting_triage")
 
     return {
         "state": state,
@@ -159,10 +267,13 @@ def infer_current_state(history: dict) -> dict:
             "faq_match_found": faq_match_found,
             "escalated": escalated,
             "specialist_done": specialist_done,
-            "response_sent": response_sent,
+            "response_drafted": response_drafted,
+            "response_sent_to_customer": response_sent_to_customer,
             "feedback_recorded": feedback,
+            "latest_feedback_next_action": latest_feedback_next_action,
             "closed": closed,
             "closure_reason": closure_reason,
+            "mode": history["mode"],
         },
     }
 
@@ -187,10 +298,14 @@ def list_valid_next_actions(state: dict) -> list[str]:
         return ["investigate-specialist-solution"]
     if s == "specialist_solution_ready_for_relay":
         return ["draft-specialist-response"]
+    if s == "response_drafted_awaiting_send":
+        return ["send-customer-response"]
     if s == "response_sent_awaiting_customer":
         return ["verify-feedback-close-or-reopen (when the customer replies)"]
     if s == "feedback_recorded_action_pending":
-        # Latest feedback decision dictates: reopen → escalate; otherwise close
+        # Latest feedback decision dictates: reopen → escalate; ambiguous → wait for clarification.
+        if flags.get("latest_feedback_next_action") == "request_clarification":
+            return ["request_clarification"]
         return ["escalate-to-specialist"]
     return []  # pragma: no cover
 
@@ -222,6 +337,7 @@ def _timeline_events(history: dict) -> list[tuple[str, str, str]]:
     add_rows(w["escalation_decisions"], "escalation_decisions", "created_at", "escalate-to-specialist")
     add_rows(w["specialist_solutions"], "specialist_solutions", "created_at", "investigate-specialist-solution")
     add_rows(w["customer_response_drafts"], "customer_response_drafts", "created_at", "draft-response")
+    add_rows(w.get("sent_messages") or [], "sent_messages", "sent_at", "send-customer-response")
     add_rows(w["feedback_decisions"], "feedback_decisions", "created_at", "verify-feedback-close-or-reopen")
 
     h = history["historical"]
@@ -271,7 +387,8 @@ def build_audit_report(history: dict, state: dict) -> str:
             f"  faq_match_found     : {state['flags']['faq_match_found']}",
             f"  escalated           : {state['flags']['escalated']}",
             f"  specialist_done     : {state['flags']['specialist_done']}",
-            f"  response_sent       : {state['flags']['response_sent']}",
+            f"  response_drafted    : {state['flags']['response_drafted']}",
+            f"  response_sent       : {state['flags']['response_sent_to_customer']}",
             f"  feedback_recorded   : {state['flags']['feedback_recorded']}",
             f"  closed              : {state['flags']['closed']}"
             + (
@@ -291,23 +408,68 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--ticket-id", required=True)
     parser.add_argument("--data-dir", default="data")
     parser.add_argument("--out-dir", default="data/working")
+    parser.add_argument("--workflow-run-id", default="")
+    parser.add_argument("--step-id", default="")
+    parser.add_argument(
+        "--mode",
+        choices=[MODE_LIVE, MODE_DEMO],
+        default=DEFAULT_MODE,
+        help=(
+            "live (default): only inspect data/working/. "
+            "demo: also include data/processed/ historical rows in the timeline."
+        ),
+    )
+    parser.add_argument("--json", dest="as_json", action="store_true")
     args = parser.parse_args(argv)
 
     data_dir = Path(args.data_dir).resolve()
     out_dir = Path(args.out_dir).resolve()
+    workflow_run_id = args.workflow_run_id or default_workflow_run_id()
+    read_workflow_run_id = workflow_run_id if args.workflow_run_id else None
+    step_id = args.step_id or default_step_id(SKILL_NAME)
 
     try:
-        history = load_ticket_history(data_dir, out_dir, args.ticket_id)
+        history = load_ticket_history(
+            data_dir,
+            out_dir,
+            args.ticket_id,
+            mode=args.mode,
+            workflow_run_id=read_workflow_run_id,
+        )
     except KeyError as exc:
-        print(f"error: {exc}", file=sys.stderr)
+        env = make_envelope(
+            status="error",
+            skill_name=SKILL_NAME,
+            workflow_run_id=workflow_run_id,
+            step_id=step_id,
+            ticket_id=args.ticket_id,
+            error={"code": "ticket_not_found", "message": str(exc)},
+        )
+        emit_envelope(env, as_json=args.as_json, text_summary=f"error: {exc}")
+        if not args.as_json:
+            print(f"error: {exc}", file=sys.stderr)
         return 2
     except FileNotFoundError as exc:
-        print(f"error: {exc}", file=sys.stderr)
+        env = make_envelope(
+            status="error",
+            skill_name=SKILL_NAME,
+            workflow_run_id=workflow_run_id,
+            step_id=step_id,
+            ticket_id=args.ticket_id,
+            error={"code": "missing_data", "message": str(exc)},
+        )
+        emit_envelope(env, as_json=args.as_json, text_summary=f"error: {exc}")
+        if not args.as_json:
+            print(f"error: {exc}", file=sys.stderr)
         return 2
 
     state = infer_current_state(history)
     report = build_audit_report(history, state)
-    print(report)
+    next_actions = list_valid_next_actions(state)
+    next_action_str = next_actions[0] if next_actions else ""
+    # Strip the "(when the customer replies)" suffix for orchestrator routing.
+    if " (" in next_action_str:
+        next_action_str = next_action_str.split(" (", 1)[0]
 
     append_action_log(
         out_dir,
@@ -315,20 +477,43 @@ def main(argv: list[str] | None = None) -> int:
             "ticket_id": args.ticket_id,
             "created_at": now_iso(),
             "skill_name": SKILL_NAME,
+            "workflow_run_id": workflow_run_id,
+            "step_id": step_id,
             "action": f"audit:{state['state']}",
             "inputs_used": pipe_join(
                 [
                     "raw/submitted_tickets.csv",
                     "raw/customers.csv",
                     "all working tables",
-                    "all processed tables",
+                    ("all processed tables" if args.mode == MODE_DEMO else "(processed tables omitted: live mode)"),
                 ]
             ),
-            "decision_summary": (f"state={state['state']}; next={'|'.join(list_valid_next_actions(state)) or 'none'}"),
+            "decision_summary": (f"state={state['state']}; next={'|'.join(next_actions) or 'none'}; mode={args.mode}"),
             "confidence_score": "",
+            "needs_human_review": "false",
             "notes": "",
         },
     )
+
+    env = make_envelope(
+        status=STATUS_OK,
+        skill_name=SKILL_NAME,
+        workflow_run_id=workflow_run_id,
+        step_id=step_id,
+        ticket_id=args.ticket_id,
+        next_action=next_action_str,
+        confidence=None,
+        review_required=False,
+        artifact_refs=["working/ticket_action_log.csv"],
+        outputs={
+            "state": state["state"],
+            "flags": state["flags"],
+            "valid_next_actions": next_actions,
+            "report": report,
+            "mode": args.mode,
+        },
+    )
+    emit_envelope(env, as_json=args.as_json, text_summary=report)
     return 0
 
 

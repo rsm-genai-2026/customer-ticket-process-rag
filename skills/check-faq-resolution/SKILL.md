@@ -1,6 +1,6 @@
 ---
 name: check-faq-resolution
-description: Decide whether a ticket can be resolved using an existing FAQ entry. Use after triage when the IT team needs to know whether to draft an FAQ-based response or escalate to a specialist. Reads the working triage decision (or falls back to the historical processed/ticket_triage.csv for synthetic examples) and scores active FAQ entries against the ticket.
+description: Decide whether a ticket can be resolved using an existing FAQ entry. Use after triage when the IT team needs to know whether to draft an FAQ-based response or escalate to a specialist. In live mode, reads the working triage decision for the current workflow run and scores active FAQ entries against the ticket.
 ---
 
 # Check FAQ resolution
@@ -17,11 +17,11 @@ Step 3 of the human ticketing workflow. The IT team has just triaged the ticket;
 
 Required upstream data:
 
-- A triage decision in `data/working/triage_decisions.csv` for this ticket. If absent, the script falls back to the historical row in `data/processed/ticket_triage.csv` so existing synthetic tickets still work for demos.
+- A triage decision in `data/working/triage_decisions.csv` for this ticket. In live mode this is required. Use `--mode demo` only when intentionally narrating seeded historical examples.
 
 ## How to use this skill
 
-1. **Confirm triage exists.** Either via `data/working/triage_decisions.csv` (preferred — produced by the `classify-prioritize-ticket` skill) or by a historical row in `data/processed/ticket_triage.csv`. If neither exists, stop and route the user to `classify-prioritize-ticket` first.
+1. **Confirm triage exists.** Use `data/working/triage_decisions.csv`, produced by the `classify-prioritize-ticket` skill. If absent, stop and route the user to `classify-prioritize-ticket` first.
 2. **Run** the script:
 
    ```bash

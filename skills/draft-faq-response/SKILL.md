@@ -33,10 +33,10 @@ Required upstream:
    - The drafted text (the same text appears as `sent_text` in the working CSV, lightly tightened).
    - The customer action and any follow-up request.
    - Any quality-check warnings (the script flags missing fields itself).
-4. **Next valid action:** wait for customer feedback, then run `verify-feedback-close-or-reopen` with the `--feedback-text` you receive.
+4. **Next valid action:** run `send-customer-response`. After the customer replies to the sent message, run `verify-feedback-close-or-reopen` with the `--feedback-text` you receive.
 
 ## Example
 
 > User: "Draft the FAQ reply for TKT-00042."
 
-If the FAQ decision is in good shape, run the script and read the printed draft. End with: "Next: send to the customer, then run verify-feedback-close-or-reopen."
+If the FAQ decision is in good shape, run the script and read the printed draft. End with: "Next: run send-customer-response."

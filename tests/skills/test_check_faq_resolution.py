@@ -53,9 +53,17 @@ def test_load_faq_context_uses_working_triage_first(tmp_path: Path) -> None:
 
 
 def test_load_faq_context_falls_back_to_processed(tmp_path: Path) -> None:
+    # Default function-level mode is "demo" to keep tutorial-style tests working.
     ctx = cfr.load_faq_context(DATA_DIR, tmp_path, "TKT-00042")
-    assert ctx["triage_source"] == "processed/ticket_triage.csv"
+    assert "processed/ticket_triage.csv" in ctx["triage_source"]
     assert ctx["triage"]["ticket_id"] == "TKT-00042"
+
+
+def test_load_faq_context_live_mode_refuses_processed_fallback(tmp_path: Path) -> None:
+    with pytest.raises(LookupError) as exc:
+        cfr.load_faq_context(DATA_DIR, tmp_path, "TKT-00042", mode="live")
+    assert "working/" in str(exc.value)
+    assert "--mode demo" in str(exc.value)
 
 
 def test_load_faq_context_no_triage_anywhere_raises(tmp_path: Path) -> None:
@@ -173,6 +181,8 @@ def test_decide_faq_applicability_match_but_missing_info_recommends_escalation()
 
 
 def test_main_happy_path_writes_faq_decision(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    # Live mode (default) requires a working triage row for the ticket.
+    _seed_triage(tmp_path, "TKT-00042", "login_access")
     rc = cfr.main(
         [
             "--ticket-id",
@@ -192,8 +202,43 @@ def test_main_happy_path_writes_faq_decision(tmp_path: Path, capsys: pytest.Capt
     assert "faq_match_found" in header
     assert "candidate_faq_ids" in header
     assert "search_terms" in header
+    assert "workflow_run_id" in header
     assert rows[1][header.index("ticket_id")] == "TKT-00042"
     assert "FAQ check for TKT-00042" in capsys.readouterr().out
+
+
+def test_main_demo_mode_falls_back_to_processed(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    # No working triage; demo mode should still work using processed/ data.
+    rc = cfr.main(
+        [
+            "--ticket-id",
+            "TKT-00042",
+            "--data-dir",
+            str(DATA_DIR),
+            "--out-dir",
+            str(tmp_path),
+            "--mode",
+            "demo",
+        ]
+    )
+    assert rc == 0
+    assert (tmp_path / "faq_decisions.csv").exists()
+
+
+def test_main_live_mode_refuses_processed_fallback(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    # No working triage in tmp_path → live mode must refuse with exit 3.
+    rc = cfr.main(
+        [
+            "--ticket-id",
+            "TKT-00042",
+            "--data-dir",
+            str(DATA_DIR),
+            "--out-dir",
+            str(tmp_path),
+        ]
+    )
+    assert rc == 3
+    assert "--mode demo" in capsys.readouterr().err
 
 
 def test_main_missing_triage_returns_3(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
@@ -270,9 +315,43 @@ def test_cli_runs_via_subprocess(tmp_path: Path) -> None:
             str(DATA_DIR),
             "--out-dir",
             str(tmp_path),
+            "--mode",
+            "demo",
         ],
         capture_output=True,
         text=True,
     )
     assert result.returncode == 0, result.stderr
     assert (tmp_path / "faq_decisions.csv").exists()
+
+
+def test_cli_emits_json_envelope(tmp_path: Path) -> None:
+    import json
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(_MODULE_PATH),
+            "--ticket-id",
+            "TKT-00042",
+            "--data-dir",
+            str(DATA_DIR),
+            "--out-dir",
+            str(tmp_path),
+            "--mode",
+            "demo",
+            "--json",
+            "--workflow-run-id",
+            "wf-cli",
+            "--step-id",
+            "step-cli",
+        ],
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, result.stderr
+    env = json.loads(result.stdout.strip())
+    assert env["status"] == "ok"
+    assert env["skill_name"] == "check-faq-resolution"
+    assert env["workflow_run_id"] == "wf-cli"
+    assert env["next_action"] in {"draft-faq-response", "escalate-to-specialist"}

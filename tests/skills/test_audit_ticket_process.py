@@ -232,14 +232,47 @@ def test_state_after_faq_no_match_recommends_escalate(tmp_path: Path) -> None:
     assert audit.list_valid_next_actions(state) == ["escalate-to-specialist"]
 
 
-def test_state_response_sent_recommends_verify_feedback(tmp_path: Path) -> None:
+def test_state_response_drafted_but_not_sent_recommends_send(tmp_path: Path) -> None:
+    """In live mode, a draft alone is not yet 'sent' — the next valid step is send-customer-response."""
     data = _isolated_data(tmp_path)
     out = tmp_path / "out"
     out.mkdir()
     _seed_triage(out)
     _seed_faq(out, match=True)
     _seed_response(out)
-    history = audit.load_ticket_history(data, out, "TKT-X")
+    history = audit.load_ticket_history(data, out, "TKT-X", mode="live")
+    state = audit.infer_current_state(history)
+    assert state["state"] == "response_drafted_awaiting_send"
+    assert audit.list_valid_next_actions(state) == ["send-customer-response"]
+
+
+def test_state_response_sent_recommends_verify_feedback(tmp_path: Path) -> None:
+    """Once a sent_messages row exists, audit recommends verify-feedback."""
+    data = _isolated_data(tmp_path)
+    out = tmp_path / "out"
+    out.mkdir()
+    _seed_triage(out)
+    _seed_faq(out, match=True)
+    _seed_response(out)
+    pl.DataFrame(
+        [
+            {
+                "delivery_id": "DEL-X",
+                "ticket_id": "TKT-X",
+                "message_id": "MSG-X",
+                "sent_at": "2026-04-30T09:50:00+00:00",
+                "channel": "email",
+                "recipient_email": "u@x",
+                "delivery_status": "delivered",
+                "skill_name": "send-customer-response",
+                "workflow_run_id": "wf-x",
+                "step_id": "step-x",
+                "inputs_used": "x",
+                "decision_summary": "x",
+            }
+        ]
+    ).write_csv(out / "sent_messages.csv")
+    history = audit.load_ticket_history(data, out, "TKT-X", mode="live")
     state = audit.infer_current_state(history)
     assert state["state"] == "response_sent_awaiting_customer"
     actions = audit.list_valid_next_actions(state)
@@ -284,9 +317,53 @@ def test_main_happy_path_writes_action_log(tmp_path: Path, capsys: pytest.Captur
     assert log.exists()
     with log.open() as f:
         rows = list(csv.reader(f))
-    assert rows[0][:4] == ["ticket_id", "created_at", "skill_name", "action"]
-    assert rows[1][2] == "audit-ticket-process"
-    assert rows[1][3].startswith("audit:")
+    header = rows[0]
+    data_row = dict(zip(header, rows[1]))
+    assert data_row["ticket_id"] == "TKT-X"
+    assert data_row["skill_name"] == "audit-ticket-process"
+    assert data_row["action"].startswith("audit:")
+    assert data_row["workflow_run_id"]
+    assert data_row["step_id"]
+
+
+def test_main_emits_json_envelope(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    import json
+
+    data = _isolated_data(tmp_path)
+    out = tmp_path / "out"
+    out.mkdir()
+    _seed_triage(out)
+    rc = audit.main(
+        [
+            "--ticket-id",
+            "TKT-X",
+            "--data-dir",
+            str(data),
+            "--out-dir",
+            str(out),
+            "--json",
+        ]
+    )
+    assert rc == 0
+    env = json.loads(capsys.readouterr().out.strip())
+    assert env["status"] == "ok"
+    assert env["skill_name"] == "audit-ticket-process"
+    assert env["next_action"] == "check-faq-resolution"
+    assert env["outputs"]["state"] == "triaged_awaiting_faq_check"
+    assert env["outputs"]["valid_next_actions"]
+
+
+def test_main_live_mode_does_not_use_processed_history(tmp_path: Path) -> None:
+    """In live mode the audit must not include rows from data/processed/."""
+    out = tmp_path / "out"
+    out.mkdir()
+    history_live = audit.load_ticket_history(DATA_DIR, out, "TKT-00042", mode="live")
+    history_demo = audit.load_ticket_history(DATA_DIR, out, "TKT-00042", mode="demo")
+    # In live mode every historical bucket is empty.
+    for bucket in history_live["historical"].values():
+        assert bucket == []
+    # In demo mode, the dataset's TKT-00042 rows surface.
+    assert any(history_demo["historical"][k] for k in history_demo["historical"])
 
 
 def test_main_against_real_data_for_existing_ticket(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:

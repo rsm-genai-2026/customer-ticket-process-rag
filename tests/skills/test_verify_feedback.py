@@ -28,6 +28,8 @@ def _seed_draft(out_dir: Path, ticket_id: str = SAMPLE_TICKET_ID) -> None:
                 "ticket_id": ticket_id,
                 "created_at": "2026-04-30T13:00:00+00:00",
                 "skill_name": "draft-faq-response",
+                "workflow_run_id": "wf-test",
+                "step_id": "step-draft",
                 "message_source": "faq",
                 "draft_text": "x",
                 "sent_text": "x",
@@ -41,6 +43,26 @@ def _seed_draft(out_dir: Path, ticket_id: str = SAMPLE_TICKET_ID) -> None:
             }
         ]
     ).write_csv(out_dir / "customer_response_drafts.csv")
+    pl.DataFrame(
+        [
+            {
+                "delivery_id": f"DEL-{ticket_id}-test",
+                "ticket_id": ticket_id,
+                "message_id": f"MSG-{ticket_id}-test",
+                "draft_skill_name": "draft-faq-response",
+                "message_source": "faq",
+                "channel": "email",
+                "recipient_email": "customer@example.com",
+                "sent_at": "2026-04-30T13:05:00+00:00",
+                "delivery_status": "delivered",
+                "skill_name": "send-customer-response",
+                "workflow_run_id": "wf-test",
+                "step_id": "step-send",
+                "inputs_used": "x",
+                "decision_summary": "x",
+            }
+        ]
+    ).write_csv(out_dir / "sent_messages.csv")
 
 
 def _seed_prior_feedback(out_dir: Path, ticket_id: str = SAMPLE_TICKET_ID, reopened: bool = True) -> None:

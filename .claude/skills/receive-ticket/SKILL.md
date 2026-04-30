@@ -1,0 +1,1 @@
+../../../skills/receive-ticket/SKILL.md

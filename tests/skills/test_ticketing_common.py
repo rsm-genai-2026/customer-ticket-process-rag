@@ -8,6 +8,9 @@ from __future__ import annotations
 
 import csv
 import importlib.util
+import json
+import threading
+import time
 from datetime import datetime
 from pathlib import Path
 
@@ -89,6 +92,29 @@ def test_latest_working_row_returns_most_recent(tmp_path: Path) -> None:
     assert row["value"] == "new"
 
 
+def test_latest_working_row_scopes_to_workflow_run(tmp_path: Path) -> None:
+    path = tmp_path / "triage_decisions.csv"
+    pl.DataFrame(
+        {
+            "ticket_id": ["TKT-00001", "TKT-00001"],
+            "workflow_run_id": ["wf-a", "wf-b"],
+            "created_at": [
+                "2026-04-01T10:00:00+00:00",
+                "2026-04-02T10:00:00+00:00",
+            ],
+            "value": ["from-a", "from-b"],
+        }
+    ).write_csv(path)
+    row = ticketing_common.latest_working_row(
+        tmp_path,
+        "triage_decisions",
+        "TKT-00001",
+        workflow_run_id="wf-a",
+    )
+    assert row is not None
+    assert row["value"] == "from-a"
+
+
 def test_latest_working_row_missing_file_returns_none(tmp_path: Path) -> None:
     assert ticketing_common.latest_working_row(tmp_path, "triage_decisions", "TKT-1") is None
 
@@ -145,6 +171,33 @@ def test_append_csv_row_writes_booleans_lowercase(tmp_path: Path) -> None:
     assert rows[1] == ["true", "false"]
 
 
+def test_replace_step_row_replaces_matching_step_without_duplicate(tmp_path: Path) -> None:
+    path = tmp_path / "out.csv"
+    ticketing_common.append_csv_row(
+        path,
+        {
+            "ticket_id": "TKT-1",
+            "workflow_run_id": "wf-1",
+            "step_id": "step-1",
+            "value": "old",
+        },
+    )
+    ticketing_common.replace_step_row(
+        path,
+        {
+            "ticket_id": "TKT-1",
+            "workflow_run_id": "wf-1",
+            "step_id": "step-1",
+            "value": "new",
+        },
+        workflow_run_id="wf-1",
+        step_id="step-1",
+    )
+    df = pl.read_csv(path)
+    assert df.height == 1
+    assert df.row(0, named=True)["value"] == "new"
+
+
 def test_append_action_log_normalises_columns(tmp_path: Path) -> None:
     ticketing_common.append_action_log(
         tmp_path,
@@ -171,3 +224,173 @@ def test_pipe_join_drops_empty_and_strips() -> None:
 
 def test_pipe_join_handles_all_empty() -> None:
     assert ticketing_common.pipe_join(["", None, "  "]) == ""
+
+
+# ---------------------------------------------------------------------------
+# New helpers added for orchestrated execution
+# ---------------------------------------------------------------------------
+
+
+def test_default_workflow_run_id_is_unique_per_call() -> None:
+    a = ticketing_common.default_workflow_run_id()
+    b = ticketing_common.default_workflow_run_id()
+    assert a.startswith("wf-")
+    assert b.startswith("wf-")
+    assert a != b
+
+
+def test_default_step_id_includes_skill_name() -> None:
+    out = ticketing_common.default_step_id("classify-prioritize-ticket")
+    assert out.startswith("classify-prioritize-ticket-")
+
+
+def test_find_step_row_returns_existing(tmp_path: Path) -> None:
+    path = tmp_path / "triage_decisions.csv"
+    pl.DataFrame(
+        [
+            {
+                "ticket_id": "TKT-1",
+                "workflow_run_id": "wf-1",
+                "step_id": "step-a",
+                "value": "first",
+            },
+            {
+                "ticket_id": "TKT-1",
+                "workflow_run_id": "wf-1",
+                "step_id": "step-b",
+                "value": "second",
+            },
+        ]
+    ).write_csv(path)
+    row = ticketing_common.find_step_row(tmp_path, "triage_decisions", "wf-1", "step-b")
+    assert row is not None
+    assert row["value"] == "second"
+
+
+def test_find_step_row_no_match_returns_none(tmp_path: Path) -> None:
+    path = tmp_path / "triage_decisions.csv"
+    pl.DataFrame(
+        [
+            {
+                "ticket_id": "TKT-1",
+                "workflow_run_id": "wf-1",
+                "step_id": "step-a",
+                "value": "x",
+            }
+        ]
+    ).write_csv(path)
+    assert ticketing_common.find_step_row(tmp_path, "triage_decisions", "wf-2", "step-a") is None
+
+
+def test_find_step_row_missing_file_returns_none(tmp_path: Path) -> None:
+    assert ticketing_common.find_step_row(tmp_path, "triage_decisions", "wf-1", "s-1") is None
+
+
+def test_find_step_row_no_id_columns_returns_none(tmp_path: Path) -> None:
+    """Old CSV files without workflow_run_id/step_id should not match."""
+    path = tmp_path / "triage_decisions.csv"
+    pl.DataFrame([{"ticket_id": "TKT-1", "value": "x"}]).write_csv(path)
+    assert ticketing_common.find_step_row(tmp_path, "triage_decisions", "wf-1", "s-1") is None
+
+
+def test_needs_human_review_below_threshold() -> None:
+    assert ticketing_common.needs_human_review(0.4) is True
+    assert ticketing_common.needs_human_review(0.7) is False
+    assert ticketing_common.needs_human_review("0.5") is True
+
+
+def test_needs_human_review_extra_overrides() -> None:
+    assert ticketing_common.needs_human_review(0.95, extra=True) is True
+
+
+def test_needs_human_review_blank_or_invalid_returns_false() -> None:
+    assert ticketing_common.needs_human_review(None) is False
+    assert ticketing_common.needs_human_review("") is False
+    assert ticketing_common.needs_human_review("not a number") is False
+
+
+def test_make_envelope_has_stable_shape() -> None:
+    env = ticketing_common.make_envelope(
+        status=ticketing_common.STATUS_OK,
+        skill_name="x",
+        workflow_run_id="wf-1",
+        step_id="s-1",
+        ticket_id="TKT-1",
+        next_action="next-skill",
+        confidence=0.9,
+        review_required=False,
+        artifact_refs=["working/triage_decisions.csv"],
+        outputs={"a": 1},
+    )
+    expected_keys = {
+        "status",
+        "skill_name",
+        "workflow_run_id",
+        "step_id",
+        "ticket_id",
+        "next_action",
+        "confidence",
+        "review_required",
+        "artifact_refs",
+        "outputs",
+        "error",
+    }
+    assert set(env.keys()) == expected_keys
+    assert env["confidence"] == 0.9
+    assert env["error"] is None
+
+
+def test_emit_envelope_json_is_one_line(capsys: pytest.CaptureFixture[str]) -> None:
+    env = ticketing_common.make_envelope(
+        status="ok",
+        skill_name="x",
+        workflow_run_id="wf",
+        step_id="s",
+        ticket_id="TKT-1",
+    )
+    ticketing_common.emit_envelope(env, as_json=True)
+    out = capsys.readouterr().out
+    assert "\n" not in out.strip()
+    parsed = json.loads(out)
+    assert parsed["status"] == "ok"
+    assert parsed["ticket_id"] == "TKT-1"
+
+
+def test_emit_envelope_text_uses_summary(capsys: pytest.CaptureFixture[str]) -> None:
+    env = ticketing_common.make_envelope(status="ok", skill_name="x", workflow_run_id="wf", step_id="s", ticket_id="t")
+    ticketing_common.emit_envelope(env, as_json=False, text_summary="HUMAN-FRIENDLY")
+    assert "HUMAN-FRIENDLY" in capsys.readouterr().out
+
+
+def test_working_lock_serialises_concurrent_writes(tmp_path: Path) -> None:
+    """Two threads appending in parallel must not interleave rows or
+    duplicate the header. With locking we expect exactly N+1 lines."""
+    path = tmp_path / "out.csv"
+    barrier = threading.Barrier(2)
+
+    def writer(value: int) -> None:
+        barrier.wait()
+        for i in range(20):
+            ticketing_common.append_csv_row(path, {"value": value, "i": i})
+            time.sleep(0)  # yield to encourage interleaving without locking
+
+    t1 = threading.Thread(target=writer, args=(1,))
+    t2 = threading.Thread(target=writer, args=(2,))
+    t1.start()
+    t2.start()
+    t1.join()
+    t2.join()
+
+    with path.open() as f:
+        lines = f.readlines()
+    assert len(lines) == 41  # 1 header + 40 rows
+    # Every data row must have exactly two fields — proves no interleaving.
+    for line in lines[1:]:
+        assert len(line.strip().split(",")) == 2
+
+
+def test_action_log_columns_include_workflow_metadata() -> None:
+    cols = ticketing_common.ACTION_LOG_COLUMNS
+    assert "workflow_run_id" in cols
+    assert "step_id" in cols
+    assert "needs_human_review" in cols

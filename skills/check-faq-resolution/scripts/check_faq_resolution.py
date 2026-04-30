@@ -2,8 +2,9 @@
 
 Deterministic logic:
 
-* Load the triage decision (working dir preferred; ``processed/ticket_triage.csv``
-  fallback for synthetic historical examples).
+* Load the triage decision. Live mode requires ``working/triage_decisions.csv``;
+  demo mode can fall back to ``processed/ticket_triage.csv`` for synthetic
+  historical examples.
 * Filter to active FAQ entries.
 * Score each FAQ:
     * +3 if FAQ category equals the ticket's assigned category.
@@ -36,12 +37,24 @@ if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
 from skills.ticketing_common.ticketing_common import (  # noqa: E402
+    DEFAULT_MODE,
+    MODE_DEMO,
+    MODE_LIVE,
+    STATUS_OK,
+    STATUS_SKIPPED,
     append_action_log,
     append_csv_row,
+    default_step_id,
+    default_workflow_run_id,
+    emit_envelope,
+    find_step_row,
     latest_working_row,
+    make_envelope,
+    needs_human_review,
     now_iso,
     pipe_join,
     read_csv,
+    replace_step_row,
     require_ticket,
 )
 
@@ -152,22 +165,40 @@ def _ticket_text(ticket: dict) -> str:
     )
 
 
-def load_faq_context(data_dir: Path, out_dir: Path, ticket_id: str) -> dict:
+def load_faq_context(
+    data_dir: Path,
+    out_dir: Path,
+    ticket_id: str,
+    *,
+    mode: str = MODE_DEMO,
+    workflow_run_id: str | None = None,
+) -> dict:
     """Return everything needed to make an FAQ decision.
 
     Loads the ticket, the FAQ knowledge base (active rows only), and the
-    triage decision. Triage is read first from ``data/working/`` so live
-    skill output is preferred; if absent, falls back to the historical
-    ``data/processed/ticket_triage.csv`` for synthetic examples. Raises
-    ``LookupError`` if neither source has a row for this ticket.
+    triage decision.
+
+    * ``mode="live"`` (production-safe choice; default of the CLI):
+      triage must come from ``data/working/triage_decisions.csv``. If
+      absent, ``LookupError`` is raised. The synthetic ``processed/``
+      tables are training data, not workflow state.
+    * ``mode="demo"`` (this function's default for back-compat with
+      tutorials and existing tests): if no working row exists, fall
+      back to ``data/processed/ticket_triage.csv``.
     """
 
     ticket = require_ticket(data_dir, ticket_id)
     faqs = read_csv(data_dir, "raw/faq_knowledge_base.csv").filter(pl.col("active_flag"))
 
-    triage = latest_working_row(out_dir, "triage_decisions", ticket_id)
+    triage = latest_working_row(out_dir, "triage_decisions", ticket_id, workflow_run_id=workflow_run_id)
     triage_source = "working/triage_decisions.csv"
     if triage is None:
+        if mode != MODE_DEMO:
+            raise LookupError(
+                f"no triage decision available for ticket {ticket_id} in working/. "
+                f"Run the classify-prioritize-ticket skill first, or pass --mode demo "
+                f"to fall back to processed/ticket_triage.csv."
+            )
         historical = read_csv(data_dir, "processed/ticket_triage.csv")
         rows = historical.filter(pl.col("ticket_id") == ticket_id).to_dicts()
         if not rows:
@@ -175,7 +206,7 @@ def load_faq_context(data_dir: Path, out_dir: Path, ticket_id: str) -> dict:
                 f"no triage decision available for ticket {ticket_id}. Run the classify-prioritize-ticket skill first."
             )
         triage = rows[0]
-        triage_source = "processed/ticket_triage.csv"
+        triage_source = "processed/ticket_triage.csv (demo fallback)"
 
     return {
         "ticket": ticket,
@@ -354,27 +385,108 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--ticket-id", required=True)
     parser.add_argument("--data-dir", default="data")
     parser.add_argument("--out-dir", default="data/working")
+    parser.add_argument("--workflow-run-id", default="")
+    parser.add_argument("--step-id", default="")
+    parser.add_argument("--mode", choices=[MODE_LIVE, MODE_DEMO], default=DEFAULT_MODE)
+    parser.add_argument("--json", dest="as_json", action="store_true")
+    parser.add_argument("--idempotency-mode", choices=["skip", "replace"], default="skip")
     args = parser.parse_args(argv)
 
     data_dir = Path(args.data_dir).resolve()
     out_dir = Path(args.out_dir).resolve()
+    workflow_run_id = args.workflow_run_id or default_workflow_run_id()
+    read_workflow_run_id = workflow_run_id if args.workflow_run_id else None
+    step_id = args.step_id or default_step_id(SKILL_NAME)
+
+    existing = find_step_row(out_dir, FAQ_DECISIONS_TABLE, workflow_run_id, step_id)
+    if existing and args.idempotency_mode == "skip":
+        env = make_envelope(
+            status=STATUS_SKIPPED,
+            skill_name=SKILL_NAME,
+            workflow_run_id=workflow_run_id,
+            step_id=step_id,
+            ticket_id=args.ticket_id,
+            next_action=existing.get("recommended_next_step", ""),
+            outputs={"existing_row": existing},
+            artifact_refs=[f"working/{FAQ_DECISIONS_TABLE}.csv"],
+        )
+        emit_envelope(
+            env,
+            as_json=args.as_json,
+            text_summary=(
+                f"faq decision already recorded for workflow_run_id={workflow_run_id} step_id={step_id} — skipping."
+            ),
+        )
+        return 0
 
     try:
-        context = load_faq_context(data_dir, out_dir, args.ticket_id)
+        context = load_faq_context(
+            data_dir,
+            out_dir,
+            args.ticket_id,
+            mode=args.mode,
+            workflow_run_id=read_workflow_run_id,
+        )
     except KeyError as exc:
-        print(f"error: {exc}", file=sys.stderr)
+        env = make_envelope(
+            status="error",
+            skill_name=SKILL_NAME,
+            workflow_run_id=workflow_run_id,
+            step_id=step_id,
+            ticket_id=args.ticket_id,
+            error={"code": "ticket_not_found", "message": str(exc)},
+        )
+        emit_envelope(env, as_json=args.as_json, text_summary=f"error: {exc}")
+        if not args.as_json:
+            print(f"error: {exc}", file=sys.stderr)
         return 2
     except LookupError as exc:
-        print(f"error: {exc}", file=sys.stderr)
+        env = make_envelope(
+            status="error",
+            skill_name=SKILL_NAME,
+            workflow_run_id=workflow_run_id,
+            step_id=step_id,
+            ticket_id=args.ticket_id,
+            next_action="classify-prioritize-ticket",
+            error={"code": "missing_upstream", "message": str(exc)},
+        )
+        emit_envelope(env, as_json=args.as_json, text_summary=f"error: {exc}")
+        if not args.as_json:
+            print(f"error: {exc}", file=sys.stderr)
         return 3
     except FileNotFoundError as exc:
-        print(f"error: {exc}", file=sys.stderr)
+        env = make_envelope(
+            status="error",
+            skill_name=SKILL_NAME,
+            workflow_run_id=workflow_run_id,
+            step_id=step_id,
+            ticket_id=args.ticket_id,
+            error={"code": "missing_data", "message": str(exc)},
+        )
+        emit_envelope(env, as_json=args.as_json, text_summary=f"error: {exc}")
+        if not args.as_json:
+            print(f"error: {exc}", file=sys.stderr)
         return 2
 
     row = build_faq_decision_row(context)
-    write_faq_decision(out_dir, row)
+    row["workflow_run_id"] = workflow_run_id
+    row["step_id"] = step_id
+    if args.idempotency_mode == "replace":
+        replace_step_row(
+            Path(out_dir) / f"{FAQ_DECISIONS_TABLE}.csv",
+            row,
+            workflow_run_id=workflow_run_id,
+            step_id=step_id,
+        )
+    else:
+        write_faq_decision(out_dir, row)
 
-    print(
+    review_required = needs_human_review(
+        row["match_confidence"],
+        extra=(row["faq_match_found"] and not row["required_customer_info_available"]),
+    )
+
+    text_summary = (
         f"FAQ check for {row['ticket_id']}:\n"
         f"  match found        : {row['faq_match_found']}\n"
         f"  matched FAQ        : {row['faq_id'] or '(none)'}\n"
@@ -382,6 +494,7 @@ def main(argv: list[str] | None = None) -> int:
         f"  required info ok?  : {row['required_customer_info_available']}\n"
         f"  candidates         : {row['candidate_faq_ids'] or '(none)'}\n"
         f"  reason             : {row['faq_application_reason']}\n"
+        f"  review required?   : {review_required}\n"
         f"\nNext valid action: {row['recommended_next_step']}."
     )
 
@@ -391,13 +504,38 @@ def main(argv: list[str] | None = None) -> int:
             "ticket_id": row["ticket_id"],
             "created_at": row["created_at"],
             "skill_name": SKILL_NAME,
+            "workflow_run_id": workflow_run_id,
+            "step_id": step_id,
             "action": "faq_decision",
             "inputs_used": row["inputs_used"],
             "decision_summary": row["decision_summary"],
             "confidence_score": row["match_confidence"],
-            "notes": "",
+            "needs_human_review": "true" if review_required else "false",
+            "notes": f"mode={args.mode}",
         },
     )
+
+    env = make_envelope(
+        status=STATUS_OK,
+        skill_name=SKILL_NAME,
+        workflow_run_id=workflow_run_id,
+        step_id=step_id,
+        ticket_id=row["ticket_id"],
+        next_action=row["recommended_next_step"],
+        confidence=row["match_confidence"],
+        review_required=review_required,
+        artifact_refs=[f"working/{FAQ_DECISIONS_TABLE}.csv"],
+        outputs={
+            "faq_match_found": row["faq_match_found"],
+            "faq_id": row["faq_id"],
+            "match_confidence": row["match_confidence"],
+            "search_terms": row["search_terms"],
+            "candidate_faq_ids": row["candidate_faq_ids"],
+            "required_customer_info_available": row["required_customer_info_available"],
+            "faq_application_reason": row["faq_application_reason"],
+        },
+    )
+    emit_envelope(env, as_json=args.as_json, text_summary=text_summary)
     return 0
 
 

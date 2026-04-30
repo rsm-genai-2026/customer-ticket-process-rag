@@ -26,20 +26,39 @@ if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
 from skills.ticketing_common.ticketing_common import (  # noqa: E402
+    DEFAULT_MODE,
+    MODE_DEMO,
+    MODE_LIVE,
+    STATUS_OK,
+    STATUS_SKIPPED,
     append_action_log,
     append_csv_row,
+    default_step_id,
+    default_workflow_run_id,
+    emit_envelope,
+    find_step_row,
     latest_working_row,
+    make_envelope,
+    needs_human_review,
     now_iso,
     pipe_join,
     read_csv,
+    replace_step_row,
     require_ticket,
 )
 
 SKILL_NAME = "draft-faq-response"
 DRAFTS_TABLE = "customer_response_drafts"
+NEXT_ACTION = "send-customer-response"
 
 
-def load_response_context(data_dir: Path, out_dir: Path, ticket_id: str) -> dict:
+def load_response_context(
+    data_dir: Path,
+    out_dir: Path,
+    ticket_id: str,
+    *,
+    workflow_run_id: str | None = None,
+) -> dict:
     """Return ticket + matched FAQ + the upstream FAQ decision.
 
     Raises ``LookupError`` with a clear stderr-friendly message if no
@@ -48,7 +67,7 @@ def load_response_context(data_dir: Path, out_dir: Path, ticket_id: str) -> dict
     """
 
     ticket = require_ticket(data_dir, ticket_id)
-    decision = latest_working_row(out_dir, "faq_decisions", ticket_id)
+    decision = latest_working_row(out_dir, "faq_decisions", ticket_id, workflow_run_id=workflow_run_id)
     if decision is None:
         raise LookupError(f"no FAQ decision found for ticket {ticket_id}. Run the check-faq-resolution skill first.")
     if str(decision.get("faq_match_found", "")).lower() != "true":
@@ -204,34 +223,108 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--ticket-id", required=True)
     parser.add_argument("--data-dir", default="data")
     parser.add_argument("--out-dir", default="data/working")
+    parser.add_argument("--workflow-run-id", default="")
+    parser.add_argument("--step-id", default="")
+    parser.add_argument("--mode", choices=[MODE_LIVE, MODE_DEMO], default=DEFAULT_MODE)
+    parser.add_argument("--json", dest="as_json", action="store_true")
+    parser.add_argument("--idempotency-mode", choices=["skip", "replace"], default="skip")
     args = parser.parse_args(argv)
 
     data_dir = Path(args.data_dir).resolve()
     out_dir = Path(args.out_dir).resolve()
+    workflow_run_id = args.workflow_run_id or default_workflow_run_id()
+    read_workflow_run_id = workflow_run_id if args.workflow_run_id else None
+    step_id = args.step_id or default_step_id(SKILL_NAME)
+
+    existing = find_step_row(out_dir, DRAFTS_TABLE, workflow_run_id, step_id)
+    if existing and args.idempotency_mode == "skip":
+        env = make_envelope(
+            status=STATUS_SKIPPED,
+            skill_name=SKILL_NAME,
+            workflow_run_id=workflow_run_id,
+            step_id=step_id,
+            ticket_id=args.ticket_id,
+            next_action=NEXT_ACTION,
+            outputs={"existing_row": existing},
+            artifact_refs=[f"working/{DRAFTS_TABLE}.csv"],
+        )
+        emit_envelope(
+            env,
+            as_json=args.as_json,
+            text_summary=(
+                f"FAQ-response draft already recorded for "
+                f"workflow_run_id={workflow_run_id} step_id={step_id} — skipping."
+            ),
+        )
+        return 0
 
     try:
-        context = load_response_context(data_dir, out_dir, args.ticket_id)
+        context = load_response_context(data_dir, out_dir, args.ticket_id, workflow_run_id=read_workflow_run_id)
     except KeyError as exc:
-        print(f"error: {exc}", file=sys.stderr)
+        env = make_envelope(
+            status="error",
+            skill_name=SKILL_NAME,
+            workflow_run_id=workflow_run_id,
+            step_id=step_id,
+            ticket_id=args.ticket_id,
+            error={"code": "ticket_not_found", "message": str(exc)},
+        )
+        emit_envelope(env, as_json=args.as_json, text_summary=f"error: {exc}")
+        if not args.as_json:
+            print(f"error: {exc}", file=sys.stderr)
         return 2
     except FileNotFoundError as exc:
-        print(f"error: {exc}", file=sys.stderr)
+        env = make_envelope(
+            status="error",
+            skill_name=SKILL_NAME,
+            workflow_run_id=workflow_run_id,
+            step_id=step_id,
+            ticket_id=args.ticket_id,
+            error={"code": "missing_data", "message": str(exc)},
+        )
+        emit_envelope(env, as_json=args.as_json, text_summary=f"error: {exc}")
+        if not args.as_json:
+            print(f"error: {exc}", file=sys.stderr)
         return 2
     except LookupError as exc:
-        print(f"error: {exc}", file=sys.stderr)
+        env = make_envelope(
+            status="error",
+            skill_name=SKILL_NAME,
+            workflow_run_id=workflow_run_id,
+            step_id=step_id,
+            ticket_id=args.ticket_id,
+            next_action="check-faq-resolution",
+            error={"code": "missing_upstream", "message": str(exc)},
+        )
+        emit_envelope(env, as_json=args.as_json, text_summary=f"error: {exc}")
+        if not args.as_json:
+            print(f"error: {exc}", file=sys.stderr)
         return 3
 
     row = build_response_row(context)
-    write_customer_response(out_dir, row)
+    row["workflow_run_id"] = workflow_run_id
+    row["step_id"] = step_id
+    if args.idempotency_mode == "replace":
+        replace_step_row(
+            Path(out_dir) / f"{DRAFTS_TABLE}.csv",
+            row,
+            workflow_run_id=workflow_run_id,
+            step_id=step_id,
+        )
+    else:
+        write_customer_response(out_dir, row)
 
-    print(
+    quality_ok = not row["quality_check_notes"]
+    review_required = needs_human_review(row["confidence_score"], extra=not quality_ok)
+
+    text_summary = (
         f"FAQ response drafted for {row['ticket_id']} (message_id={row['message_id']}):\n"
         f"  faq_id             : {context['faq']['faq_id']}\n"
-        f"  quality check ok?  : {not row['quality_check_notes']}\n"
+        f"  quality check ok?  : {quality_ok}\n"
+        f"  review required?   : {review_required}\n"
         f"  follow-up request  : {row['follow_up_request']}\n"
         f"\n--- draft ---\n{row['sent_text']}\n--- end draft ---\n"
-        f"\nNext valid action: send to customer, then run "
-        f"verify-feedback-close-or-reopen with the customer's reply."
+        f"\nNext valid action: {NEXT_ACTION}, then verify-feedback-close-or-reopen with the customer's reply."
     )
 
     append_action_log(
@@ -240,13 +333,37 @@ def main(argv: list[str] | None = None) -> int:
             "ticket_id": row["ticket_id"],
             "created_at": row["created_at"],
             "skill_name": SKILL_NAME,
+            "workflow_run_id": workflow_run_id,
+            "step_id": step_id,
             "action": "faq_response_drafted",
             "inputs_used": row["inputs_used"],
             "decision_summary": row["decision_summary"],
             "confidence_score": row["confidence_score"],
-            "notes": row["quality_check_notes"],
+            "needs_human_review": "true" if review_required else "false",
+            "notes": row["quality_check_notes"] or f"mode={args.mode}",
         },
     )
+
+    env = make_envelope(
+        status=STATUS_OK,
+        skill_name=SKILL_NAME,
+        workflow_run_id=workflow_run_id,
+        step_id=step_id,
+        ticket_id=row["ticket_id"],
+        next_action=NEXT_ACTION,
+        confidence=row["confidence_score"],
+        review_required=review_required,
+        artifact_refs=[f"working/{DRAFTS_TABLE}.csv"],
+        outputs={
+            "message_id": row["message_id"],
+            "message_source": row["message_source"],
+            "sent_text": row["sent_text"],
+            "customer_action_required": row["customer_action_required"],
+            "follow_up_request": row["follow_up_request"],
+            "quality_check_notes": row["quality_check_notes"],
+        },
+    )
+    emit_envelope(env, as_json=args.as_json, text_summary=text_summary)
     return 0
 
 

@@ -38,7 +38,7 @@ The script writes `data/working/faq_decisions.csv` and appends to `data/working/
 
 ## Public functions
 
-- `load_faq_context(data_dir, out_dir, ticket_id)` — loads ticket, active FAQs, and the latest triage decision (working preferred, processed fallback).
+- `load_faq_context(data_dir, out_dir, ticket_id)` — loads ticket, active FAQs, and the latest triage decision. Live mode requires working triage; demo mode can use processed fallback.
 - `build_search_terms(context)` — tokenized search terms used for ranking.
 - `rank_faq_candidates(context, faqs)` — scored polars DataFrame, sorted descending.
 - `decide_faq_applicability(context, ranked)` — match / no-match / weak-match decision.

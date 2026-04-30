@@ -1,0 +1,1 @@
+../../../skills/send-customer-response/SKILL.md

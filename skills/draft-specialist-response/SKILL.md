@@ -34,10 +34,10 @@ Required upstream:
    - The customer action and follow-up request.
    - Whether this is a post-rejection draft (acknowledges the earlier attempt).
    - Any quality-check warnings.
-4. **Next valid action:** wait for customer feedback, then run `verify-feedback-close-or-reopen` with the customer's reply via `--feedback-text`.
+4. **Next valid action:** run `send-customer-response`. After the customer replies to the sent message, run `verify-feedback-close-or-reopen` with the customer's reply via `--feedback-text`.
 
 ## Example
 
 > User: "Draft the specialist response for TKT-00042."
 
-If the specialist solution is in place, run the script. End with: "Next: send to the customer, then run verify-feedback-close-or-reopen."
+If the specialist solution is in place, run the script. End with: "Next: run send-customer-response."

@@ -32,17 +32,30 @@ if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
 from skills.ticketing_common.ticketing_common import (  # noqa: E402
+    DEFAULT_MODE,
+    MODE_DEMO,
+    MODE_LIVE,
+    STATUS_OK,
+    STATUS_SKIPPED,
     append_action_log,
     append_csv_row,
+    default_step_id,
+    default_workflow_run_id,
+    emit_envelope,
+    find_step_row,
     latest_working_row,
+    make_envelope,
+    needs_human_review,
     now_iso,
     pipe_join,
     read_csv,
+    replace_step_row,
     require_ticket,
 )
 
 SKILL_NAME = "escalate-to-specialist"
 ESCALATIONS_TABLE = "escalation_decisions"
+NEXT_ACTION = "investigate-specialist-solution"
 
 SENIORITY_RANK = {"junior": 0, "mid": 1, "senior": 2, "principal": 3}
 
@@ -84,10 +97,31 @@ CATEGORY_QUESTIONS: dict[str, str] = {
 }
 
 
-def _triage_for(data_dir: Path, out_dir: Path, ticket_id: str) -> dict:
-    triage = latest_working_row(out_dir, "triage_decisions", ticket_id)
+def _triage_for(
+    data_dir: Path,
+    out_dir: Path,
+    ticket_id: str,
+    *,
+    mode: str = MODE_DEMO,
+    workflow_run_id: str | None = None,
+) -> dict:
+    """Return the latest triage row for ``ticket_id``.
+
+    ``mode="live"`` (production-safe): only consult ``data/working/``.
+    Raises ``LookupError`` if no working row exists.
+
+    ``mode="demo"``: fall back to ``data/processed/ticket_triage.csv``
+    for tutorial use against the seeded dataset.
+    """
+
+    triage = latest_working_row(out_dir, "triage_decisions", ticket_id, workflow_run_id=workflow_run_id)
     if triage is not None:
         return triage
+    if mode != MODE_DEMO:
+        raise LookupError(
+            f"no triage decision available for ticket {ticket_id} in working/. "
+            f"Run classify-prioritize-ticket first, or pass --mode demo."
+        )
     historical = read_csv(data_dir, "processed/ticket_triage.csv")
     rows = historical.filter(pl.col("ticket_id") == ticket_id).to_dicts()
     if not rows:
@@ -115,17 +149,26 @@ def _determine_escalation_reason(faq_decision: dict | None, feedback_decision: d
     return ""
 
 
-def load_escalation_context(data_dir: Path, out_dir: Path, ticket_id: str) -> dict:
+def load_escalation_context(
+    data_dir: Path,
+    out_dir: Path,
+    ticket_id: str,
+    *,
+    mode: str = MODE_DEMO,
+    workflow_run_id: str | None = None,
+) -> dict:
     """Return ticket, specialists, triage, and the escalation trigger.
 
     Raises ``LookupError`` if no upstream signal authorizes an escalation.
+    ``mode`` controls whether the synthetic ``processed/`` tables are
+    accepted as a triage fallback (see ``_triage_for``).
     """
 
     ticket = require_ticket(data_dir, ticket_id)
     specialists = read_csv(data_dir, "raw/it_specialists.csv")
-    triage = _triage_for(data_dir, out_dir, ticket_id)
-    faq_decision = latest_working_row(out_dir, "faq_decisions", ticket_id)
-    feedback_decision = latest_working_row(out_dir, "feedback_decisions", ticket_id)
+    triage = _triage_for(data_dir, out_dir, ticket_id, mode=mode, workflow_run_id=workflow_run_id)
+    faq_decision = latest_working_row(out_dir, "faq_decisions", ticket_id, workflow_run_id=workflow_run_id)
+    feedback_decision = latest_working_row(out_dir, "feedback_decisions", ticket_id, workflow_run_id=workflow_run_id)
 
     reason = _determine_escalation_reason(faq_decision, feedback_decision)
     if not reason:
@@ -280,27 +323,105 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--ticket-id", required=True)
     parser.add_argument("--data-dir", default="data")
     parser.add_argument("--out-dir", default="data/working")
+    parser.add_argument("--workflow-run-id", default="")
+    parser.add_argument("--step-id", default="")
+    parser.add_argument("--mode", choices=[MODE_LIVE, MODE_DEMO], default=DEFAULT_MODE)
+    parser.add_argument("--json", dest="as_json", action="store_true")
+    parser.add_argument("--idempotency-mode", choices=["skip", "replace"], default="skip")
     args = parser.parse_args(argv)
 
     data_dir = Path(args.data_dir).resolve()
     out_dir = Path(args.out_dir).resolve()
+    workflow_run_id = args.workflow_run_id or default_workflow_run_id()
+    read_workflow_run_id = workflow_run_id if args.workflow_run_id else None
+    step_id = args.step_id or default_step_id(SKILL_NAME)
+
+    existing = find_step_row(out_dir, ESCALATIONS_TABLE, workflow_run_id, step_id)
+    if existing and args.idempotency_mode == "skip":
+        env = make_envelope(
+            status=STATUS_SKIPPED,
+            skill_name=SKILL_NAME,
+            workflow_run_id=workflow_run_id,
+            step_id=step_id,
+            ticket_id=args.ticket_id,
+            next_action=NEXT_ACTION,
+            outputs={"existing_row": existing},
+            artifact_refs=[f"working/{ESCALATIONS_TABLE}.csv"],
+        )
+        emit_envelope(
+            env,
+            as_json=args.as_json,
+            text_summary=(
+                f"escalation already recorded for workflow_run_id={workflow_run_id} step_id={step_id} — skipping."
+            ),
+        )
+        return 0
 
     try:
-        context = load_escalation_context(data_dir, out_dir, args.ticket_id)
+        context = load_escalation_context(
+            data_dir,
+            out_dir,
+            args.ticket_id,
+            mode=args.mode,
+            workflow_run_id=read_workflow_run_id,
+        )
     except KeyError as exc:
-        print(f"error: {exc}", file=sys.stderr)
+        env = make_envelope(
+            status="error",
+            skill_name=SKILL_NAME,
+            workflow_run_id=workflow_run_id,
+            step_id=step_id,
+            ticket_id=args.ticket_id,
+            error={"code": "ticket_not_found", "message": str(exc)},
+        )
+        emit_envelope(env, as_json=args.as_json, text_summary=f"error: {exc}")
+        if not args.as_json:
+            print(f"error: {exc}", file=sys.stderr)
         return 2
     except FileNotFoundError as exc:
-        print(f"error: {exc}", file=sys.stderr)
+        env = make_envelope(
+            status="error",
+            skill_name=SKILL_NAME,
+            workflow_run_id=workflow_run_id,
+            step_id=step_id,
+            ticket_id=args.ticket_id,
+            error={"code": "missing_data", "message": str(exc)},
+        )
+        emit_envelope(env, as_json=args.as_json, text_summary=f"error: {exc}")
+        if not args.as_json:
+            print(f"error: {exc}", file=sys.stderr)
         return 2
     except LookupError as exc:
-        print(f"error: {exc}", file=sys.stderr)
+        env = make_envelope(
+            status="error",
+            skill_name=SKILL_NAME,
+            workflow_run_id=workflow_run_id,
+            step_id=step_id,
+            ticket_id=args.ticket_id,
+            next_action="check-faq-resolution",
+            error={"code": "missing_upstream", "message": str(exc)},
+        )
+        emit_envelope(env, as_json=args.as_json, text_summary=f"error: {exc}")
+        if not args.as_json:
+            print(f"error: {exc}", file=sys.stderr)
         return 3
 
     row = build_escalation_row(context)
-    write_escalation_decision(out_dir, row)
+    row["workflow_run_id"] = workflow_run_id
+    row["step_id"] = step_id
+    if args.idempotency_mode == "replace":
+        replace_step_row(
+            Path(out_dir) / f"{ESCALATIONS_TABLE}.csv",
+            row,
+            workflow_run_id=workflow_run_id,
+            step_id=step_id,
+        )
+    else:
+        write_escalation_decision(out_dir, row)
 
-    print(
+    review_required = needs_human_review(None, extra=bool(row["missing_information_flag"]))
+
+    text_summary = (
         f"Escalation for {row['ticket_id']}:\n"
         f"  reason            : {row['escalation_reason']}\n"
         f"  requested group   : {row['requested_specialist_group']}\n"
@@ -312,7 +433,8 @@ def main(argv: list[str] | None = None) -> int:
         f"  handoff           : {row['handoff_summary']}\n"
         f"  specific question : {row['specific_question_for_specialist']}\n"
         f"  missing info?     : {row['missing_information_flag']}\n"
-        f"\nNext valid action: investigate-specialist-solution."
+        f"  review required?  : {review_required}\n"
+        f"\nNext valid action: {NEXT_ACTION}."
     )
 
     append_action_log(
@@ -321,13 +443,39 @@ def main(argv: list[str] | None = None) -> int:
             "ticket_id": row["ticket_id"],
             "created_at": row["created_at"],
             "skill_name": SKILL_NAME,
+            "workflow_run_id": workflow_run_id,
+            "step_id": step_id,
             "action": "ticket_escalated",
             "inputs_used": row["inputs_used"],
             "decision_summary": row["decision_summary"],
             "confidence_score": "",
-            "notes": ("missing_information=true" if row["missing_information_flag"] else ""),
+            "needs_human_review": "true" if review_required else "false",
+            "notes": ("missing_information=true" if row["missing_information_flag"] else f"mode={args.mode}"),
         },
     )
+
+    env = make_envelope(
+        status=STATUS_OK,
+        skill_name=SKILL_NAME,
+        workflow_run_id=workflow_run_id,
+        step_id=step_id,
+        ticket_id=row["ticket_id"],
+        next_action=NEXT_ACTION,
+        confidence=None,
+        review_required=review_required,
+        artifact_refs=[f"working/{ESCALATIONS_TABLE}.csv"],
+        outputs={
+            "specialist_id": row["specialist_id"],
+            "specialist_group": row["specialist_group"],
+            "specialist_seniority": row["specialist_seniority"],
+            "specialist_supports_affected_system": row["specialist_supports_affected_system"],
+            "escalation_reason": row["escalation_reason"],
+            "handoff_summary": row["handoff_summary"],
+            "specific_question_for_specialist": row["specific_question_for_specialist"],
+            "missing_information_flag": row["missing_information_flag"],
+        },
+    )
+    emit_envelope(env, as_json=args.as_json, text_summary=text_summary)
     return 0
 
 

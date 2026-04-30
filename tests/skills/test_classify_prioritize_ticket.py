@@ -159,3 +159,83 @@ def test_main_missing_ticket_returns_nonzero(tmp_path: Path, capsys: pytest.Capt
     assert rc == 2
     assert "TKT-99999" in capsys.readouterr().err
     assert not (tmp_path / "triage_decisions.csv").exists()
+
+
+def test_main_json_envelope(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    import json
+
+    rc = cpt.main(
+        [
+            "--ticket-id",
+            "TKT-00042",
+            "--data-dir",
+            str(DATA_DIR),
+            "--out-dir",
+            str(tmp_path),
+            "--workflow-run-id",
+            "wf-cpt-1",
+            "--step-id",
+            "step-cpt-1",
+            "--json",
+        ]
+    )
+    assert rc == 0
+    env = json.loads(capsys.readouterr().out.strip())
+    assert env["status"] == "ok"
+    assert env["skill_name"] == "classify-prioritize-ticket"
+    assert env["workflow_run_id"] == "wf-cpt-1"
+    assert env["step_id"] == "step-cpt-1"
+    assert env["next_action"] == "check-faq-resolution"
+    assert env["outputs"]["assigned_priority"] in {"low", "medium", "high", "urgent"}
+    assert env["confidence"] is not None
+    assert isinstance(env["review_required"], bool)
+
+
+def test_main_idempotent_skip(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    import json
+
+    args = [
+        "--ticket-id",
+        "TKT-00042",
+        "--data-dir",
+        str(DATA_DIR),
+        "--out-dir",
+        str(tmp_path),
+        "--workflow-run-id",
+        "wf-1",
+        "--step-id",
+        "step-1",
+        "--json",
+    ]
+    assert cpt.main(args) == 0
+    capsys.readouterr()
+    assert cpt.main(args) == 0
+    env = json.loads(capsys.readouterr().out.strip())
+    assert env["status"] == "skipped"
+    # File still has only one data row.
+    df = pl.read_csv(tmp_path / "triage_decisions.csv")
+    assert df.height == 1
+
+
+def test_main_writes_workflow_metadata_columns(tmp_path: Path) -> None:
+    rc = cpt.main(
+        [
+            "--ticket-id",
+            "TKT-00042",
+            "--data-dir",
+            str(DATA_DIR),
+            "--out-dir",
+            str(tmp_path),
+            "--workflow-run-id",
+            "wf-meta",
+            "--step-id",
+            "step-meta",
+        ]
+    )
+    assert rc == 0
+    df = pl.read_csv(tmp_path / "triage_decisions.csv")
+    assert "workflow_run_id" in df.columns
+    assert "step_id" in df.columns
+    row = df.to_dicts()[0]
+    assert row["workflow_run_id"] == "wf-meta"
+    assert row["step_id"] == "step-meta"

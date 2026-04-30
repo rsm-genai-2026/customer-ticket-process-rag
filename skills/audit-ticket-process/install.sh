@@ -8,8 +8,8 @@ REPO_ROOT="$(cd "$SRC_DIR/../.." && pwd)"
 DEST_DIR="$REPO_ROOT/.claude/skills/audit-ticket-process"
 
 mkdir -p "$DEST_DIR"
-cp "$SRC_DIR/SKILL.md" "$DEST_DIR/SKILL.md"
-cp -r "$SRC_DIR/scripts" "$DEST_DIR/scripts"
+ln -sfn ../../../skills/audit-ticket-process/SKILL.md "$DEST_DIR/SKILL.md"
+ln -sfn ../../../skills/audit-ticket-process/scripts "$DEST_DIR/scripts"
 
-echo "Installed audit-ticket-process → $DEST_DIR"
+echo "Linked audit-ticket-process → $DEST_DIR"
 echo "Restart Claude Code (or start a new session) to activate the skill."

@@ -24,17 +24,30 @@ if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
 from skills.ticketing_common.ticketing_common import (  # noqa: E402
+    DEFAULT_MODE,
+    MODE_DEMO,
+    MODE_LIVE,
+    STATUS_OK,
+    STATUS_SKIPPED,
     append_action_log,
     append_csv_row,
+    default_step_id,
+    default_workflow_run_id,
+    emit_envelope,
+    find_step_row,
     latest_working_row,
+    make_envelope,
+    needs_human_review,
     now_iso,
     pipe_join,
     read_csv,
+    replace_step_row,
     require_ticket,
 )
 
 SKILL_NAME = "investigate-specialist-solution"
 SOLUTIONS_TABLE = "specialist_solutions"
+NEXT_ACTION = "draft-specialist-response"
 
 CATEGORY_TEMPLATES: dict[str, dict[str, object]] = {
     "login_access": {
@@ -186,7 +199,13 @@ CATEGORY_TEMPLATES: dict[str, dict[str, object]] = {
 }
 
 
-def load_investigation_context(data_dir: Path, out_dir: Path, ticket_id: str) -> dict:
+def load_investigation_context(
+    data_dir: Path,
+    out_dir: Path,
+    ticket_id: str,
+    *,
+    workflow_run_id: str | None = None,
+) -> dict:
     """Return ticket, escalation, specialist details, and dictionaries.
 
     Raises ``LookupError`` if no escalation exists for this ticket or
@@ -194,7 +213,7 @@ def load_investigation_context(data_dir: Path, out_dir: Path, ticket_id: str) ->
     """
 
     ticket = require_ticket(data_dir, ticket_id)
-    escalation = latest_working_row(out_dir, "escalation_decisions", ticket_id)
+    escalation = latest_working_row(out_dir, "escalation_decisions", ticket_id, workflow_run_id=workflow_run_id)
     if escalation is None:
         raise LookupError(f"no escalation found for ticket {ticket_id}. Run the escalate-to-specialist skill first.")
     specialists = read_csv(data_dir, "raw/it_specialists.csv")
@@ -222,6 +241,7 @@ def _category_for(context: dict) -> str:
         Path(context.get("_out_dir", ".")),
         "triage_decisions",
         context["ticket"]["ticket_id"],
+        workflow_run_id=context.get("_workflow_run_id"),
     )
     if triage:
         return triage.get("assigned_category", "other") or "other"
@@ -317,29 +337,103 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--ticket-id", required=True)
     parser.add_argument("--data-dir", default="data")
     parser.add_argument("--out-dir", default="data/working")
+    parser.add_argument("--workflow-run-id", default="")
+    parser.add_argument("--step-id", default="")
+    parser.add_argument("--mode", choices=[MODE_LIVE, MODE_DEMO], default=DEFAULT_MODE)
+    parser.add_argument("--json", dest="as_json", action="store_true")
+    parser.add_argument("--idempotency-mode", choices=["skip", "replace"], default="skip")
     args = parser.parse_args(argv)
 
     data_dir = Path(args.data_dir).resolve()
     out_dir = Path(args.out_dir).resolve()
+    workflow_run_id = args.workflow_run_id or default_workflow_run_id()
+    read_workflow_run_id = workflow_run_id if args.workflow_run_id else None
+    step_id = args.step_id or default_step_id(SKILL_NAME)
+
+    existing = find_step_row(out_dir, SOLUTIONS_TABLE, workflow_run_id, step_id)
+    if existing and args.idempotency_mode == "skip":
+        env = make_envelope(
+            status=STATUS_SKIPPED,
+            skill_name=SKILL_NAME,
+            workflow_run_id=workflow_run_id,
+            step_id=step_id,
+            ticket_id=args.ticket_id,
+            next_action=NEXT_ACTION,
+            outputs={"existing_row": existing},
+            artifact_refs=[f"working/{SOLUTIONS_TABLE}.csv"],
+        )
+        emit_envelope(
+            env,
+            as_json=args.as_json,
+            text_summary=(
+                f"specialist solution already recorded for "
+                f"workflow_run_id={workflow_run_id} step_id={step_id} — skipping."
+            ),
+        )
+        return 0
 
     try:
-        context = load_investigation_context(data_dir, out_dir, args.ticket_id)
+        context = load_investigation_context(data_dir, out_dir, args.ticket_id, workflow_run_id=read_workflow_run_id)
     except KeyError as exc:
-        print(f"error: {exc}", file=sys.stderr)
+        env = make_envelope(
+            status="error",
+            skill_name=SKILL_NAME,
+            workflow_run_id=workflow_run_id,
+            step_id=step_id,
+            ticket_id=args.ticket_id,
+            error={"code": "ticket_not_found", "message": str(exc)},
+        )
+        emit_envelope(env, as_json=args.as_json, text_summary=f"error: {exc}")
+        if not args.as_json:
+            print(f"error: {exc}", file=sys.stderr)
         return 2
     except FileNotFoundError as exc:
-        print(f"error: {exc}", file=sys.stderr)
+        env = make_envelope(
+            status="error",
+            skill_name=SKILL_NAME,
+            workflow_run_id=workflow_run_id,
+            step_id=step_id,
+            ticket_id=args.ticket_id,
+            error={"code": "missing_data", "message": str(exc)},
+        )
+        emit_envelope(env, as_json=args.as_json, text_summary=f"error: {exc}")
+        if not args.as_json:
+            print(f"error: {exc}", file=sys.stderr)
         return 2
     except LookupError as exc:
-        print(f"error: {exc}", file=sys.stderr)
+        env = make_envelope(
+            status="error",
+            skill_name=SKILL_NAME,
+            workflow_run_id=workflow_run_id,
+            step_id=step_id,
+            ticket_id=args.ticket_id,
+            next_action="escalate-to-specialist",
+            error={"code": "missing_upstream", "message": str(exc)},
+        )
+        emit_envelope(env, as_json=args.as_json, text_summary=f"error: {exc}")
+        if not args.as_json:
+            print(f"error: {exc}", file=sys.stderr)
         return 3
 
     context["_out_dir"] = str(out_dir)
+    context["_workflow_run_id"] = read_workflow_run_id
     context["category"] = _category_for(context)
     row = build_solution_row(context)
-    write_specialist_solution(out_dir, row)
+    row["workflow_run_id"] = workflow_run_id
+    row["step_id"] = step_id
+    if args.idempotency_mode == "replace":
+        replace_step_row(
+            Path(out_dir) / f"{SOLUTIONS_TABLE}.csv",
+            row,
+            workflow_run_id=workflow_run_id,
+            step_id=step_id,
+        )
+    else:
+        write_specialist_solution(out_dir, row)
 
-    print(
+    review_required = needs_human_review(row["confidence_score"], extra=bool(row["requires_follow_up_flag"]))
+
+    text_summary = (
         f"Specialist solution for {row['ticket_id']}:\n"
         f"  specialist        : {row['specialist_id']} ({row['specialist_name']})\n"
         f"  category          : {context['category']}\n"
@@ -350,7 +444,8 @@ def main(argv: list[str] | None = None) -> int:
         f"  customer action   : {row['customer_action_required']}\n"
         f"  follow-up needed? : {row['requires_follow_up_flag']}\n"
         f"  confidence        : {row['confidence_score']}\n"
-        f"\nNext valid action: draft-specialist-response."
+        f"  review required?  : {review_required}\n"
+        f"\nNext valid action: {NEXT_ACTION}."
     )
 
     append_action_log(
@@ -359,13 +454,39 @@ def main(argv: list[str] | None = None) -> int:
             "ticket_id": row["ticket_id"],
             "created_at": row["created_at"],
             "skill_name": SKILL_NAME,
+            "workflow_run_id": workflow_run_id,
+            "step_id": step_id,
             "action": "specialist_solution_created",
             "inputs_used": row["inputs_used"],
             "decision_summary": row["decision_summary"],
             "confidence_score": row["confidence_score"],
+            "needs_human_review": "true" if review_required else "false",
             "notes": row["specialist_notes"],
         },
     )
+
+    env = make_envelope(
+        status=STATUS_OK,
+        skill_name=SKILL_NAME,
+        workflow_run_id=workflow_run_id,
+        step_id=step_id,
+        ticket_id=row["ticket_id"],
+        next_action=NEXT_ACTION,
+        confidence=row["confidence_score"],
+        review_required=review_required,
+        artifact_refs=[f"working/{SOLUTIONS_TABLE}.csv"],
+        outputs={
+            "specialist_id": row["specialist_id"],
+            "category": context["category"],
+            "root_cause": row["root_cause"],
+            "diagnostic_steps": row["diagnostic_steps"],
+            "evidence_reviewed": row["evidence_reviewed"],
+            "solution_summary": row["solution_summary"],
+            "customer_action_required": row["customer_action_required"],
+            "requires_follow_up_flag": row["requires_follow_up_flag"],
+        },
+    )
+    emit_envelope(env, as_json=args.as_json, text_summary=text_summary)
     return 0
 
 

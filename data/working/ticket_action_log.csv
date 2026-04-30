@@ -1,0 +1,2 @@
+ticket_id,created_at,skill_name,action,inputs_used,decision_summary,confidence_score,notes
+TKT-00042,2026-04-30T07:44:31+00:00,receive-ticket,intake_summary,raw/submitted_tickets.csv|raw/customers.csv,received via email; urgency=medium; system=Identity Provider,,

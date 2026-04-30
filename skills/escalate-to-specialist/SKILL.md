@@ -17,7 +17,7 @@ Step 6 of the human ticketing workflow. The IT team can no longer self-serve and
 
 Required upstream:
 
-- `data/working/triage_decisions.csv` (preferred) or `data/processed/ticket_triage.csv` — for `recommended_specialist_group`.
+- `data/working/triage_decisions.csv` — for `recommended_specialist_group`. In live mode, this must come from the current workflow run.
 - `data/working/faq_decisions.csv` (preferred for first-time escalations) — to confirm the FAQ check refused the ticket.
 - `data/working/feedback_decisions.csv` — when this is a re-escalation after a rejected resolution (`reopened_flag=true`).
 
