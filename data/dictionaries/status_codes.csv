@@ -1,0 +1,11 @@
+status,description,terminal_flag
+submitted,Ticket has been submitted by the user but not yet picked up.,false
+triaged,IT team member has classified and prioritized the ticket.,false
+faq_checked,IT team member has checked the FAQ knowledge base.,false
+response_sent,An FAQ-based or specialist-based response has been sent to the customer.,false
+escalated,Ticket has been forwarded to an IT specialist.,false
+specialist_review,IT specialist is investigating the issue.,false
+specialist_solution_created,IT specialist has provided a solution back to IT team.,false
+customer_replied,Customer has replied to the IT team's resolution message.,false
+reopened,"Ticket was rejected, verified, and routed back for further review.",false
+closed,Ticket is closed and feedback recorded.,true

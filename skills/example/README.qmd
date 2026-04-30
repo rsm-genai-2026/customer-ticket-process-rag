@@ -1,0 +1,96 @@
+# Example skill — Customer Lifetime Value (CLV)
+
+A Claude Code **skill**. Tell Claude about a customer ("paying $24/month, 5% churn, …"); Claude gathers any missing details, runs the CLV calculator, and (optionally) has an LLM write a short narrative of the result.
+
+> Note: Install the [`skill-creator`](https://claude.com/plugins/skill-creator) plugin in Claude Desktop to create and edit skills through the UI. Click on Customize in Claude Desktop and click the "+" sign next to "Personal plugins". After installation, read the first few paragraphs of SKILL.md how the skill-creator skill works.
+
+## Layout
+
+```
+skills/example/
+├── SKILL.md           # the skill — frontmatter + instructions Claude reads
+├── scripts/
+│   └── clv_skill.py   # pure-Python CLV math + small CLI
+├── install.sh         # copies this skill into .claude/skills/ to activate it
+└── README.qmd         # this file (human-facing docs)
+```
+
+`SKILL.md` is what makes this a skill. Its YAML frontmatter (`name`, `description`) tells Claude *when* to use it; the body tells Claude *how*. The Python file has **no LLM orchestration** — no tool schema, no langchain. Claude does the orchestration itself, per the SKILL.md instructions, and just calls the CLI.
+
+## Activate it
+
+Skills only take effect once they live under `.claude/skills/`:
+
+```bash
+bash skills/example/install.sh
+```
+
+That copies `SKILL.md` and `scripts/` into `.claude/skills/clv-example/`. Restart Claude Code (or open a new session) for it to pick up the skill.
+
+To uninstall: `rm -rf .claude/skills/clv-example`.
+
+## Using it through Claude
+
+Once installed, just describe the customer:
+
+> "What's the lifetime value of a SaaS customer paying $24/month? Churn is 5%, discount rate 1%, over 36 months. They pay up front and churn at end of month."
+
+Claude will notice any missing inputs (here, `service_cost` and `transaction_frequency`), ask for them, and then run the calculator.
+
+## Running the script directly
+
+Pure math — no API key needed:
+
+```bash
+source .venv/bin/activate && uv run python skills/example/scripts/clv_skill.py \
+    --monthly-revenue 23.99 --service-cost 2 --transaction-frequency 6.1 \
+    --churn-rate 0.0558 --discount-rate 0.008 --time-horizon 60 \
+    --churn-assumption optimistic --discount-assumption optimistic
+```
+
+To also get an LLM-written narrative of the result, add `--model`. The script uses `utils.connect.ask` under the hood so any TritonAI-supported model works:
+
+```bash
+# cheap Llama
+... --model api-llama-4-scout
+
+# higher-quality Claude Opus
+... --model claude-opus-4-6-v1
+```
+
+Requires `TRITONAI_API_KEY` in `.env` (see `.env.example`).
+
+## Using the math function from Python
+
+```python
+from skills.example.scripts.clv_skill import calculate_clv
+
+clv = calculate_clv(
+    monthly_revenue=23.99,
+    service_cost=2.0,
+    transaction_frequency=6.1,
+    churn_rate=0.0558,
+    discount_rate=0.008,
+    time_horizon=60,
+    churn_assumption="optimistic",      # churn at end of month
+    discount_assumption="optimistic",   # paid at start of month
+)
+print(clv)
+```
+
+### What the two assumptions mean
+
+- `churn_assumption`:
+  - `"optimistic"` — a churning customer still pays for the current month.
+  - `"pessimistic"` — they leave before paying this month.
+- `discount_assumption`:
+  - `"optimistic"` — payment up front, no discount applied to month 0.
+  - `"pessimistic"` — payment at end of month, every month is discounted.
+
+## Running the tests
+
+```bash
+uv run pytest tests/skills/test_clv_skill.py -v
+```
+
+Tests cover `calculate_clv` (the math) and the CLI's basic output. The LLM narration path is not tested — it needs a live API key.

@@ -1,0 +1,55 @@
+---
+title: "audit-ticket-process skill"
+format: gfm
+---
+
+The diagnostic skill: tells you what's happened on a ticket, what hasn't, and what the next valid action is. Useful at any point in the workflow.
+
+## Layout
+
+```text
+skills/audit-ticket-process/
+├── SKILL.md
+├── README.qmd
+├── install.sh
+└── scripts/
+    └── audit_ticket_process.py
+```
+
+## Install
+
+```bash
+bash skills/audit-ticket-process/install.sh
+```
+
+## Usage through Claude
+
+> "Where are we on TKT-00042?"
+
+Claude reads `SKILL.md`, runs the script, and reports the state + recommended next skill.
+
+## Direct CLI
+
+```bash
+uv run python skills/audit-ticket-process/scripts/audit_ticket_process.py --ticket-id TKT-00042
+```
+
+The script prints a state, a chronological timeline, workflow flags, and the recommended next action. It also appends an audit row to `data/working/ticket_action_log.csv`.
+
+## Public functions
+
+- `load_ticket_history(data_dir, out_dir, ticket_id)` — pulls every relevant row across raw, processed, and working CSVs.
+- `infer_current_state(history)` — returns `{state, flags}`. State is one of `submitted_awaiting_triage`, `triaged_awaiting_faq_check`, `faq_checked_awaiting_decision`, `escalated_awaiting_specialist`, `specialist_solution_ready_for_relay`, `response_sent_awaiting_customer`, `feedback_recorded_action_pending`, `closed`.
+- `list_valid_next_actions(state)` — maps state → recommended skill name(s).
+- `build_audit_report(history, state)` — full printable report.
+- `main(argv)` — CLI. Exits 2 on missing ticket / data, 0 on success regardless of the state (audit always succeeds when the ticket exists).
+
+## Working vs historical
+
+Working data (`data/working/*.csv`) is the live skill output. Processed data (`data/processed/*.csv`) is the synthetic historical log. The audit prefers working rows when picking the current state but always shows historical rows in the timeline as `(historical)` so demos against pre-existing tickets still tell a complete story.
+
+## Test
+
+```bash
+uv run pytest tests/skills/test_audit_ticket_process.py -v
+```

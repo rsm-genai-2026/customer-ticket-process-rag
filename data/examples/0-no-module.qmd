@@ -1,0 +1,13 @@
+---
+jupyter: python3
+---
+
+```{python}
+def add(a, b):
+    return a + b
+```
+
+```{python}
+add(1, 2)
+```
+

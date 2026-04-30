@@ -1,0 +1,20 @@
+---
+jupyter: python3
+---
+
+```{python}
+add(1, 2)
+```
+
+```{python}
+import sys
+
+# adding the directory with the connection code to the system path
+# so that we can import it
+sys.path.append("./xyz/")
+from example_module import add
+```
+
+```{python}
+add(5, 3)
+```

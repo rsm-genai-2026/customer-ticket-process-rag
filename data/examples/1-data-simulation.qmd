@@ -1,0 +1,218 @@
+---
+title: Data Simulation Building Blocks
+jupyter: python3
+---
+
+This file walks through some building blocks you can use to simulate realistic business data for your project:
+
+1. Basic random number generation
+2. Common probability distributions
+3. Correlated variables
+4. Categorical variables
+5. Generating text with an LLM
+6. Putting it all together — a small e-commerce dataset
+
+We use **numpy** for simulation and **polars** for tabular data. LLM calls go through `utils.connect.ask` which makes it a bit easier to switch between different language model providers. The default below is set to
+
+
+```{python}
+# ── config ────────────────────────────────────────────────────────────────
+# Change this one line to swap models. Every other cell uses MODEL.
+# MODEL = "api-llama-4-scout"
+MODEL = "oauth-gpt"
+# Other options (see utils/connect.py for the authoritative lists):
+# Cheap: "api-llama-4-scout", "gemini-3-flash", "api-gpt-oss-120b"
+# Expensive: "gpt-5.4", "gemini-3-pro-preview", "claude-opus-4-6-v1"
+# Run `from utils.connect import list_models; list_models()` for the live list.
+# ──────────────────────────────────────────────────────────────────────────
+import sys
+sys.path.append("../..") # make `utils.connect` importable
+
+import numpy as np
+import polars as pl
+from dotenv import load_dotenv
+
+from utils.connect import ask, ask_json, md
+
+load_dotenv()
+np.random.seed(1234)
+```
+
+## 1. Basic random number generation
+
+```{python}
+n_samples = 1000
+uniform_data = np.random.uniform(0, 1, n_samples)
+normal_data = np.random.normal(loc=0, scale=1, size=n_samples)
+```
+
+```{python}
+# Fixed-category Enum keeps "Uniform" before "Normal" in summaries
+DistEnum = pl.Enum(["Uniform", "Normal"])
+
+df_basic = pl.DataFrame(
+    {
+        "value": np.concatenate([uniform_data, normal_data]),
+        "distribution": pl.Series(
+            ["Uniform"] * n_samples + ["Normal"] * n_samples
+        ).cast(DistEnum),
+    }
+)
+
+df_basic.group_by("distribution").agg(
+    mean=pl.col("value").mean(),
+    std=pl.col("value").std(),
+    min=pl.col("value").min(),
+    max=pl.col("value").max(),
+    n=pl.len(),
+).sort("distribution")
+```
+
+## 2. Common probability distributions
+
+Many business phenomena follow specific distributions — income is often lognormal, wait times are exponential, and counts of events (orders per hour, complaints per day) are Poisson.
+
+```{python}
+lognormal_data = np.random.lognormal(mean=0, sigma=1, size=n_samples)
+exponential_data = np.random.exponential(scale=1, size=n_samples)
+poisson_data = np.random.poisson(lam=5, size=n_samples)
+
+# Enum preserves the facet/legend order we want
+DistroEnum = pl.Enum(["Lognormal", "Exponential", "Poisson"])
+
+df_dist = pl.concat(
+    [
+        pl.DataFrame({"value": lognormal_data,          "distribution": ["Lognormal"] * n_samples}),
+        pl.DataFrame({"value": exponential_data,        "distribution": ["Exponential"] * n_samples}),
+        pl.DataFrame({"value": poisson_data.astype(float), "distribution": ["Poisson"] * n_samples}),
+    ]
+).with_columns(pl.col("distribution").cast(DistroEnum))
+
+df_dist.group_by("distribution").agg(
+    mean=pl.col("value").mean(),
+    std=pl.col("value").std(),
+    p90=pl.col("value").quantile(0.90),
+    n=pl.len(),
+).sort("distribution")
+```
+
+## 3. Creating correlated data
+
+```{python}
+mean = [0.0, 0.0]
+cov = [[1.0, 0.7], [0.7, 1.0]]  # correlation = 0.7
+
+corr_data = np.random.multivariate_normal(mean, cov, n_samples)
+
+df_corr = pl.DataFrame({"x": corr_data[:, 0], "y": corr_data[:, 1]})
+
+print(f"Empirical correlation: {np.corrcoef(corr_data[:, 0], corr_data[:, 1])[0, 1]:.3f}")
+print(f"Empirical std dev: {np.std(corr_data[:, 0]):.3f}, {np.std(corr_data[:, 1]):.3f}")
+
+df_corr.head()
+```
+
+## 4. Working with categorical variables
+
+```{python}
+categories = ["A", "B", "C", "D"]
+probabilities = [0.4, 0.3, 0.2, 0.1]
+
+cat_data = np.random.choice(categories, size=n_samples, p=probabilities)
+
+df_cat = pl.DataFrame(
+    {
+        "category": pl.Series(cat_data).cast(pl.Utf8).cast(pl.Enum(categories)),
+        "value": np.random.normal(loc=50, scale=10, size=n_samples),
+    }
+)
+
+summary = (
+    df_cat.group_by("category")
+    .agg(
+        mean=pl.col("value").mean(),
+        std=pl.col("value").std(),
+        count=pl.len(),
+    )
+    .sort("category")
+)
+
+print(summary)
+```
+
+## 5. Generating text with an LLM
+
+`ask(prompt, model=MODEL)` sends one prompt and returns the text. Change `MODEL` at the top of the file to try a different model — nothing else changes.
+
+```{python}
+def review_prompt(product: str, sentiment: str) -> str:
+    return (
+        f"Generate a brief, realistic product review for a {product}. The review should express a {sentiment} sentiment and be 2-3 sentences long. Make it sound natural and conversational."
+    )
+
+
+role = "You are a helpful assistant that generates realistic product reviews."
+
+for product in ["laptop", "headphones", "coffee maker"]:
+    for sentiment in ["positive", "negative", "neutral"]:
+        review = ask(
+            review_prompt(product, sentiment),
+            model=MODEL,
+            system=role,
+            temperature=0.7,
+        )
+        print(f"\n--- {product} ({sentiment}) ---")
+        print(review)
+```
+
+## 6. Combining multiple data types — a small e-commerce dataset
+
+```{python}
+n_records = 100
+
+# Segment is ordered low → high tier; Enum keeps boxplot categories in that order
+SegmentEnum = pl.Enum(["Standard", "Premium", "VIP"])
+segment = np.random.choice(["Standard", "Premium", "VIP"], size=n_records, p=[0.6, 0.3, 0.1])
+age = np.random.normal(35, 12, n_records).astype(int)
+income = np.random.lognormal(10, 1, n_records)
+
+# Base transaction amount depends on segment
+base_by_segment = {"Standard": (50, 20), "Premium": (100, 30), "VIP": (200, 50)}
+base_amount = np.array([np.random.normal(*base_by_segment[s]) for s in segment])
+
+# Scale by income (relative to the mean) and clip at zero
+income_factor = income / income.mean()
+transaction_amount = np.clip(base_amount * income_factor, a_min=0.0, a_max=None)
+items_purchased = np.clip((transaction_amount / 25).astype(int), a_min=1, a_max=None)
+is_returning = np.random.choice([0, 1], size=n_records, p=[0.3, 0.7])
+
+customers = pl.DataFrame(
+    {
+        "customer_id": [f"CUST_{i:03d}" for i in range(n_records)],
+        "age": age,
+        "income": income,
+        "segment": pl.Series(segment).cast(SegmentEnum),
+        "transaction_amount": transaction_amount,
+        "items_purchased": items_purchased,
+        "is_returning": is_returning,
+    }
+)
+
+customers.head()
+```
+
+```{python}
+customers.group_by("segment").agg(
+    avg_transaction=pl.col("transaction_amount").mean(),
+    median_transaction=pl.col("transaction_amount").median(),
+    avg_items=pl.col("items_purchased").mean(),
+    n=pl.len(),
+).sort("segment")
+```
+
+```{python}
+customers.select(
+    pl.corr("income", "transaction_amount").alias("income_transaction_correlation"),
+    pl.col("transaction_amount").mean().alias("avg_transaction"),
+)
+```

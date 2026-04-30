@@ -1,0 +1,9 @@
+it_member_id,name,role,shift,max_daily_ticket_capacity,quality_score
+IT-001,Dani Xu,support_analyst,NA-Day,16,0.94
+IT-002,Alex Tanaka,support_analyst,NA-Evening,23,0.91
+IT-003,Vera Liang,support_analyst,NA-Evening,17,0.82
+IT-004,Noor Xu,support_analyst,EU-Day,22,0.8
+IT-005,Tomo Holm,senior_support_analyst,EU-Day,25,0.86
+IT-006,Quinn Quintero,senior_support_analyst,NA-Day,20,0.83
+IT-007,Zane Underwood,senior_support_analyst,NA-Day,23,0.94
+IT-008,Maya Chen,support_lead,APAC-Day,34,0.96

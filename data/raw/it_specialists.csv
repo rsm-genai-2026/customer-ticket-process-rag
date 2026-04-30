@@ -1,0 +1,11 @@
+specialist_id,name,specialist_group,systems_supported,seniority,max_daily_escalation_capacity
+SP-001,Imani Grover,hardware_field,Customer Portal,senior,8
+SP-002,Tomo Yamada,identity_security,Email|Identity Provider,mid,6
+SP-003,Quinn Grover,hardware_field,Customer Portal,junior,4
+SP-004,Olu Chen,network_infra,Identity Provider|VPN,mid,6
+SP-005,Tomo Vega,data_analytics,Inventory App|CRM|Analytics Dashboard,mid,6
+SP-006,Lin Walsh,identity_security,Email|Identity Provider|Customer Portal,mid,6
+SP-007,Erin Rao,data_analytics,CRM,mid,6
+SP-008,Hassan Vega,application_engineering,Customer Portal,junior,4
+SP-009,Sana Kapoor,network_infra,Identity Provider,mid,6
+SP-010,Theo Eskola,billing_finance,Billing System,principal,10

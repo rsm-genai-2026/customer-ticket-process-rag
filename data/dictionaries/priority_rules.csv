@@ -1,0 +1,5 @@
+priority,priority_rank,description,target_first_response_hours,target_resolution_hours,example_conditions
+low,1,Minor inconvenience for a single user.,24,72,"Cosmetic issues, documentation requests, single-user non-blocker."
+medium,2,Standard support request affecting one user or a small group.,8,48,"Single user blocked from non-critical workflow, small team partial impact."
+high,3,Material impact on a customer team or revenue-impacting workflow.,2,24,"Whole department blocked, customer demo blocker, billing not running."
+urgent,4,Critical outage or active security incident.,1,8,"Site outage, suspected breach, payments halted, broad system unavailability."

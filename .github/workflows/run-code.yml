@@ -1,0 +1,54 @@
+name: Milestone 02
+on: [push, pull_request]
+
+jobs:
+  check-content:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: data/ has Python / Quarto files beyond the provided examples
+        run: |
+          mapfile -t files < <(find data -type f \( -name '*.py' -o -name '*.qmd' \) \
+            ! -path 'data/example/*' \
+            ! -path 'data/examples/*')
+          if [ ${#files[@]} -eq 0 ]; then
+            echo "FAIL: no student-authored .py or .qmd files under data/"
+            echo "Expected: at least one .py or .qmd file in data/ (or a subdirectory)"
+            echo "that is NOT inside data/examples/."
+            exit 1
+          fi
+          echo "OK: found ${#files[@]} file(s) under data/ outside data/examples/:"
+          printf '  %s\n' "${files[@]}"
+
+      - name: skills/ has at least one skill beyond the provided example
+        run: |
+          shopt -s nullglob
+          found=0
+          malformed=()
+          for d in skills/*/; do
+            name="$(basename "$d")"
+            if [ "$name" = "example" ]; then
+              continue
+            fi
+            if [ ! -f "${d}SKILL.md" ]; then
+              malformed+=("$d (missing SKILL.md)")
+              continue
+            fi
+            echo "OK: skill '$name' at $d"
+            found=$((found + 1))
+          done
+
+          if [ ${#malformed[@]} -gt 0 ]; then
+            echo ""
+            echo "WARN: these skill folders do not mirror skills/example/ structure:"
+            printf '  %s\n' "${malformed[@]}"
+          fi
+
+          if [ "$found" -eq 0 ]; then
+            echo ""
+            echo "FAIL: no student-authored skill under skills/ (beyond skills/example/)"
+            echo "Expected: at least one skills/<name>/ directory containing SKILL.md,"
+            echo "following the layout of skills/example/."
+            exit 1
+          fi

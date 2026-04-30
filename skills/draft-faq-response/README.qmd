@@ -1,0 +1,63 @@
+---
+title: "draft-faq-response skill"
+format: gfm
+---
+
+Step 5 (FAQ branch) of the human IT ticketing workflow: turn a matched FAQ entry into a customer-safe email response.
+
+## Layout
+
+```text
+skills/draft-faq-response/
+├── SKILL.md
+├── README.qmd
+├── install.sh
+└── scripts/
+    └── draft_faq_response.py
+```
+
+## Install
+
+```bash
+bash skills/draft-faq-response/install.sh
+```
+
+## Usage through Claude
+
+> "Draft the FAQ-based response for TKT-00042."
+
+Claude reads `SKILL.md`, verifies the upstream FAQ decision is a match, runs the script, and reports the draft text plus any quality-check warnings.
+
+## Direct CLI
+
+```bash
+uv run python skills/draft-faq-response/scripts/draft_faq_response.py --ticket-id TKT-00042
+```
+
+The script appends one row to `data/working/customer_response_drafts.csv` with `message_source=faq`, plus an action-log row.
+
+## Public functions
+
+- `load_response_context(data_dir, out_dir, ticket_id)` — loads ticket, FAQ entry, and the latest faq_decision; raises `LookupError` if the upstream branch isn't FAQ.
+- `draft_faq_response(context)` — pure dict → dict. Builds `draft_text`, `sent_text`, `customer_action_required`, `follow_up_request`, `included_context`.
+- `quality_check_response(draft)` — flags missing fields and internal-only phrasing.
+- `build_response_row(context)` — full row for `customer_response_drafts.csv`.
+- `write_customer_response(out_dir, response)` — appends.
+- `main(argv)` — CLI. Exits 2 on missing ticket / data, 3 on missing or wrong-branch upstream FAQ decision.
+
+## Refusal behavior
+
+The script refuses to draft when:
+
+- there is no `faq_decisions.csv` row for the ticket,
+- the latest decision has `faq_match_found != true`,
+- the latest decision recommends a step other than `draft-faq-response` (typically because the customer hasn't supplied required info — escalate instead),
+- or the matched `faq_id` does not exist in `faq_knowledge_base.csv`.
+
+In every case the script exits non-zero and prints a one-line message to stderr naming the upstream skill the user should run instead.
+
+## Test
+
+```bash
+uv run pytest tests/skills/test_draft_faq_response.py -v
+```

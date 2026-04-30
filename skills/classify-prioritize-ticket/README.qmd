@@ -1,0 +1,60 @@
+---
+title: "classify-prioritize-ticket skill"
+format: gfm
+---
+
+Step 2 of the human IT ticketing workflow: assign category, priority, recommended specialist group, and SLA target timestamps.
+
+## Layout
+
+```text
+skills/classify-prioritize-ticket/
+├── SKILL.md
+├── README.qmd
+├── install.sh
+└── scripts/
+    └── classify_prioritize_ticket.py
+```
+
+## Install
+
+```bash
+bash skills/classify-prioritize-ticket/install.sh
+```
+
+## Usage through Claude
+
+> "Triage TKT-00042 for me."
+
+Claude reads `SKILL.md`, runs the script, and reports back the category, priority, specialist group, and SLA targets.
+
+## Direct CLI
+
+```bash
+uv run python skills/classify-prioritize-ticket/scripts/classify_prioritize_ticket.py --ticket-id TKT-00042
+```
+
+The script prints the decision and appends one row each to `data/working/triage_decisions.csv` and `data/working/ticket_action_log.csv`.
+
+## Public functions
+
+- `load_triage_inputs(data_dir, ticket_id)` — loads ticket, customer, categories, priority rules.
+- `score_categories(context, categories)` — keyword + system overlap; returns sorted polars DataFrame.
+- `assign_priority(context, priority_rules, category)` — monotonic in tier and urgency.
+- `build_triage_decision(context)` — runs scoring + priority + SLA and returns the working row.
+- `write_triage_decision(out_dir, decision)` — appends to `data/working/triage_decisions.csv`.
+- `main(argv)` — CLI entrypoint.
+
+## Algorithm
+
+1. **Categorize.** Each category has a keyword list. We match word-boundary keywords in the ticket subject + description + symptom detail + steps tried + impact text. We add a 1.5 bonus when the ticket's `affected_system` is typical of the category. Highest score wins; if every category scores 0, we fall back to `other` with 0.30 confidence.
+2. **Prioritize.** Score = tier_score (0–2) + urgency_score (0–3) + category bump (security/network +1, password_reset −1). Buckets: 0 → low, 1–2 → medium, 3–4 → high, 5+ → urgent.
+3. **SLA targets.** Read `target_first_response_hours` and `target_resolution_hours` from `priority_rules.csv` and add to the triage timestamp.
+
+The recommended specialist group comes straight from `categories.default_specialist_group`.
+
+## Test
+
+```bash
+uv run pytest tests/skills/test_classify_prioritize_ticket.py -v
+```

@@ -1,0 +1,9 @@
+system_id,system_name,business_owner,common_issue_types
+SYS01,Customer Portal,Customer Success,"login_access, password_reset, software_bug"
+SYS02,Billing System,Finance Operations,"billing_account, data_reporting"
+SYS03,CRM,Revenue Operations,"data_reporting, software_bug, login_access"
+SYS04,Email,Workplace IT,email_calendar
+SYS05,VPN,Network Engineering,network_connectivity
+SYS06,Analytics Dashboard,Data Platform,"data_reporting, software_bug"
+SYS07,Inventory App,Operations,"data_reporting, software_bug"
+SYS08,Identity Provider,Security Engineering,"login_access, password_reset, security_request"

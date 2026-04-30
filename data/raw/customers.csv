@@ -1,0 +1,19 @@
+customer_id,customer_name,account_tier,industry,region,sla_plan,active_users,relationship_start_date
+CUST-001,Pacific Bioworks,standard,education,NA-Central,basic,15,2024-10-26
+CUST-002,Summit Health,premium,education,NA-Central,business,370,2025-01-22
+CUST-003,Quartz Logistics,standard,logistics,APAC-South,basic,72,2025-06-03
+CUST-004,Tessera Manufacturing,premium,energy,APAC-South,business,346,2021-07-21
+CUST-005,Pioneer Bioworks,premium,media,EU-West,business,89,2025-03-05
+CUST-006,Pioneer Foods,enterprise,professional_services,NA-West,critical,1410,2022-08-02
+CUST-007,Meridian Studios,standard,energy,NA-Central,basic,59,2023-05-15
+CUST-008,Cypress Analytics,premium,media,NA-Central,business,236,2021-02-04
+CUST-009,Meridian Marine Solutions,standard,financial_services,EU-Central,basic,32,2022-12-06
+CUST-010,Quartz Bioworks,premium,logistics,NA-West,business,116,2023-01-18
+CUST-011,Polaris Logistics,standard,media,EU-West,basic,71,2023-06-24
+CUST-012,Ironhill Capital,standard,retail,APAC-South,basic,46,2023-08-10
+CUST-013,Aurora Capital,standard,biotech,LATAM,basic,38,2022-04-08
+CUST-014,Lumen Systems,enterprise,media,NA-West,critical,2282,2020-11-05
+CUST-015,Helios Health,standard,energy,LATAM,basic,15,2020-03-28
+CUST-016,Polaris Robotics,standard,energy,APAC-East,basic,36,2021-11-01
+CUST-017,Cypress Health,premium,media,APAC-East,business,167,2021-04-29
+CUST-018,Northstar Foods,standard,healthcare,APAC-East,basic,74,2022-12-03

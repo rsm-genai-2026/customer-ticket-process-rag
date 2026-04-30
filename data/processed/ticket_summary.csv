@@ -1,0 +1,251 @@
+ticket_id,customer_id,submitted_at,closed_at,final_status,assigned_category,true_category,assigned_priority,affected_system,faq_match_found,escalated_flag,specialist_id,resolution_accepted,reopened_flag,first_resolution_source,time_to_triage_hours,time_to_first_response_hours,time_to_resolution_hours,sla_met_first_response,sla_met_resolution
+TKT-00001,CUST-003,2026-01-18T05:46:00,2026-01-21T11:55:34,closed,billing_account,billing_account,medium,Billing System,false,true,SP-010,true,false,specialist_solution,2.17,23.98,78.16,false,false
+TKT-00002,CUST-007,2026-03-20T05:45:00,2026-03-22T23:30:34,closed,email_calendar,email_calendar,medium,Email,true,false,"",true,false,faq,4.66,7.14,65.76,true,false
+TKT-00003,CUST-013,2026-03-22T16:00:00,2026-03-23T14:42:25,closed,email_calendar,email_calendar,low,Email,false,true,SP-006,true,false,specialist_solution,1.1,8.6,22.71,true,true
+TKT-00004,CUST-002,2026-03-15T03:39:00,2026-03-17T16:44:43,closed,password_reset,password_reset,medium,CRM,true,false,"",true,false,faq,5.68,8.38,61.1,false,false
+TKT-00005,CUST-015,2026-01-26T05:45:00,2026-01-27T16:02:28,closed,email_calendar,email_calendar,low,Email,false,true,SP-002,true,false,specialist_solution,4.64,17.24,34.29,true,true
+TKT-00006,CUST-012,2026-01-31T01:14:00,2026-02-01T21:58:34,closed,network_connectivity,network_connectivity,medium,VPN,true,false,"",true,false,faq,4.57,7.37,44.74,true,true
+TKT-00007,CUST-006,2026-01-17T16:26:00,2026-01-18T18:01:24,closed,login_access,login_access,urgent,CRM,true,false,"",true,false,faq,0.75,3.44,25.59,false,false
+TKT-00008,CUST-002,2026-03-04T18:54:00,2026-03-07T22:28:49,closed,login_access,login_access,high,CRM,false,true,SP-006,true,true,specialist_solution,1.92,15.57,75.58,false,false
+TKT-00009,CUST-010,2026-02-18T02:44:00,2026-02-25T08:30:05,closed,software_bug,software_bug,high,Customer Portal,false,true,SP-008,true,true,specialist_solution,4.13,72.58,173.77,false,false
+TKT-00010,CUST-007,2026-02-09T21:05:00,2026-02-13T15:36:14,closed,other,other,low,Customer Portal,false,true,SP-008,true,false,specialist_solution,4.55,36.79,90.52,false,false
+TKT-00011,CUST-014,2026-02-06T09:08:00,2026-02-08T05:33:48,closed,login_access,login_access,high,CRM,true,true,SP-002,true,false,specialist_solution,2.75,9.57,44.43,false,false
+TKT-00012,CUST-014,2026-01-19T08:53:00,2026-01-21T18:06:48,closed,hardware_issue,hardware_issue,high,Customer Portal,false,true,SP-001,false,true,specialist_solution,0.73,19.17,57.23,false,false
+TKT-00013,CUST-001,2026-03-17T04:45:00,2026-03-20T04:20:51,closed,password_reset,password_reset,medium,CRM,false,true,SP-006,false,false,specialist_solution,5.32,15.24,71.6,false,false
+TKT-00014,CUST-006,2026-02-08T14:14:00,2026-02-09T12:39:55,closed,network_connectivity,network_connectivity,high,VPN,true,false,"",true,false,faq,1.83,2.65,22.43,false,true
+TKT-00015,CUST-018,2026-01-16T22:36:00,2026-01-21T08:19:39,closed,hardware_issue,hardware_issue,low,Customer Portal,false,true,SP-003,true,false,specialist_solution,3.86,48.88,105.73,false,false
+TKT-00016,CUST-002,2026-02-02T08:44:00,2026-02-06T00:08:36,closed,security_request,security_request,urgent,Identity Provider,false,true,SP-002,true,false,specialist_solution,0.77,62.19,87.41,false,false
+TKT-00017,CUST-013,2026-03-10T06:54:00,2026-03-11T18:49:05,closed,login_access,login_access,medium,Identity Provider,true,false,"",true,false,faq,0.74,2.93,35.92,true,true
+TKT-00018,CUST-011,2026-03-12T08:57:00,2026-03-14T11:08:06,closed,billing_account,billing_account,low,Customer Portal,true,false,"",true,false,faq,1.32,3.11,50.19,true,true
+TKT-00019,CUST-003,2026-02-09T21:47:00,2026-02-12T00:47:20,closed,network_connectivity,network_connectivity,high,VPN,false,true,SP-009,true,false,specialist_solution,1.9,15.14,51.01,false,false
+TKT-00020,CUST-012,2026-03-11T14:55:00,2026-03-12T03:03:03,closed,network_connectivity,network_connectivity,medium,Identity Provider,true,false,"",true,false,faq,2.88,5.7,12.13,true,true
+TKT-00021,CUST-018,2026-02-21T15:56:00,2026-02-23T23:27:52,closed,network_connectivity,network_connectivity,medium,Identity Provider,true,false,"",true,false,faq,1.59,4.21,55.53,true,false
+TKT-00022,CUST-001,2026-02-17T10:08:00,2026-02-21T11:42:14,closed,login_access,login_access,medium,CRM,true,false,SP-006,true,true,faq,5.32,8.45,97.57,false,false
+TKT-00023,CUST-007,2026-03-21T13:52:00,2026-03-23T14:21:51,closed,other,email_calendar,medium,Email,false,true,SP-008,true,false,specialist_solution,5.62,35.75,48.5,false,false
+TKT-00024,CUST-010,2026-03-06T06:58:00,2026-03-08T15:42:58,closed,software_bug,software_bug,high,CRM,true,false,"",true,false,faq,1.26,3.34,56.75,false,false
+TKT-00025,CUST-007,2026-02-25T13:33:00,2026-02-28T05:41:17,closed,login_access,login_access,medium,CRM,false,true,SP-006,true,true,specialist_solution,1.81,9.24,64.14,false,false
+TKT-00026,CUST-002,2026-02-04T21:09:00,2026-02-06T15:18:36,closed,login_access,login_access,high,Customer Portal,true,true,SP-002,true,false,specialist_solution,1.82,12.79,42.16,false,false
+TKT-00027,CUST-018,2026-03-25T01:38:00,2026-03-27T05:55:17,closed,password_reset,password_reset,low,Customer Portal,true,false,"",true,false,faq,3.0,5.86,52.29,true,true
+TKT-00028,CUST-002,2026-03-03T17:17:00,2026-03-06T23:15:16,closed,security_request,security_request,high,Identity Provider,false,true,SP-002,true,false,specialist_solution,4.8,57.23,77.97,false,false
+TKT-00029,CUST-014,2026-03-19T18:07:00,2026-03-22T01:59:59,closed,email_calendar,email_calendar,urgent,Email,false,true,SP-006,true,false,specialist_solution,1.54,10.49,55.88,false,false
+TKT-00030,CUST-005,2026-02-12T17:57:00,2026-02-13T10:58:58,closed,email_calendar,email_calendar,medium,Email,true,false,"",false,false,faq,1.47,4.47,17.03,true,true
+TKT-00031,CUST-010,2026-02-02T06:55:00,2026-02-04T03:03:40,closed,email_calendar,email_calendar,medium,Email,true,true,SP-002,true,false,specialist_solution,5.07,15.39,44.14,false,true
+TKT-00032,CUST-013,2026-03-26T12:25:00,2026-03-29T00:57:01,closed,password_reset,password_reset,medium,Customer Portal,true,false,"",true,false,faq,0.84,1.34,60.53,true,false
+TKT-00033,CUST-002,2026-03-22T15:41:00,2026-03-24T12:05:13,closed,password_reset,password_reset,medium,Customer Portal,true,false,"",true,false,faq,5.57,9.15,44.4,false,true
+TKT-00034,CUST-005,2026-01-21T09:40:00,2026-01-23T00:20:27,closed,login_access,login_access,medium,Identity Provider,false,true,SP-006,true,false,specialist_solution,4.3,11.81,38.67,false,true
+TKT-00035,CUST-008,2026-03-14T14:17:00,2026-03-17T01:18:15,closed,billing_account,billing_account,medium,Customer Portal,false,true,SP-010,true,false,specialist_solution,5.56,25.33,59.02,false,false
+TKT-00036,CUST-001,2026-02-12T06:14:00,2026-02-14T14:29:25,closed,email_calendar,email_calendar,low,Email,false,true,SP-006,true,false,specialist_solution,3.09,17.15,56.26,true,true
+TKT-00037,CUST-010,2026-02-15T17:56:00,2026-02-17T05:06:53,closed,billing_account,billing_account,medium,Customer Portal,false,true,SP-010,true,false,specialist_solution,3.19,21.39,35.18,false,true
+TKT-00038,CUST-006,2026-02-26T08:06:00,2026-02-27T22:37:14,closed,password_reset,password_reset,high,Customer Portal,true,true,SP-006,true,false,specialist_solution,2.66,6.56,38.52,false,false
+TKT-00039,CUST-008,2026-02-03T10:52:00,2026-02-04T15:15:18,closed,email_calendar,email_calendar,medium,Email,true,false,"",true,false,faq,3.17,5.72,28.39,true,true
+TKT-00040,CUST-006,2026-02-26T09:09:00,2026-03-03T09:04:48,closed,other,other,high,Customer Portal,false,true,SP-008,true,false,specialist_solution,1.31,64.74,119.93,false,false
+TKT-00041,CUST-006,2026-02-08T20:20:00,2026-02-10T19:38:02,closed,network_connectivity,password_reset,urgent,Customer Portal,false,true,SP-004,true,false,specialist_solution,3.2,15.08,47.3,false,false
+TKT-00042,CUST-004,2026-02-01T01:10:00,2026-02-04T12:37:12,closed,security_request,security_request,high,Identity Provider,false,true,SP-006,true,false,specialist_solution,5.33,58.34,83.45,false,false
+TKT-00043,CUST-014,2026-01-16T07:24:00,2026-01-19T03:34:23,closed,email_calendar,email_calendar,high,Email,true,false,"",true,false,faq,5.58,7.65,68.17,false,false
+TKT-00044,CUST-011,2026-03-20T06:50:00,2026-03-21T17:28:35,closed,email_calendar,email_calendar,medium,Email,true,false,"",true,false,faq,2.54,5.2,34.64,true,true
+TKT-00045,CUST-013,2026-02-05T20:05:00,2026-02-09T08:37:10,closed,security_request,security_request,medium,Identity Provider,true,true,SP-006,true,false,specialist_solution,2.65,55.28,84.54,false,false
+TKT-00046,CUST-003,2026-02-03T01:03:00,2026-02-04T00:09:57,closed,login_access,login_access,medium,CRM,false,true,SP-002,true,false,specialist_solution,2.2,8.87,23.12,false,true
+TKT-00047,CUST-004,2026-03-22T21:35:00,2026-03-26T12:52:13,closed,other,other,medium,Customer Portal,false,true,SP-008,true,false,specialist_solution,3.04,43.24,87.29,false,false
+TKT-00048,CUST-014,2026-01-19T18:37:00,2026-01-22T04:40:01,closed,password_reset,password_reset,high,Identity Provider,true,false,"",true,false,faq,1.04,1.67,58.05,true,false
+TKT-00049,CUST-013,2026-03-13T18:11:00,2026-03-14T22:33:38,closed,billing_account,billing_account,medium,Billing System,true,false,"",true,false,faq,1.33,2.91,28.38,true,true
+TKT-00050,CUST-010,2026-02-22T12:10:00,2026-02-23T14:19:30,closed,login_access,login_access,high,CRM,true,false,"",true,false,faq,5.51,7.03,26.16,false,false
+TKT-00051,CUST-013,2026-02-24T03:35:00,2026-02-25T13:54:55,closed,password_reset,password_reset,low,CRM,true,false,"",true,false,faq,0.31,2.93,34.33,true,true
+TKT-00052,CUST-016,2026-01-18T13:46:00,2026-01-19T16:23:17,closed,login_access,login_access,medium,Identity Provider,true,false,"",true,false,faq,5.0,7.76,26.62,true,true
+TKT-00053,CUST-006,2026-03-30T13:08:00,2026-04-02T15:40:28,closed,billing_account,billing_account,high,Customer Portal,false,true,SP-010,true,false,specialist_solution,5.14,16.67,74.54,false,false
+TKT-00054,CUST-005,2026-02-11T12:24:00,2026-02-14T19:36:55,closed,hardware_issue,hardware_issue,medium,Customer Portal,false,true,SP-003,false,false,specialist_solution,0.9,39.78,79.22,false,false
+TKT-00055,CUST-009,2026-02-08T10:30:00,2026-02-11T01:32:40,closed,billing_account,billing_account,medium,Billing System,false,true,SP-010,true,false,specialist_solution,0.31,12.06,63.04,false,false
+TKT-00056,CUST-001,2026-03-07T03:25:00,2026-03-08T00:30:13,closed,login_access,login_access,low,CRM,true,false,"",true,false,faq,0.84,2.84,21.09,true,true
+TKT-00057,CUST-014,2026-02-13T05:32:00,2026-02-16T16:42:48,closed,software_bug,security_request,high,Identity Provider,false,true,SP-008,true,false,specialist_solution,1.71,38.38,83.18,false,false
+TKT-00058,CUST-017,2026-03-22T22:00:00,2026-03-25T11:18:21,closed,network_connectivity,network_connectivity,high,VPN,false,true,SP-009,true,false,specialist_solution,4.7,10.63,61.31,false,false
+TKT-00059,CUST-014,2026-01-16T00:47:00,2026-01-18T08:36:49,closed,hardware_issue,hardware_issue,high,Customer Portal,false,true,SP-001,true,false,specialist_solution,5.27,40.38,55.83,false,false
+TKT-00060,CUST-002,2026-03-14T06:37:00,2026-03-16T10:42:58,closed,email_calendar,email_calendar,medium,Email,false,true,SP-006,true,false,specialist_solution,1.45,14.12,52.1,false,false
+TKT-00061,CUST-004,2026-02-24T11:58:00,2026-02-26T14:14:43,closed,login_access,login_access,high,CRM,false,true,SP-006,true,true,specialist_solution,0.9,13.06,50.28,false,false
+TKT-00062,CUST-006,2026-01-17T12:54:00,2026-01-19T11:18:41,closed,software_bug,software_bug,high,Customer Portal,false,true,SP-008,true,false,specialist_solution,3.51,31.26,46.41,false,false
+TKT-00063,CUST-006,2026-03-25T04:59:00,2026-03-27T19:36:51,closed,software_bug,software_bug,high,Analytics Dashboard,true,true,SP-008,true,false,specialist_solution,5.87,38.95,62.63,false,false
+TKT-00064,CUST-012,2026-03-10T19:31:00,2026-03-13T09:00:50,closed,password_reset,password_reset,low,CRM,true,false,"",true,false,faq,3.55,4.9,61.5,true,true
+TKT-00065,CUST-017,2026-01-19T16:43:00,2026-01-20T02:50:07,closed,password_reset,password_reset,medium,Customer Portal,true,false,"",true,false,faq,2.37,4.51,10.12,true,true
+TKT-00066,CUST-006,2026-03-22T20:47:00,2026-03-24T14:58:30,closed,other,other,high,Customer Portal,false,true,SP-008,true,false,specialist_solution,4.15,28.94,42.19,false,false
+TKT-00067,CUST-001,2026-02-04T14:57:00,2026-02-08T01:46:28,closed,network_connectivity,network_connectivity,medium,VPN,false,true,SP-009,true,false,specialist_solution,4.71,23.3,82.82,false,false
+TKT-00068,CUST-007,2026-03-29T22:41:00,2026-04-03T22:07:51,closed,data_reporting,data_reporting,medium,CRM,false,true,SP-005,true,true,specialist_solution,1.02,34.35,119.45,false,false
+TKT-00069,CUST-004,2026-01-18T23:35:00,2026-01-22T22:39:13,closed,security_request,security_request,high,Identity Provider,true,false,SP-006,true,true,faq,0.27,2.69,95.07,false,false
+TKT-00070,CUST-009,2026-03-10T21:06:00,2026-03-12T00:52:30,closed,data_reporting,data_reporting,medium,CRM,true,false,"",false,false,faq,0.29,1.64,27.78,true,true
+TKT-00071,CUST-007,2026-01-20T12:50:00,2026-01-21T02:51:23,closed,email_calendar,email_calendar,low,Email,true,false,"",true,false,faq,5.18,7.41,14.02,true,true
+TKT-00072,CUST-003,2026-02-06T14:11:00,2026-02-08T16:57:53,closed,hardware_issue,hardware_issue,low,Customer Portal,true,false,"",true,false,faq,5.35,7.45,50.78,true,true
+TKT-00073,CUST-001,2026-01-28T21:12:00,2026-01-29T13:48:26,closed,billing_account,billing_account,medium,Billing System,true,false,"",true,false,faq,2.92,3.41,16.61,true,true
+TKT-00074,CUST-015,2026-01-22T04:44:00,2026-01-23T21:15:12,closed,password_reset,password_reset,low,Customer Portal,true,false,"",true,false,faq,4.03,5.2,40.52,true,true
+TKT-00075,CUST-004,2026-03-30T18:45:00,2026-04-02T18:21:10,closed,other,other,medium,Customer Portal,false,true,SP-008,true,false,specialist_solution,2.14,40.24,71.6,false,false
+TKT-00076,CUST-001,2026-03-14T17:30:00,2026-03-15T07:08:05,closed,password_reset,password_reset,medium,CRM,true,false,"",true,false,faq,0.44,1.81,13.63,true,true
+TKT-00077,CUST-010,2026-03-04T17:15:00,2026-03-07T10:36:31,closed,network_connectivity,network_connectivity,urgent,VPN,false,true,SP-004,true,false,specialist_solution,0.69,17.36,65.36,false,false
+TKT-00078,CUST-010,2026-02-04T19:23:00,2026-02-06T17:30:17,closed,password_reset,password_reset,medium,Identity Provider,true,false,"",true,false,faq,4.89,7.08,46.12,true,true
+TKT-00079,CUST-003,2026-03-21T03:06:00,2026-03-22T21:07:47,closed,email_calendar,email_calendar,medium,Email,true,false,"",true,false,faq,4.8,7.73,42.03,true,true
+TKT-00080,CUST-007,2026-03-13T04:18:00,2026-03-14T08:34:08,closed,login_access,login_access,low,Identity Provider,false,true,SP-006,true,false,specialist_solution,1.87,12.15,28.27,true,true
+TKT-00081,CUST-009,2026-03-19T13:33:00,2026-03-20T15:16:31,closed,password_reset,password_reset,low,Customer Portal,false,true,SP-002,true,false,specialist_solution,1.01,13.8,25.73,true,true
+TKT-00082,CUST-006,2026-03-17T17:06:00,2026-03-21T09:34:02,closed,billing_account,billing_account,urgent,Billing System,false,true,SP-010,false,true,specialist_solution,4.36,16.4,88.47,false,false
+TKT-00083,CUST-007,2026-03-04T09:06:00,2026-03-09T05:21:08,closed,data_reporting,other,medium,Customer Portal,false,true,SP-005,true,false,specialist_solution,5.91,56.25,116.25,false,false
+TKT-00084,CUST-018,2026-01-19T09:56:00,2026-01-23T11:10:50,closed,hardware_issue,hardware_issue,medium,Customer Portal,true,false,SP-001,true,true,faq,3.31,6.39,97.25,true,false
+TKT-00085,CUST-001,2026-02-26T13:37:00,2026-03-04T02:06:42,closed,hardware_issue,software_bug,medium,Customer Portal,false,true,SP-003,true,true,specialist_solution,3.05,48.39,132.5,false,false
+TKT-00086,CUST-004,2026-02-24T17:24:00,2026-03-01T13:17:17,closed,network_connectivity,network_connectivity,medium,VPN,false,true,SP-004,false,true,specialist_solution,2.73,24.49,115.89,false,false
+TKT-00087,CUST-016,2026-02-28T12:12:00,2026-03-01T10:08:28,closed,security_request,security_request,medium,Identity Provider,true,false,"",true,false,faq,3.06,5.84,21.94,true,true
+TKT-00088,CUST-002,2026-03-25T05:16:00,2026-03-27T17:02:35,closed,login_access,login_access,high,Customer Portal,true,false,"",true,false,faq,2.74,3.7,59.78,false,false
+TKT-00089,CUST-004,2026-03-27T09:26:00,2026-04-01T06:14:21,closed,software_bug,software_bug,high,CRM,false,true,SP-008,true,false,specialist_solution,4.52,77.0,116.81,false,false
+TKT-00090,CUST-013,2026-03-21T00:01:00,2026-03-22T14:05:50,closed,billing_account,billing_account,medium,Billing System,false,true,SP-010,true,false,specialist_solution,5.0,23.49,38.08,false,true
+TKT-00091,CUST-005,2026-02-11T13:35:00,2026-02-14T21:31:23,closed,software_bug,software_bug,medium,Inventory App,false,true,SP-008,true,false,specialist_solution,0.6,20.09,79.94,false,false
+TKT-00092,CUST-007,2026-01-21T00:08:00,2026-01-23T20:49:50,closed,data_reporting,data_reporting,medium,Analytics Dashboard,false,true,SP-005,true,false,specialist_solution,3.96,22.09,68.7,false,false
+TKT-00093,CUST-001,2026-03-25T09:00:00,2026-03-26T14:09:40,closed,login_access,login_access,medium,Identity Provider,true,false,"",true,false,faq,2.33,5.04,29.16,true,true
+TKT-00094,CUST-017,2026-02-21T12:35:00,2026-02-22T20:55:04,closed,email_calendar,email_calendar,high,Email,false,true,SP-002,true,false,specialist_solution,2.47,15.79,32.33,false,false
+TKT-00095,CUST-008,2026-02-20T12:40:00,2026-02-26T16:56:22,closed,software_bug,software_bug,medium,Analytics Dashboard,false,true,SP-008,true,true,specialist_solution,4.57,71.4,148.27,false,false
+TKT-00096,CUST-003,2026-03-19T01:37:00,2026-03-22T11:34:28,closed,network_connectivity,billing_account,medium,Customer Portal,false,true,SP-009,false,true,specialist_solution,4.85,34.03,81.96,false,false
+TKT-00097,CUST-016,2026-01-18T23:49:00,2026-01-21T07:15:11,closed,password_reset,password_reset,medium,Customer Portal,true,false,"",true,false,faq,1.5,3.76,55.44,true,false
+TKT-00098,CUST-001,2026-02-25T17:23:00,2026-02-27T19:16:47,closed,other,other,medium,Customer Portal,false,true,SP-008,true,false,specialist_solution,2.81,28.58,49.9,false,false
+TKT-00099,CUST-013,2026-01-23T14:26:00,2026-01-28T04:45:02,closed,data_reporting,data_reporting,low,Inventory App,false,true,SP-005,true,false,specialist_solution,3.48,67.11,110.32,false,false
+TKT-00100,CUST-008,2026-02-23T07:26:00,2026-02-25T18:55:22,closed,login_access,login_access,medium,Identity Provider,false,true,SP-002,true,false,specialist_solution,3.09,16.24,59.49,false,false
+TKT-00101,CUST-017,2026-03-07T19:30:00,2026-03-08T12:27:21,closed,email_calendar,email_calendar,high,Email,true,false,"",true,false,faq,1.08,4.1,16.96,false,true
+TKT-00102,CUST-018,2026-02-01T06:34:00,2026-02-05T18:46:55,closed,billing_account,billing_account,medium,Billing System,true,false,SP-010,true,true,faq,0.79,1.99,108.22,true,false
+TKT-00103,CUST-006,2026-02-02T10:54:00,2026-02-05T05:27:31,closed,network_connectivity,network_connectivity,urgent,VPN,true,true,SP-009,true,false,specialist_solution,3.7,9.81,66.56,false,false
+TKT-00104,CUST-015,2026-02-12T12:46:00,2026-02-14T03:38:20,closed,data_reporting,data_reporting,medium,CRM,false,true,SP-007,true,false,specialist_solution,2.32,25.51,38.87,false,true
+TKT-00105,CUST-003,2026-03-26T05:13:00,2026-03-27T20:04:39,closed,security_request,security_request,medium,Identity Provider,true,false,"",true,false,faq,3.79,7.15,38.86,true,true
+TKT-00106,CUST-003,2026-02-26T01:10:00,2026-03-02T20:40:18,closed,billing_account,billing_account,low,Customer Portal,false,true,SP-010,true,true,specialist_solution,3.4,18.82,115.51,true,false
+TKT-00107,CUST-002,2026-03-30T02:36:00,2026-04-01T18:15:44,closed,login_access,login_access,high,Customer Portal,false,true,SP-002,false,true,specialist_solution,2.48,20.47,63.66,false,false
+TKT-00108,CUST-010,2026-03-23T10:54:00,2026-03-24T12:49:52,closed,email_calendar,email_calendar,medium,Email,true,false,"",true,false,faq,2.47,4.9,25.93,true,true
+TKT-00109,CUST-017,2026-01-25T21:28:00,2026-01-26T23:06:03,closed,login_access,login_access,medium,CRM,true,false,"",true,false,faq,1.41,3.84,25.63,true,true
+TKT-00110,CUST-015,2026-01-19T18:12:00,2026-01-23T05:45:03,closed,data_reporting,data_reporting,medium,CRM,true,true,SP-005,true,false,specialist_solution,0.68,50.12,83.55,false,false
+TKT-00111,CUST-010,2026-01-18T00:14:00,2026-01-22T00:17:47,closed,login_access,login_access,medium,CRM,true,false,SP-002,true,true,faq,4.33,6.67,96.06,true,false
+TKT-00112,CUST-007,2026-03-30T05:40:00,2026-04-03T17:43:08,closed,other,other,medium,Customer Portal,false,true,SP-008,false,false,specialist_solution,1.19,61.79,108.05,false,false
+TKT-00113,CUST-018,2026-02-25T06:10:00,2026-03-02T04:02:48,closed,security_request,security_request,medium,Identity Provider,true,true,SP-002,true,false,specialist_solution,1.67,106.25,117.88,false,false
+TKT-00114,CUST-008,2026-01-23T03:57:00,2026-01-25T17:40:48,closed,network_connectivity,network_connectivity,high,VPN,false,true,SP-009,true,false,specialist_solution,3.43,23.89,61.73,false,false
+TKT-00115,CUST-008,2026-02-09T03:42:00,2026-02-12T21:40:47,closed,security_request,security_request,urgent,Identity Provider,false,true,SP-006,true,false,specialist_solution,1.51,45.77,89.98,false,false
+TKT-00116,CUST-003,2026-03-16T18:10:00,2026-03-17T23:06:17,closed,software_bug,hardware_issue,medium,Customer Portal,true,false,"",true,false,faq,4.98,8.42,28.94,false,true
+TKT-00117,CUST-012,2026-01-31T19:25:00,2026-02-01T20:24:25,closed,login_access,login_access,low,Identity Provider,false,true,SP-002,true,false,specialist_solution,4.06,16.56,24.99,true,true
+TKT-00118,CUST-007,2026-02-21T01:18:00,2026-02-27T00:32:24,closed,data_reporting,data_reporting,medium,Analytics Dashboard,false,true,SP-005,true,true,specialist_solution,2.32,50.69,143.24,false,false
+TKT-00119,CUST-001,2026-03-05T18:44:00,2026-03-07T11:29:06,closed,email_calendar,email_calendar,medium,Email,false,true,SP-002,true,false,specialist_solution,0.79,13.98,40.75,false,true
+TKT-00120,CUST-016,2026-03-10T01:44:00,2026-03-12T08:09:43,closed,email_calendar,email_calendar,low,Email,true,false,"",true,false,faq,2.67,5.5,54.43,true,true
+TKT-00121,CUST-010,2026-01-17T21:57:00,2026-01-20T01:14:44,closed,network_connectivity,network_connectivity,high,VPN,false,true,SP-009,true,false,specialist_solution,5.38,22.51,51.3,false,false
+TKT-00122,CUST-008,2026-02-09T17:57:00,2026-02-11T02:02:26,closed,login_access,login_access,high,Customer Portal,true,false,"",true,false,faq,4.07,5.73,32.09,false,false
+TKT-00123,CUST-010,2026-03-20T22:34:00,2026-03-23T20:42:44,closed,email_calendar,email_calendar,medium,Email,true,false,SP-002,false,true,faq,5.47,8.64,70.15,false,false
+TKT-00124,CUST-012,2026-03-14T13:02:00,2026-03-15T22:15:14,closed,network_connectivity,network_connectivity,medium,VPN,false,true,SP-004,true,false,specialist_solution,2.33,21.02,33.22,false,true
+TKT-00125,CUST-004,2026-02-08T17:18:00,2026-02-11T07:45:01,closed,password_reset,password_reset,low,Identity Provider,true,false,"",true,false,faq,1.79,2.95,62.45,true,true
+TKT-00126,CUST-009,2026-01-29T08:22:00,2026-01-31T10:37:50,closed,billing_account,billing_account,medium,Billing System,false,true,SP-010,false,false,specialist_solution,2.78,9.13,50.26,false,false
+TKT-00127,CUST-015,2026-02-12T04:10:00,2026-02-14T00:10:22,closed,login_access,login_access,low,CRM,false,true,SP-006,true,false,specialist_solution,2.23,15.49,44.01,true,true
+TKT-00128,CUST-013,2026-02-18T10:06:00,2026-02-18T22:58:27,closed,login_access,login_access,medium,Customer Portal,true,false,"",true,false,faq,0.52,2.71,12.87,true,true
+TKT-00129,CUST-009,2026-02-05T01:59:00,2026-02-07T14:56:30,closed,data_reporting,data_reporting,low,CRM,true,false,"",true,false,faq,3.77,6.16,60.96,true,true
+TKT-00130,CUST-015,2026-02-19T08:17:00,2026-02-23T09:21:27,closed,login_access,login_access,medium,Identity Provider,true,false,SP-006,true,true,faq,0.6,2.46,97.07,true,false
+TKT-00131,CUST-003,2026-03-27T12:14:00,2026-03-29T19:43:58,closed,billing_account,billing_account,medium,Customer Portal,true,false,"",true,false,faq,0.52,3.41,55.5,true,false
+TKT-00132,CUST-011,2026-03-21T16:28:00,2026-03-22T21:18:50,closed,login_access,login_access,medium,Customer Portal,true,false,"",true,false,faq,4.32,5.76,28.85,true,true
+TKT-00133,CUST-003,2026-01-28T02:49:00,2026-01-28T18:16:18,closed,password_reset,password_reset,medium,CRM,true,false,"",true,false,faq,0.93,2.66,15.46,true,true
+TKT-00134,CUST-014,2026-02-03T05:45:00,2026-02-08T03:38:13,closed,other,other,high,Customer Portal,false,true,SP-008,true,false,specialist_solution,1.83,69.06,117.89,false,false
+TKT-00135,CUST-008,2026-03-10T00:51:00,2026-03-12T08:39:39,closed,network_connectivity,network_connectivity,high,Identity Provider,true,false,"",true,false,faq,0.95,3.79,55.81,false,false
+TKT-00136,CUST-014,2026-01-24T05:46:00,2026-01-25T12:25:07,closed,password_reset,password_reset,medium,Identity Provider,true,false,"",true,false,faq,3.96,6.39,30.65,true,true
+TKT-00137,CUST-003,2026-01-25T05:27:00,2026-01-26T11:13:56,closed,data_reporting,data_reporting,high,CRM,false,true,SP-007,true,false,specialist_solution,2.61,18.11,29.78,false,false
+TKT-00138,CUST-009,2026-01-20T08:52:00,2026-01-22T04:38:43,closed,login_access,login_access,high,Customer Portal,true,true,SP-002,true,false,specialist_solution,1.9,13.97,43.78,false,false
+TKT-00139,CUST-007,2026-01-21T10:06:00,2026-01-24T14:28:51,closed,other,other,low,Customer Portal,false,true,SP-008,true,false,specialist_solution,1.8,57.81,76.38,false,false
+TKT-00140,CUST-001,2026-02-24T12:05:00,2026-02-27T00:27:41,closed,login_access,login_access,low,Customer Portal,false,true,SP-002,false,false,specialist_solution,5.37,15.79,60.38,true,true
+TKT-00141,CUST-006,2026-01-26T05:20:00,2026-01-29T04:54:21,closed,password_reset,password_reset,high,Customer Portal,true,false,SP-006,true,true,faq,0.96,1.63,71.57,true,false
+TKT-00142,CUST-010,2026-02-20T04:51:00,2026-02-21T19:06:27,closed,hardware_issue,hardware_issue,high,Customer Portal,true,false,"",true,false,faq,2.92,3.78,38.26,false,false
+TKT-00143,CUST-007,2026-03-28T14:31:00,2026-03-29T05:20:49,closed,login_access,login_access,medium,CRM,true,false,"",true,false,faq,1.63,4.68,14.83,true,true
+TKT-00144,CUST-011,2026-01-18T09:28:00,2026-01-23T00:26:23,closed,data_reporting,data_reporting,medium,CRM,false,true,SP-007,true,false,specialist_solution,2.05,51.61,110.97,false,false
+TKT-00145,CUST-004,2026-02-09T01:09:00,2026-02-11T05:18:15,closed,password_reset,password_reset,high,Customer Portal,true,false,"",true,false,faq,5.62,6.3,52.15,false,false
+TKT-00146,CUST-007,2026-03-11T11:53:00,2026-03-14T06:25:30,closed,data_reporting,data_reporting,medium,Analytics Dashboard,true,true,SP-005,true,false,specialist_solution,0.28,50.48,66.54,false,false
+TKT-00147,CUST-018,2026-02-11T10:17:00,2026-02-16T19:27:10,closed,software_bug,software_bug,medium,Customer Portal,true,true,SP-008,true,true,specialist_solution,4.3,75.68,129.17,false,false
+TKT-00148,CUST-011,2026-01-24T09:49:00,2026-01-27T03:43:16,closed,data_reporting,data_reporting,medium,Analytics Dashboard,false,true,SP-007,true,false,specialist_solution,1.84,19.16,65.9,false,false
+TKT-00149,CUST-017,2026-01-26T08:37:00,2026-01-28T12:13:27,closed,password_reset,password_reset,low,Customer Portal,true,false,"",true,false,faq,5.21,7.09,51.61,true,true
+TKT-00150,CUST-010,2026-03-18T04:31:00,2026-03-19T00:01:35,closed,password_reset,password_reset,medium,Identity Provider,true,false,"",true,false,faq,0.77,4.31,19.51,true,true
+TKT-00151,CUST-011,2026-01-29T05:09:00,2026-01-30T23:23:36,closed,network_connectivity,network_connectivity,medium,VPN,true,false,"",true,false,faq,1.67,5.35,42.24,true,true
+TKT-00152,CUST-001,2026-03-12T14:20:00,2026-03-14T19:04:11,closed,email_calendar,email_calendar,medium,Email,true,false,"",true,false,faq,3.77,5.99,52.74,true,false
+TKT-00153,CUST-017,2026-02-21T04:13:00,2026-02-23T14:53:09,closed,software_bug,software_bug,high,Customer Portal,false,true,SP-008,true,false,specialist_solution,2.47,16.45,58.67,false,false
+TKT-00154,CUST-002,2026-01-17T06:33:00,2026-01-19T08:31:33,closed,other,other,high,Customer Portal,false,true,SP-008,true,false,specialist_solution,1.81,34.95,49.98,false,false
+TKT-00155,CUST-009,2026-02-28T06:40:00,2026-03-02T15:06:49,closed,billing_account,billing_account,medium,Customer Portal,false,true,SP-010,true,false,specialist_solution,3.76,25.53,56.45,false,false
+TKT-00156,CUST-006,2026-01-19T04:02:00,2026-01-22T04:39:42,closed,hardware_issue,login_access,high,CRM,true,false,SP-003,false,true,faq,4.28,5.32,72.63,false,false
+TKT-00157,CUST-004,2026-02-14T20:15:00,2026-02-17T03:55:10,closed,data_reporting,data_reporting,high,Analytics Dashboard,false,true,SP-007,true,false,specialist_solution,2.56,38.84,55.67,false,false
+TKT-00158,CUST-004,2026-03-10T10:19:00,2026-03-12T13:48:44,closed,email_calendar,email_calendar,high,Email,false,true,SP-002,true,false,specialist_solution,4.91,22.85,51.5,false,false
+TKT-00159,CUST-004,2026-01-18T17:49:00,2026-01-21T02:16:16,closed,password_reset,password_reset,medium,Identity Provider,true,false,"",true,false,faq,5.44,7.7,56.45,true,false
+TKT-00160,CUST-006,2026-03-05T15:21:00,2026-03-07T06:05:04,closed,login_access,login_access,urgent,Identity Provider,true,false,"",true,false,faq,4.06,5.72,38.73,false,false
+TKT-00161,CUST-011,2026-01-25T23:14:00,2026-01-27T22:28:04,closed,password_reset,password_reset,low,Identity Provider,true,false,"",true,false,faq,5.64,8.94,47.23,true,true
+TKT-00162,CUST-002,2026-01-20T11:38:00,2026-01-23T01:03:50,closed,software_bug,software_bug,medium,Inventory App,false,true,SP-008,true,false,specialist_solution,2.24,48.86,61.43,false,false
+TKT-00163,CUST-003,2026-02-12T07:07:00,2026-02-14T05:32:43,closed,password_reset,password_reset,medium,Identity Provider,true,false,"",true,false,faq,4.43,6.6,46.43,true,true
+TKT-00164,CUST-007,2026-02-12T14:59:00,2026-02-14T23:52:41,closed,login_access,login_access,medium,Customer Portal,false,true,SP-006,true,false,specialist_solution,3.59,15.13,56.89,false,false
+TKT-00165,CUST-012,2026-02-18T13:57:00,2026-02-20T02:32:26,closed,data_reporting,data_reporting,medium,Analytics Dashboard,false,true,SP-005,true,false,specialist_solution,0.54,15.34,36.59,false,true
+TKT-00166,CUST-003,2026-02-13T08:26:00,2026-02-15T10:45:57,closed,login_access,login_access,medium,CRM,true,false,"",true,false,faq,5.51,8.19,50.33,false,false
+TKT-00167,CUST-002,2026-02-10T13:00:00,2026-02-11T15:03:44,closed,network_connectivity,network_connectivity,urgent,Identity Provider,false,true,SP-004,true,false,specialist_solution,3.93,12.46,26.06,false,false
+TKT-00168,CUST-014,2026-03-31T00:57:00,2026-04-03T01:28:01,closed,login_access,login_access,medium,Identity Provider,false,true,SP-002,false,false,specialist_solution,0.51,10.76,72.52,false,false
+TKT-00169,CUST-002,2026-02-20T11:19:00,2026-02-23T16:44:48,closed,software_bug,software_bug,high,Inventory App,false,true,SP-008,true,false,specialist_solution,1.1,48.36,77.43,false,false
+TKT-00170,CUST-011,2026-03-12T02:01:00,2026-03-14T06:11:06,closed,network_connectivity,network_connectivity,high,VPN,true,false,"",true,false,faq,1.13,2.6,52.17,false,false
+TKT-00171,CUST-017,2026-01-19T07:44:00,2026-01-21T07:29:08,closed,billing_account,billing_account,medium,Customer Portal,false,true,SP-010,true,false,specialist_solution,2.49,26.74,47.75,false,true
+TKT-00172,CUST-003,2026-03-29T23:30:00,2026-03-30T21:57:38,closed,data_reporting,data_reporting,medium,Analytics Dashboard,true,false,"",true,false,faq,3.36,6.22,22.46,true,true
+TKT-00173,CUST-015,2026-02-19T16:46:00,2026-02-23T12:26:22,closed,login_access,login_access,medium,CRM,false,true,SP-006,true,true,specialist_solution,1.9,11.27,91.67,false,false
+TKT-00174,CUST-015,2026-03-16T17:40:00,2026-03-20T03:17:46,closed,network_connectivity,network_connectivity,medium,Identity Provider,false,true,SP-004,true,false,specialist_solution,4.52,20.71,81.63,false,false
+TKT-00175,CUST-004,2026-03-01T15:57:00,2026-03-05T13:52:23,closed,password_reset,password_reset,low,Identity Provider,true,false,SP-006,true,true,faq,1.51,3.78,93.92,true,false
+TKT-00176,CUST-015,2026-03-26T00:13:00,2026-04-01T13:09:45,closed,other,other,medium,Customer Portal,false,true,SP-008,true,false,specialist_solution,1.89,103.4,156.95,false,false
+TKT-00177,CUST-012,2026-01-19T10:07:00,2026-01-21T16:06:32,closed,software_bug,email_calendar,low,Email,true,false,"",true,false,faq,1.57,3.65,53.99,true,true
+TKT-00178,CUST-004,2026-02-04T04:26:00,2026-02-08T02:51:36,closed,hardware_issue,hardware_issue,high,Customer Portal,false,true,SP-001,false,false,specialist_solution,2.42,33.65,94.43,false,false
+TKT-00179,CUST-017,2026-01-19T01:24:00,2026-01-22T09:39:00,closed,software_bug,software_bug,high,Analytics Dashboard,false,true,SP-008,true,false,specialist_solution,2.9,56.55,80.25,false,false
+TKT-00180,CUST-012,2026-03-28T10:32:00,2026-03-30T00:55:04,closed,password_reset,password_reset,low,CRM,true,false,"",true,false,faq,4.45,7.06,38.38,true,true
+TKT-00181,CUST-013,2026-03-24T22:09:00,2026-03-26T16:15:37,closed,email_calendar,email_calendar,medium,Email,false,true,SP-006,true,false,specialist_solution,5.84,19.78,42.11,false,true
+TKT-00182,CUST-018,2026-02-08T09:16:00,2026-02-11T04:27:21,closed,billing_account,billing_account,medium,Billing System,false,true,SP-010,true,false,specialist_solution,2.51,21.01,67.19,false,false
+TKT-00183,CUST-007,2026-02-16T10:47:00,2026-02-17T06:32:14,closed,login_access,login_access,medium,CRM,true,false,"",true,false,faq,3.49,5.92,19.75,true,true
+TKT-00184,CUST-005,2026-02-13T10:08:00,2026-02-14T09:25:57,closed,billing_account,billing_account,medium,Customer Portal,false,true,SP-010,true,false,specialist_solution,2.09,14.44,23.3,false,true
+TKT-00185,CUST-013,2026-02-04T22:39:00,2026-02-06T19:17:48,closed,email_calendar,email_calendar,medium,Email,false,true,SP-002,true,false,specialist_solution,4.03,15.56,44.65,false,true
+TKT-00186,CUST-003,2026-02-27T22:21:00,2026-03-02T01:35:32,closed,network_connectivity,network_connectivity,high,VPN,false,true,SP-009,true,false,specialist_solution,5.15,13.4,51.24,false,false
+TKT-00187,CUST-018,2026-02-15T05:13:00,2026-02-17T15:30:39,closed,network_connectivity,network_connectivity,medium,Identity Provider,false,true,SP-004,false,false,specialist_solution,0.91,11.05,58.29,false,false
+TKT-00188,CUST-018,2026-02-08T08:31:00,2026-02-10T22:29:57,closed,login_access,login_access,medium,Customer Portal,true,false,"",false,false,faq,3.12,5.12,61.98,true,false
+TKT-00189,CUST-018,2026-01-17T22:46:00,2026-01-20T08:53:19,closed,network_connectivity,network_connectivity,medium,VPN,true,false,"",true,false,faq,1.74,3.16,58.12,true,false
+TKT-00190,CUST-001,2026-02-17T20:48:00,2026-02-22T19:48:26,closed,data_reporting,data_reporting,medium,Inventory App,false,true,SP-007,false,true,specialist_solution,4.73,24.13,119.01,false,false
+TKT-00191,CUST-005,2026-03-25T17:29:00,2026-03-29T09:56:56,closed,password_reset,password_reset,medium,Customer Portal,false,true,SP-006,true,true,specialist_solution,2.64,12.99,88.47,false,false
+TKT-00192,CUST-015,2026-03-31T03:51:00,2026-04-01T10:32:22,closed,email_calendar,email_calendar,medium,Email,false,true,SP-006,true,false,specialist_solution,0.47,15.49,30.69,false,true
+TKT-00193,CUST-008,2026-03-03T16:43:00,2026-03-05T14:55:38,closed,login_access,login_access,high,CRM,true,false,"",true,false,faq,3.03,5.68,46.21,false,false
+TKT-00194,CUST-005,2026-03-27T14:51:00,2026-03-30T11:55:19,closed,login_access,login_access,medium,Identity Provider,false,true,SP-002,true,false,specialist_solution,3.2,21.56,69.07,false,false
+TKT-00195,CUST-008,2026-03-15T13:39:00,2026-03-17T17:24:16,closed,data_reporting,data_reporting,high,CRM,false,true,SP-007,true,false,specialist_solution,3.16,35.48,51.75,false,false
+TKT-00196,CUST-001,2026-02-22T17:15:00,2026-02-25T04:51:12,closed,login_access,login_access,medium,CRM,false,true,SP-002,true,false,specialist_solution,5.85,12.67,59.6,false,false
+TKT-00197,CUST-004,2026-03-11T11:29:00,2026-03-14T08:18:07,closed,password_reset,password_reset,low,CRM,false,true,SP-002,true,false,specialist_solution,2.17,13.77,68.82,true,true
+TKT-00198,CUST-007,2026-03-23T01:11:00,2026-03-25T21:49:50,closed,password_reset,password_reset,low,CRM,true,true,SP-002,true,false,specialist_solution,1.73,12.78,68.65,true,true
+TKT-00199,CUST-001,2026-03-02T12:36:00,2026-03-05T18:39:28,closed,other,other,medium,Customer Portal,false,true,SP-008,true,false,specialist_solution,2.11,56.7,78.06,false,false
+TKT-00200,CUST-014,2026-02-18T01:00:00,2026-02-20T15:09:26,closed,email_calendar,email_calendar,high,Email,true,false,"",true,false,faq,0.3,1.7,62.16,true,false
+TKT-00201,CUST-006,2026-03-07T14:14:00,2026-03-09T20:14:02,closed,password_reset,password_reset,medium,CRM,true,false,"",true,false,faq,3.9,5.86,54.0,true,false
+TKT-00202,CUST-018,2026-03-22T04:26:00,2026-03-23T10:09:27,closed,billing_account,billing_account,medium,Customer Portal,false,true,SP-010,true,false,specialist_solution,1.52,16.43,29.72,false,true
+TKT-00203,CUST-009,2026-03-26T21:14:00,2026-03-29T01:22:31,closed,network_connectivity,network_connectivity,medium,Identity Provider,true,true,SP-004,true,false,specialist_solution,5.08,19.03,52.14,false,false
+TKT-00204,CUST-006,2026-02-28T21:01:00,2026-03-02T05:40:35,closed,network_connectivity,network_connectivity,urgent,Identity Provider,true,true,SP-004,true,false,specialist_solution,3.62,12.17,32.66,false,false
+TKT-00205,CUST-006,2026-01-27T20:24:00,2026-01-30T00:17:34,closed,billing_account,billing_account,high,Billing System,false,true,SP-010,true,false,specialist_solution,5.23,14.95,51.89,false,false
+TKT-00206,CUST-005,2026-02-01T22:46:00,2026-02-03T04:37:36,closed,login_access,login_access,high,Customer Portal,true,false,"",true,false,faq,4.29,6.59,29.86,false,false
+TKT-00207,CUST-006,2026-02-10T08:55:00,2026-02-13T16:42:55,closed,network_connectivity,network_connectivity,high,VPN,false,true,SP-009,true,true,specialist_solution,3.92,15.39,79.8,false,false
+TKT-00208,CUST-004,2026-01-22T08:17:00,2026-01-25T07:23:17,closed,network_connectivity,network_connectivity,urgent,VPN,false,true,SP-009,true,false,specialist_solution,1.94,15.45,71.1,false,false
+TKT-00209,CUST-010,2026-03-29T06:11:00,2026-04-02T23:38:27,closed,hardware_issue,hardware_issue,medium,Customer Portal,true,true,SP-003,true,false,specialist_solution,3.03,61.46,113.46,false,false
+TKT-00210,CUST-014,2026-02-28T22:15:00,2026-03-06T21:47:45,closed,other,other,high,Customer Portal,false,true,SP-008,true,true,specialist_solution,3.77,77.65,143.55,false,false
+TKT-00211,CUST-007,2026-03-04T21:16:00,2026-03-06T02:07:58,closed,password_reset,password_reset,medium,CRM,true,false,"",true,false,faq,1.9,4.0,28.87,true,true
+TKT-00212,CUST-017,2026-01-31T19:06:00,2026-02-04T19:40:39,closed,security_request,security_request,high,Identity Provider,false,true,SP-006,true,false,specialist_solution,5.98,39.01,96.58,false,false
+TKT-00213,CUST-003,2026-02-19T07:57:00,2026-02-21T13:43:35,closed,password_reset,password_reset,low,Customer Portal,true,false,"",true,false,faq,2.48,3.86,53.78,true,true
+TKT-00214,CUST-007,2026-02-04T02:24:00,2026-02-04T21:30:19,closed,network_connectivity,network_connectivity,medium,Identity Provider,true,false,"",true,false,faq,2.55,3.54,19.11,true,true
+TKT-00215,CUST-016,2026-03-10T19:53:00,2026-03-19T15:46:31,closed,software_bug,software_bug,medium,Analytics Dashboard,false,true,SP-008,false,true,specialist_solution,4.28,99.83,211.89,false,false
+TKT-00216,CUST-002,2026-02-16T12:58:00,2026-02-17T03:26:01,closed,email_calendar,email_calendar,medium,Email,true,false,"",true,false,faq,4.6,7.77,14.47,true,true
+TKT-00217,CUST-008,2026-03-28T08:47:00,2026-03-29T01:36:20,closed,password_reset,password_reset,medium,Customer Portal,true,false,"",true,false,faq,1.33,3.65,16.82,true,true
+TKT-00218,CUST-005,2026-03-12T23:54:00,2026-03-17T12:52:24,closed,login_access,login_access,medium,CRM,false,true,SP-002,true,true,specialist_solution,2.16,11.42,108.97,false,false
+TKT-00219,CUST-009,2026-03-26T22:47:00,2026-03-28T17:43:05,closed,security_request,security_request,medium,Identity Provider,true,false,"",true,false,faq,4.76,6.56,42.93,true,true
+TKT-00220,CUST-004,2026-02-22T14:20:00,2026-02-25T12:07:02,closed,network_connectivity,network_connectivity,high,Identity Provider,false,true,SP-009,true,false,specialist_solution,4.22,22.47,69.78,false,false
+TKT-00221,CUST-004,2026-03-04T12:36:00,2026-03-06T00:17:50,closed,hardware_issue,hardware_issue,high,Customer Portal,false,true,SP-001,true,false,specialist_solution,5.28,29.89,35.7,false,false
+TKT-00222,CUST-010,2026-01-21T09:49:00,2026-01-22T01:20:27,closed,login_access,login_access,medium,Identity Provider,true,false,"",true,false,faq,0.3,1.19,15.52,true,true
+TKT-00223,CUST-013,2026-02-15T23:03:00,2026-02-20T12:21:56,closed,software_bug,software_bug,medium,Inventory App,false,true,SP-008,true,false,specialist_solution,1.96,51.08,109.32,false,false
+TKT-00224,CUST-018,2026-01-27T04:12:00,2026-01-29T15:17:23,closed,password_reset,password_reset,medium,CRM,true,false,"",true,false,faq,4.15,7.48,59.09,true,false
+TKT-00225,CUST-003,2026-02-04T16:10:00,2026-02-05T05:06:05,closed,password_reset,password_reset,medium,Identity Provider,true,false,"",true,false,faq,3.35,5.56,12.93,true,true
+TKT-00226,CUST-016,2026-03-21T21:39:00,2026-03-23T06:56:49,closed,hardware_issue,login_access,low,Customer Portal,true,false,"",true,false,faq,5.75,8.42,33.3,true,true
+TKT-00227,CUST-002,2026-01-29T06:55:00,2026-01-31T23:50:57,closed,email_calendar,email_calendar,high,Email,true,false,"",true,false,faq,2.41,3.67,64.93,false,false
+TKT-00228,CUST-012,2026-03-18T07:37:00,2026-03-20T15:42:19,closed,login_access,login_access,medium,Customer Portal,false,true,SP-002,true,false,specialist_solution,0.86,20.13,56.09,false,false
+TKT-00229,CUST-012,2026-02-13T18:05:00,2026-02-16T20:22:48,closed,network_connectivity,network_connectivity,medium,Identity Provider,true,true,SP-004,true,false,specialist_solution,0.4,28.26,74.3,false,false
+TKT-00230,CUST-001,2026-02-08T08:38:00,2026-02-14T02:16:22,closed,billing_account,billing_account,medium,Customer Portal,false,true,SP-010,true,true,specialist_solution,2.41,19.53,137.64,false,false
+TKT-00231,CUST-005,2026-03-05T01:51:00,2026-03-10T14:04:14,closed,billing_account,billing_account,medium,Billing System,false,true,SP-010,false,true,specialist_solution,5.13,15.23,132.22,false,false
+TKT-00232,CUST-014,2026-03-02T16:21:00,2026-03-06T18:31:03,closed,other,email_calendar,medium,Email,false,true,SP-008,true,false,specialist_solution,2.52,84.28,98.17,false,false
+TKT-00233,CUST-016,2026-01-27T07:23:00,2026-01-29T13:29:56,closed,password_reset,password_reset,low,Identity Provider,true,false,"",true,false,faq,1.04,2.97,54.12,true,true
+TKT-00234,CUST-003,2026-03-19T09:14:00,2026-03-23T03:20:27,closed,security_request,security_request,high,Identity Provider,false,true,SP-006,true,false,specialist_solution,2.58,54.68,90.11,false,false
+TKT-00235,CUST-013,2026-02-02T19:38:00,2026-02-10T02:09:22,closed,security_request,security_request,high,Identity Provider,false,true,SP-006,true,true,specialist_solution,4.26,36.38,174.52,false,false
+TKT-00236,CUST-006,2026-03-15T01:43:00,2026-03-16T19:31:44,closed,password_reset,password_reset,medium,Identity Provider,true,false,"",true,false,faq,5.74,8.07,41.81,false,true
+TKT-00237,CUST-017,2026-02-27T16:42:00,2026-03-02T08:43:16,closed,software_bug,software_bug,medium,Inventory App,true,false,SP-008,true,true,faq,5.39,8.26,64.02,false,false
+TKT-00238,CUST-011,2026-03-06T00:45:00,2026-03-08T16:29:25,closed,network_connectivity,network_connectivity,medium,Identity Provider,false,true,SP-009,true,false,specialist_solution,3.97,15.15,63.74,false,false
+TKT-00239,CUST-013,2026-02-11T19:36:00,2026-02-13T10:13:32,closed,data_reporting,data_reporting,medium,Analytics Dashboard,true,false,"",true,false,faq,2.97,5.18,38.63,true,true
+TKT-00240,CUST-009,2026-02-18T05:55:00,2026-02-20T17:08:44,closed,login_access,login_access,medium,Identity Provider,true,false,"",true,false,faq,2.59,4.98,59.23,true,false
+TKT-00241,CUST-017,2026-02-17T17:21:00,2026-02-19T17:27:58,closed,login_access,login_access,high,Customer Portal,false,true,SP-006,true,false,specialist_solution,2.18,13.26,48.12,false,false
+TKT-00242,CUST-016,2026-02-16T16:02:00,2026-02-17T22:41:19,closed,password_reset,password_reset,low,Identity Provider,true,false,"",true,false,faq,2.08,5.36,30.66,true,true
+TKT-00243,CUST-003,2026-03-18T16:29:00,2026-03-21T07:44:11,closed,password_reset,password_reset,low,Identity Provider,true,false,"",true,false,faq,0.87,3.28,63.25,true,true
+TKT-00244,CUST-012,2026-01-25T07:21:00,2026-01-29T23:35:59,closed,network_connectivity,network_connectivity,medium,Identity Provider,true,false,SP-009,true,true,faq,0.41,1.54,112.25,true,false
+TKT-00245,CUST-012,2026-03-27T09:52:00,2026-03-28T07:02:09,closed,other,other,low,Customer Portal,true,false,"",true,false,faq,2.24,3.84,21.17,true,true
+TKT-00246,CUST-015,2026-01-15T12:57:00,2026-01-16T16:16:17,closed,network_connectivity,network_connectivity,medium,Identity Provider,true,false,"",true,false,faq,4.15,6.9,27.32,true,true
+TKT-00247,CUST-014,2026-03-19T21:24:00,2026-03-21T18:06:06,closed,billing_account,billing_account,high,Billing System,false,true,SP-010,true,false,specialist_solution,3.48,18.68,44.7,false,false
+TKT-00248,CUST-011,2026-01-17T07:14:00,2026-01-20T07:24:27,closed,billing_account,billing_account,high,Billing System,false,true,SP-010,true,false,specialist_solution,2.94,15.01,72.17,false,false
+TKT-00249,CUST-017,2026-03-06T20:16:00,2026-03-08T02:23:00,closed,password_reset,password_reset,low,Identity Provider,true,false,"",true,false,faq,2.69,4.98,30.12,true,true
+TKT-00250,CUST-016,2026-02-28T20:28:00,2026-03-05T08:37:26,closed,hardware_issue,hardware_issue,medium,Customer Portal,false,true,SP-003,true,false,specialist_solution,5.42,54.38,108.16,false,false

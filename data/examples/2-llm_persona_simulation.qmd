@@ -1,0 +1,342 @@
+---
+title: LLM-driven survey simulation
+jupyter: python3
+---
+
+We generate a diverse set of customer personas, then ask an LLM to role-play each persona filling out a structured survey about an electric unicycle. The LLM returns **structured JSON** validated by a Pydantic schema — no regex, no fragile parsing.
+
+To avoid the common "everyone answers 'somewhat interested'" failure mode, we:
+
+1. Use **richer personas** with attributes that create strong pro-/con-signals (commute length, prior micromobility experience, family situation, risk tolerance).
+2. **Show the persona the actual product spec** so there is something concrete to react to.
+3. Use a **two-step prompt**: first generate a short backstory in the persona's voice, then have a second call fill out the survey *given that backstory*.
+4. **Forbid hedging** in the survey instructions and require a one-sentence reason that references the persona's attributes.
+5. **Drop the neutral middle** option from the interest enum so the model cannot settle into a default.
+
+```{python}
+# ── config ────────────────────────────────────────────────────────────────
+# Change this one line to swap models. Every other cell uses MODEL.
+MODEL = "api-llama-4-scout"
+# Other options (see utils/connect.py for the authoritative lists):
+# Cheap: "api-llama-4-scout", "gemini-3-flash", "api-gpt-oss-120b"
+# Expensive:  "gpt-5.4", "gemini-3-pro-preview", "claude-opus-4-6-v1"
+# Run `from utils.connect import list_models; list_models()` for the live list.
+# ──────────────────────────────────────────────────────────────────────────
+import sys
+sys.path.append("../..")
+
+from enum import Enum
+import numpy as np
+import polars as pl
+from pydantic import BaseModel, Field
+from dotenv import load_dotenv
+
+from utils.connect import ask, ask_json
+
+load_dotenv()
+np.random.seed(1234)
+```
+
+## 1. Define the survey schema
+
+Note the `InterestLevel` enum has **no neutral middle** — the persona must commit to "interested" or "not interested" at some strength.
+
+```{python}
+class InterestLevel(str, Enum):
+    very_interested = "very interested"
+    mildly_interested = "mildly interested"
+    not_very_interested = "not very interested"
+    not_interested = "not interested"
+
+
+class PricePoint(str, Enum):
+    under_500 = "under $500"
+    p500_1000 = "$500-$1000"
+    p1000_2000 = "$1000-$2000"
+    over_2000 = "over $2000"
+
+
+class UseCase(str, Enum):
+    commuting = "commuting"
+    recreation = "recreation"
+    exercise = "exercise"
+    short_errands = "short errands"
+    would_not_use = "would not use"
+
+
+class SurveyResponse(BaseModel):
+    interest: InterestLevel = Field(..., description="Overall interest level")
+    interest_reason: str = Field(
+        ...,
+        description="One sentence explaining the interest choice that references at "
+        "least one specific persona attribute.",
+    )
+    willingness_to_pay: PricePoint = Field(..., description="Most they'd pay")
+    primary_use: UseCase = Field(..., description="How they'd primarily use it")
+    safety_concern: int = Field(..., ge=1, le=5, description="Safety concern 1 (low) - 5 (high)")
+    likelihood_to_buy: int = Field(..., ge=1, le=10, description="1 = never, 10 = definitely")
+    open_feedback: str = Field(..., description="One or two sentences of open-ended feedback")
+```
+
+## 2. Product spec — something concrete for the persona to react to
+
+Without a product spec, personas have nothing to anchor on. Paste a short, honest
+description (price, speed, range, and one clear drawback).
+
+```{python}
+PRODUCT_SPEC = """\
+Product under evaluation — Vortex V1 electric unicycle.
+- Price: $1,200 USD
+- Top speed: 20 mph (32 km/h)
+- Range: 25 miles (40 km) per charge
+- Weight: 40 lbs (18 kg)
+- Water resistance: IP54 (splashes, not immersion)
+- Learning curve: most riders need 5-10 hours of practice before they are comfortable
+- Safety: helmet strongly recommended; falls at low speed are common during the learning phase
+- Warranty: 1 year on the motor, 6 months on the battery
+"""
+print(PRODUCT_SPEC)
+```
+
+## 3. Generate richer personas
+
+Compared to the minimal version (age + income + location + fitness), we add five
+attributes that tend to push the response strongly one way or the other.
+
+```{python}
+n_personas = 20
+
+# Enum categories — keep grouping / axis order consistent across plots and summaries.
+# Each list is written from "low signal" to "high signal" so groupby-then-sort
+# by category reads naturally.
+IncomeEnum     = pl.Enum(["low", "middle", "upper-middle", "high"])
+LocationEnum   = pl.Enum(["dense urban", "suburban", "rural"])
+FitnessEnum    = pl.Enum(["sedentary", "moderate", "active"])
+PriorExpEnum   = pl.Enum([
+    "none",
+    "had a minor scooter spill last year",
+    "owns an e-bike",
+    "rides a regular bike daily",
+])
+TechEnum       = pl.Enum(["reluctant", "practical", "early adopter"])
+FamilyEnum     = pl.Enum([
+    "single, no kids",
+    "partnered, no kids",
+    "has kids under 10",
+    "has teens or adult kids",
+])
+CarsEnum       = pl.Enum(["no car", "one car", "two or more cars"])
+
+# Baseline demographics
+ages = np.random.randint(18, 70, size=n_personas)
+incomes = np.random.choice(IncomeEnum.categories.to_list(),  size=n_personas, p=[0.2, 0.4, 0.3, 0.1])
+cities  = np.random.choice(LocationEnum.categories.to_list(), size=n_personas, p=[0.5, 0.4, 0.1])
+fitness = np.random.choice(FitnessEnum.categories.to_list(),  size=n_personas, p=[0.3, 0.5, 0.2])
+
+# Stronger-signal attributes (note: probabilities align with the Enum order above)
+commute_miles = np.random.choice([2, 5, 10, 20, 35], size=n_personas, p=[0.25, 0.3, 0.2, 0.15, 0.1])
+prior_experience = np.random.choice(
+    PriorExpEnum.categories.to_list(),
+    size=n_personas, p=[0.4, 0.15, 0.25, 0.2],   # none, spill, e-bike, daily biker
+)
+tech_attitude = np.random.choice(
+    TechEnum.categories.to_list(),
+    size=n_personas, p=[0.2, 0.55, 0.25],        # reluctant, practical, early adopter
+)
+family_status = np.random.choice(
+    FamilyEnum.categories.to_list(),
+    size=n_personas, p=[0.35, 0.3, 0.2, 0.15],
+)
+risk_tolerance = np.random.randint(1, 11, size=n_personas)   # 1 low - 10 high
+cars = np.random.choice(CarsEnum.categories.to_list(), size=n_personas, p=[0.25, 0.5, 0.25])
+
+personas = pl.DataFrame(
+    {
+        "persona_id":       [f"P{i:02d}" for i in range(n_personas)],
+        "age":              ages,
+        "income":           pl.Series(incomes).cast(IncomeEnum),
+        "location":         pl.Series(cities).cast(LocationEnum),
+        "fitness":          pl.Series(fitness).cast(FitnessEnum),
+        "commute_miles":    commute_miles,
+        "prior_experience": pl.Series(prior_experience).cast(PriorExpEnum),
+        "tech_attitude":    pl.Series(tech_attitude).cast(TechEnum),
+        "family_status":    pl.Series(family_status).cast(FamilyEnum),
+        "risk_tolerance":   risk_tolerance,
+        "cars":             pl.Series(cars).cast(CarsEnum),
+    }
+)
+
+personas.head()
+```
+
+## 4. Step one — generate a short backstory for each persona
+
+The backstory forces the model to commit to specifics ("I commute 8 miles, I fell
+off a scooter last year and my knee still aches") *before* it has to pick survey
+answers. Without this anchoring, a short demographic vector gives the model too
+little to reason with and the enum default wins.
+
+```{python}
+def persona_bullets(row: dict) -> str:
+    return (
+        f"- age: {row['age']}\n"
+        f"- household income: {row['income']}\n"
+        f"- lives in: {row['location']} area\n"
+        f"- fitness: {row['fitness']}\n"
+        f"- daily one-way commute: {row['commute_miles']} miles\n"
+        f"- prior micromobility experience: {row['prior_experience']}\n"
+        f"- attitude toward new technology: {row['tech_attitude']}\n"
+        f"- family: {row['family_status']}\n"
+        f"- physical risk tolerance (1 low - 10 high): {row['risk_tolerance']}\n"
+        f"- cars in household: {row['cars']}"
+    )
+
+
+BACKSTORY_SYSTEM = (
+    "You write tight, realistic first-person profiles of consumers for market-research "
+    "simulations. No purple prose. Keep it to 80-120 words."
+)
+
+
+def backstory_prompt(row: dict) -> str:
+    return (
+        f"Here is a persona:\n\n{persona_bullets(row)}\n\n"
+        "Write a short first-person backstory (80-120 words) for this persona. "
+        "Mention how they get around today, whether they enjoy physical activity, "
+        "one past experience that shapes their attitude toward scooters/bikes/unicycles, "
+        "and what — if anything — would make them consider buying an electric unicycle. "
+        "Be specific and concrete; do not hedge."
+    )
+
+
+backstories: dict[str, str] = {}
+for row in personas.iter_rows(named=True):
+    try:
+        text = ask(
+            backstory_prompt(row),
+            model=MODEL,
+            system=BACKSTORY_SYSTEM,
+            temperature=0.9,
+            max_tokens=300,
+        )
+        backstories[row["persona_id"]] = text
+    except Exception as e:
+        print(f"backstory failed for {row['persona_id']}: {e}")
+
+# Peek at the first two
+for pid in list(backstories)[:2]:
+    print(f"--- {pid} ---")
+    print(backstories[pid])
+    print()
+```
+
+## 5. Step two — fill out the survey given the backstory
+
+The survey prompt explicitly forbids hedging and requires the persona to
+justify each choice. Higher temperature (0.9) plus the anti-hedge instruction
+reduces mode collapse on the enum fields.
+
+> *Note: `presence_penalty` would help further — it is not currently threaded through
+> `utils.connect.ask_json`. If mode collapse persists after the fixes above, ask
+> Claude to add a `**extra` passthrough and try `presence_penalty=0.4`.*
+
+```{python}
+SURVEY_SYSTEM = (
+    "You are filling out a market-research survey in the voice of a specific persona. "
+    "Commit to a clear stance. Do NOT default to middle-of-the-road answers. "
+    "If the persona's backstory contains any reason to be strongly positive or strongly "
+    "negative, reflect that in your survey answers — do not hedge. Return ONLY valid JSON "
+    "matching the SurveyResponse schema."
+)
+
+
+def survey_prompt(row: dict, backstory: str) -> str:
+    return (
+        f"PRODUCT BEING EVALUATED:\n{PRODUCT_SPEC}\n"
+        f"PERSONA ATTRIBUTES:\n{persona_bullets(row)}\n\n"
+        f"PERSONA BACKSTORY (first person):\n{backstory}\n\n"
+        "Fill out the survey in the persona's voice. Rules:\n"
+        "1. Your `interest_reason` MUST reference at least one specific attribute or "
+        "   sentence from the backstory.\n"
+        "2. Do NOT pick a mid-range answer just to play it safe. If the persona's "
+        "   profile leans positive or negative, commit to that.\n"
+        "3. `safety_concern` should reflect `risk_tolerance` and `family_status`.\n"
+        "4. `willingness_to_pay` should reflect income and how strongly they want the product.\n"
+    )
+
+
+responses: list[dict] = []
+for row in personas.iter_rows(named=True):
+    pid = row["persona_id"]
+    if pid not in backstories:
+        continue
+    try:
+        reply = ask_json(
+            survey_prompt(row, backstories[pid]),
+            schema=SurveyResponse,
+            model=MODEL,
+            system=SURVEY_SYSTEM,
+            temperature=0.9,
+            max_tokens=600,
+        )
+        responses.append(
+            {"persona_id": pid, "backstory": backstories[pid], **reply.model_dump()}
+        )
+    except Exception as e:
+        print(f"survey failed for {pid}: {e}")
+
+survey = pl.DataFrame(responses)
+
+# Cast survey enum fields to polars Enum in the same order as the pydantic schema
+# so plots and group_by() output respect the intended order.
+InterestEnum = pl.Enum([e.value for e in InterestLevel])
+PriceEnum    = pl.Enum([e.value for e in PricePoint])
+UseCaseEnum  = pl.Enum([e.value for e in UseCase])
+
+if not survey.is_empty():
+    survey = survey.with_columns(
+        pl.col("interest").cast(InterestEnum),
+        pl.col("willingness_to_pay").cast(PriceEnum),
+        pl.col("primary_use").cast(UseCaseEnum),
+    )
+
+survey.select(["persona_id", "interest", "likelihood_to_buy", "interest_reason"]).head()
+```
+
+## 6. Summarise and visualise
+
+```{python}
+# Guard: if the LLM calls all failed (e.g., missing API key) skip the summary
+if survey.is_empty():
+    print("No survey responses to summarise — check TRITONAI_API_KEY.")
+else:
+    joined = personas.join(survey, on="persona_id", how="inner")
+    print(
+        joined.group_by("income")
+        .agg(mean_score=pl.col("likelihood_to_buy").mean(), n=pl.len())
+        .sort("income")
+    )
+```
+
+```{python}
+joined.group_by("interest").agg(n=pl.len()).sort("interest")
+```
+
+```{python}
+joined.group_by(["income", "willingness_to_pay"]).agg(n=pl.len()).sort(["income", "willingness_to_pay"])
+```
+
+```{python}
+# Sanity check: does interest correlate with the strongest-signal attributes?
+joined.group_by("prior_experience").agg(
+    mean_likelihood=pl.col("likelihood_to_buy").mean(),
+    n=pl.len(),
+).sort("mean_likelihood", descending=True)
+```
+
+```{python}
+joined.group_by("tech_attitude").agg(
+    mean_likelihood=pl.col("likelihood_to_buy").mean(),
+    n=pl.len(),
+).sort("mean_likelihood", descending=True)
+```

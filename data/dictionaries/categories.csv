@@ -1,0 +1,11 @@
+category_id,category,description,default_specialist_group,faq_coverage_rate,typical_resolution_hours_min,typical_resolution_hours_max
+CAT001,login_access,User cannot sign in to a company system.,identity_security,0.7,0.5,8.0
+CAT002,password_reset,"User requests a password reset, unlock, or new credentials.",identity_security,0.85,0.25,4.0
+CAT003,billing_account,"Issues with invoices, account billing, taxes, or payment methods.",billing_finance,0.4,2.0,24.0
+CAT004,software_bug,Suspected defect in a company application.,application_engineering,0.2,4.0,72.0
+CAT005,hardware_issue,"Hardware fault, peripheral, or end-user device problem.",hardware_field,0.25,4.0,48.0
+CAT006,network_connectivity,"VPN, Wi-Fi, or general connectivity reliability.",network_infra,0.5,1.0,24.0
+CAT007,email_calendar,"Email, calendar, or scheduling configuration issues.",identity_security,0.7,0.5,8.0
+CAT008,data_reporting,"Reporting, analytics dashboards, or data export problems.",data_analytics,0.3,4.0,48.0
+CAT009,security_request,"Security review, suspicious activity, or sensitive access request.",identity_security,0.35,4.0,72.0
+CAT010,other,General requests not covered by other categories.,application_engineering,0.2,4.0,72.0

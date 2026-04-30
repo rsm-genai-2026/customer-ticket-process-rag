@@ -1,0 +1,238 @@
+---
+title: Multi-turn dialog simulation
+jupyter: python3
+---
+
+We simulate a sales conversation between a customer and a salesperson for an
+electric unicycle. Two "personas" (system prompts) talk to each other through
+the same `ask()` helper function. Each turn's messages are stored in a
+polars DataFrame for later analysis.
+
+1. **Give the salesperson a fixed product catalog.** Otherwise each run invents
+   different model names / prices, which is hard to reason about.
+2. **Give both personas detailed attributes and decision rules.** Thin prompts
+   produce thin, repetitive dialog.
+3. **Stage-aware prompting.** Telling each side *where* we are in the sales
+   process (greeting → discovery → negotiation → decision) keeps the dialog
+   from looping on small talk.
+
+```{python}
+# ── config ────────────────────────────────────────────────────────────────
+# Change this one line to swap models. Every other cell uses MODEL.
+MODEL = "api-llama-4-scout"
+# Other options (see utils/connect.py for the authoritative lists):
+# Cheap: "api-llama-4-scout", "gemini-3-flash", "api-gpt-oss-120b"
+# Expensive: "gpt-5.4", "gemini-3-pro-preview", "claude-opus-4-6-v1"
+# ──────────────────────────────────────────────────────────────────────────
+MAX_TURNS = 15                 # hard cap if the personas can't decide
+MAX_TOKENS_PER_TURN = 300      # keep each utterance tight
+END_TAG = "<<END>>"            # personas emit this on a new line to finish
+
+import sys
+sys.path.append("../..")
+
+import numpy as np
+import polars as pl
+from dotenv import load_dotenv
+
+from utils.connect import ask, md
+
+load_dotenv()
+np.random.seed(1234)
+```
+
+## 1. Product catalog — what the salesperson is actually selling
+
+Pinning the catalog makes the dialog reproducible across runs and lets us
+check whether the personas respect price/spec constraints.
+
+```{python}
+CATALOG = """\
+Available models (2026 lineup):
+
+1. RollStart 120
+   - Price: $750
+   - Top speed: 15 mph
+   - Range: 12 miles
+   - Weight: 38 lbs
+   - Repairability: excellent — swap-in battery, spare parts $20-60 online
+   - Warranty: 1 year motor, 6 months battery
+   - Best for: short urban commutes, beginners
+
+2. Commuter Pro 200
+   - Price: $950
+   - Top speed: 20 mph
+   - Range: 25 miles
+   - Weight: 42 lbs
+   - Repairability: good — proprietary battery but service network in most cities
+   - Warranty: 2 years motor, 1 year battery
+   - Best for: daily commutes, mixed terrain
+
+3. Apex X
+   - Price: $1,400
+   - Top speed: 28 mph
+   - Range: 40 miles
+   - Weight: 46 lbs
+   - Repairability: fair — must ship in for service
+   - Warranty: 2 years motor, 1 year battery
+   - Best for: long commutes, experienced riders
+
+Discount policy: up to 5% off list price for any customer who commits today.
+Bundles: helmet + wrist guards free with any Commuter Pro or Apex X purchase.
+"""
+print(CATALOG)
+```
+
+## 2. Persona system prompts
+
+Both sides get:
+
+- A concrete backstory and budget / pricing constraint
+- Explicit **ending conditions** (when to emit `<<END>>`)
+- The same `CATALOG` so there's a shared frame of reference
+
+```{python}
+CUSTOMER_SYSTEM = f"""\
+You are Alex, 29, a software engineer who lives in San Diego. You bike 4 miles to your office most days and want to try an electric unicycle for the last-mile leg off the trolley on rainy days. Hard constraints and preferences:
+
+- Budget: $800 firm. You will walk away rather than go over.
+- You care about, in this order: (1) safety, (2) repairability, (3) range of at least 10 miles, (4) weight under 45 lbs.
+- You have never ridden a unicycle before and are nervous about falls.
+- You have researched online so you know rough market prices.
+
+Behavior rules:
+
+- Keep each message under {MAX_TOKENS_PER_TURN} tokens.
+- Ask one or two focused questions per turn, not a laundry list.
+- Push back concretely on price, warranty, and safety — don't just agree.
+- You are the ONLY one who can end the conversation. You end it by emitting an explicit, final sentence — one of:
+  - "I'll take the <model name> at <price>." (commitment to buy), or
+  - "Thanks, but I'm going to walk away for now." (walk-away) Then, on a new line, output exactly: {END_TAG}
+- Do NOT emit {END_TAG} on your first three turns. Discover the options, ask your safety / repairability questions, push back on price, THEN decide.
+
+Here is the salesperson's product catalog (assume you've read it on the store website before visiting):
+
+{CATALOG}
+"""
+
+SALESPERSON_SYSTEM = f"""\
+You are Jamie, a salesperson at an electric-unicycle specialty store. Your job is to match the customer to a model from the catalog below, close the sale if possible, and stay honest. Rules:
+
+- Use ONLY the models in the catalog. Do not invent models or prices.
+- Discount policy: up to 5% off list for customers who commit today. You cannot stack discounts or discount below the 5% floor.
+- Bundles: helmet + wrist guards FREE with Commuter Pro 200 or Apex X.
+- Be helpful but don't oversell — if the customer's needs clearly point to a model outside their budget, tell them and suggest waiting or renting first.
+- Each reply: under {MAX_TOKENS_PER_TURN} tokens. Be specific.
+- Mirror the customer's concerns (safety, repairability) rather than steering them to the most expensive option.
+- You NEVER emit {END_TAG} — only the customer ends the conversation. Your job is to keep the discovery → negotiation → close process moving honestly. Do not try to close prematurely; let the customer ask their questions.
+
+Catalog:
+
+{CATALOG}
+"""
+```
+
+## 3. Dialog loop — clean speaker identification + `<<END>>` termination
+
+Key design points:
+
+- `history` stores a simple list of `{"turn", "role", "content"}` dicts. The role (`"customer"` / `"salesperson"`) is the single source of truth — no string-equality tricks against system prompts.
+- For each call we rebuild a messages list from the *other* side's perspective:
+  their own system prompt, then every previous utterance mapped to `assistant` (their turns) or `user` (the other side's turns).
+- A turn ends as soon as either side emits `<<END>>` on its own line.
+
+```{python}
+def build_messages(history: list[dict], own_role: str, own_system: str) -> list[dict]:
+    """Return an OpenAI-style messages list from ``own_role``'s point of view."""
+    msgs = [{"role": "system", "content": own_system}]
+    for entry in history:
+        role = "assistant" if entry["role"] == own_role else "user"
+        msgs.append({"role": role, "content": entry["content"]})
+    return msgs
+
+
+def contains_end(text: str) -> bool:
+    return any(line.strip() == END_TAG for line in text.splitlines())
+
+
+def strip_end(text: str) -> str:
+    return "\n".join(line for line in text.splitlines() if line.strip() != END_TAG).strip()
+
+
+def one_turn(role: str, system: str, history: list[dict], turn: int, *, temperature: float) -> str:
+    reply = ask(
+        build_messages(history, role, system),
+        model=MODEL,
+        temperature=temperature,
+        max_tokens=MAX_TOKENS_PER_TURN + 80,   # headroom for the END_TAG line
+    )
+    history.append({"turn": turn, "role": role, "content": reply})
+    return reply
+
+
+# Customer opens
+history: list[dict] = []
+opening = ask(
+    build_messages([], "customer", CUSTOMER_SYSTEM)
+    + [{"role": "user", "content": "You just walked into the store. Start the conversation."}],
+    model=MODEL,
+    temperature=0.6,
+    max_tokens=MAX_TOKENS_PER_TURN + 80,
+)
+history.append({"turn": 0, "role": "customer", "content": opening})
+
+ended = False
+for turn in range(1, MAX_TURNS + 1):
+    _ = one_turn("salesperson", SALESPERSON_SYSTEM, history, turn, temperature=0.5)
+    cust = one_turn("customer", CUSTOMER_SYSTEM, history, turn, temperature=0.7)
+    if contains_end(cust):                 # only the customer ends the conversation
+        ended = True
+        break
+
+# Clean the END tag out of display copies
+for h in history:
+    h["content"] = strip_end(h["content"])
+
+print(f"\n[{'ended with ' + END_TAG if ended else f'hit MAX_TURNS={MAX_TURNS}'} — {len(history)} utterances over {max(h['turn'] for h in history)} turns]")
+
+# Enum keeps "customer" ahead of "salesperson" in group_by summaries below
+RoleEnum = pl.Enum(["customer", "salesperson"])
+dialog = pl.DataFrame(history).with_columns(pl.col("role").cast(RoleEnum))
+dialog
+```
+
+## 4. Render the conversation
+
+```{python}
+for row in dialog.iter_rows(named=True):
+    md(f"**{row['role'].title()} (turn {row['turn']})**\n\n{row['content']}")
+```
+
+## 5. Simple metrics
+
+Quick things you can analyse per turn and per speaker: utterance length, price mentions, specific-model mentions, questions asked.
+
+```{python}
+model_names = ["RollStart 120", "Commuter Pro 200", "Apex X"]
+model_regex = "|".join(n.replace(" ", r"\s+") for n in model_names)
+
+dialog.with_columns(
+    chars=pl.col("content").str.len_chars(),
+    questions=pl.col("content").str.count_matches(r"\?"),
+    mentions_price=pl.col("content").str.contains(r"\$"),
+    mentions_model=pl.col("content").str.contains(model_regex),
+).group_by("role").agg(
+    utterances=pl.len(),
+    mean_chars=pl.col("chars").mean().round(0),
+    total_questions=pl.col("questions").sum(),
+    price_mentions=pl.col("mentions_price").sum(),
+    model_mentions=pl.col("mentions_model").sum(),
+).sort("role")
+```
+
+```{python}
+# Which model was discussed most?
+for m in model_names:
+    n = dialog.filter(pl.col("content").str.contains(m.replace(" ", r"\s+"))).height
+    print(f"  {m:20}  {n} utterances")
+```

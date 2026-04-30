@@ -1,0 +1,66 @@
+---
+title: "check-faq-resolution skill"
+format: gfm
+---
+
+Step 3 of the human IT ticketing workflow: decide whether the FAQ knowledge base can resolve a triaged ticket.
+
+## Layout
+
+```text
+skills/check-faq-resolution/
+├── SKILL.md
+├── README.qmd
+├── install.sh
+└── scripts/
+    └── check_faq_resolution.py
+```
+
+## Install
+
+```bash
+bash skills/check-faq-resolution/install.sh
+```
+
+## Usage through Claude
+
+> "Can we close TKT-00042 with the FAQ KB or do we need to escalate?"
+
+Claude reads `SKILL.md`, runs the script, and reports the verdict plus the recommended next step.
+
+## Direct CLI
+
+```bash
+uv run python skills/check-faq-resolution/scripts/check_faq_resolution.py --ticket-id TKT-00042
+```
+
+The script writes `data/working/faq_decisions.csv` and appends to `data/working/ticket_action_log.csv`.
+
+## Public functions
+
+- `load_faq_context(data_dir, out_dir, ticket_id)` — loads ticket, active FAQs, and the latest triage decision (working preferred, processed fallback).
+- `build_search_terms(context)` — tokenized search terms used for ranking.
+- `rank_faq_candidates(context, faqs)` — scored polars DataFrame, sorted descending.
+- `decide_faq_applicability(context, ranked)` — match / no-match / weak-match decision.
+- `build_faq_decision_row(context)` — end-to-end row for `faq_decisions.csv`.
+- `write_faq_decision(out_dir, decision)` — appends to `data/working/faq_decisions.csv`.
+- `main(argv)` — CLI entrypoint. Exit codes: 0 ok, 2 missing ticket / data, 3 missing upstream triage.
+
+## Algorithm
+
+1. Filter to active FAQ entries.
+2. For each FAQ:
+   - +3 if FAQ category equals the assigned category.
+   - +2 if FAQ system equals the affected system.
+   - +text-overlap (0–6) between the ticket text and the FAQ symptoms / issue pattern (lowercased, ≥4-char tokens, stopwords removed).
+3. Sort by score descending, then by `faq_id` for determinism.
+4. Top FAQ wins **only if** its score ≥ 5.
+5. Even when matched, if the customer has not provided enough operational detail (heuristic on `error_or_symptom_detail` plus `steps_already_tried`/`business_impact_text`), the recommended next step is escalation.
+
+The decision row records: `faq_match_found`, `faq_id`, `match_confidence`, `search_terms`, `candidate_faq_ids` (top 5), `required_customer_info_available`, and a human-readable `faq_application_reason`.
+
+## Test
+
+```bash
+uv run pytest tests/skills/test_check_faq_resolution.py -v
+```

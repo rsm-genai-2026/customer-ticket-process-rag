@@ -1,0 +1,64 @@
+---
+title: "investigate-specialist-solution skill"
+format: gfm
+---
+
+Step 7 of the human IT ticketing workflow: act as the IT specialist to produce a root cause and customer-safe solution for an escalated ticket.
+
+## Layout
+
+```text
+skills/investigate-specialist-solution/
+├── SKILL.md
+├── README.qmd
+├── install.sh
+└── scripts/
+    └── investigate_specialist_solution.py
+```
+
+## Install
+
+```bash
+bash skills/investigate-specialist-solution/install.sh
+```
+
+## Usage through Claude
+
+> "What did the specialist find for TKT-00042?"
+
+Claude reads `SKILL.md`, verifies the escalation row exists, runs the script, and reports the root cause + solution + confidence.
+
+## Direct CLI
+
+```bash
+uv run python skills/investigate-specialist-solution/scripts/investigate_specialist_solution.py --ticket-id TKT-00042
+```
+
+The script appends one row to `data/working/specialist_solutions.csv` and writes an action-log entry.
+
+## Public functions
+
+- `load_investigation_context(data_dir, out_dir, ticket_id)` — loads ticket, escalation, specialist, systems dictionary; raises `LookupError` if no escalation.
+- `build_diagnostic_plan(context)` — list of diagnostic steps for the category.
+- `infer_root_cause(context)` — `{root_cause, evidence_reviewed}`.
+- `build_solution_summary(context, root_cause)` — customer summary, customer action, confidence (lower when missing-info flag was set), follow-up flag.
+- `build_solution_row(context)` — full row.
+- `write_specialist_solution(out_dir, solution)`.
+- `main(argv)` — CLI. Exits 2 on missing data, 3 on missing escalation.
+
+## Determinism
+
+Solutions come from per-category templates (login_access, password_reset, billing_account, software_bug, hardware_issue, network_connectivity, email_calendar, data_reporting, security_request, other). The script never invents customer-specific facts; it produces a stable, customer-safe summary plus a clearly-labeled `customer_action_required`. Confidence = baseline-by-seniority × (0.85 if missing-information was flagged at escalation else 1.0).
+
+## Refusal behavior
+
+The script refuses to investigate when:
+
+- there is no `escalation_decisions.csv` row for the ticket (route to `escalate-to-specialist` first), or
+- the escalation references an unknown specialist id.
+
+## Test
+
+```bash
+uv run pytest tests/skills/test_investigate_specialist_solution.py -v
+```
