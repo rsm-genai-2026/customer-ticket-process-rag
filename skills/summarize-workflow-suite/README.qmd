@@ -1,0 +1,27 @@
+---
+title: "summarize-workflow-suite skill"
+format: gfm
+---
+
+Runs the curated ticket scenarios through the local orchestrator and writes an
+HTML report that is easy for a student or reviewer to scan.
+
+## Direct CLI
+
+```bash
+uv run python skills/summarize-workflow-suite/scripts/summarize_workflow_suite.py
+```
+
+Useful options:
+
+```bash
+uv run python skills/summarize-workflow-suite/scripts/summarize_workflow_suite.py --limit 5
+uv run python skills/summarize-workflow-suite/scripts/summarize_workflow_suite.py --scenario-id human_expert_billing_api_502
+uv run python skills/summarize-workflow-suite/scripts/summarize_workflow_suite.py --json
+```
+
+The default report path is:
+
+```text
+/tmp/customer-ticket-process-suite-report.html
+```

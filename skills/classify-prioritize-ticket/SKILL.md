@@ -5,7 +5,7 @@ description: Classify a customer-support ticket into a category and assign a pri
 
 # Classify and prioritize a ticket
 
-Step 2 of the human ticketing workflow. The IT team picks a category (login_access, software_bug, …), a priority (low / medium / high / urgent), and the right specialist group, then computes SLA targets from the priority. The math lives in `scripts/classify_prioritize_ticket.py` and is fully deterministic.
+Step 2 of the AI-assisted ticketing workflow. The skill picks a category (login_access, software_bug, …), a priority (low / medium / high / urgent), and the right specialist group, then computes SLA targets from the priority. The math lives in `scripts/classify_prioritize_ticket.py` and is fully deterministic.
 
 ## What the script needs
 

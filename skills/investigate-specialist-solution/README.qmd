@@ -3,7 +3,7 @@ title: "investigate-specialist-solution skill"
 format: gfm
 ---
 
-Step 7 of the human IT ticketing workflow: act as the IT specialist to produce a root cause and customer-safe solution for an escalated ticket.
+Step 7 of the AI-assisted IT ticketing workflow: act as the IT specialist to produce a root cause and customer-safe solution for an escalated ticket.
 
 ## Layout
 

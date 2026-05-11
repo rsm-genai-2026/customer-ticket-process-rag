@@ -1,7 +1,7 @@
 # IT Ticketing Skills Implementation Plan
 
-This plan is for Claude Code to implement skills that can run the human IT ticketing workflow described in
-`customer-ticket-process.pdf` using the generated synthetic data in `data/`.
+This plan is for Claude Code to implement skills that automate the IT ticketing workflow described in
+`customer-ticket-process-genai.pdf` using the generated synthetic data in `data/`.
 
 ## Current Data Status
 
@@ -40,9 +40,10 @@ Use only standard Python libraries, `numpy`, and `polars`. Do not add dataframe,
 
 ## Workflow Source
 
-Before implementing skills, read `customer-ticket-process.pdf` and `data/README.md`.
+Before implementing skills, read `customer-ticket-process-genai.pdf` and `data/README.md`.
 
-The skills must support the human workflow, not the automation/GenAI workflow:
+The skills implement the AI-assisted ticketing workflow. The original process roles are still visible in the
+data model, but each step below is performed by a deterministic, script-backed AI skill:
 
 1. User submits ticket.
 2. IT team receives ticket.

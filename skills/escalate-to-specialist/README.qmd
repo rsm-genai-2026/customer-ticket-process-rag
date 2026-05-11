@@ -3,7 +3,7 @@ title: "escalate-to-specialist skill"
 format: gfm
 ---
 
-Step 6 of the human IT ticketing workflow: select an IT specialist and produce a complete handoff package.
+Step 6 of the AI-assisted IT ticketing workflow: select an IT specialist and produce a complete handoff package.
 
 ## Layout
 

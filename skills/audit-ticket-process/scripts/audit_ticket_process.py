@@ -190,7 +190,7 @@ def _collect_step_events(history: dict) -> list[tuple[str, str, dict]]:
     add(h["specialist_escalations"], "escalated", "escalated_at")
     add(h["specialist_investigations"], "specialist_done", "solution_created_at")
     # In demo mode a historical customer_messages row implies the message
-    # was actually sent — the human operator did not have a separate egress
+    # was actually sent — the historical data did not have a separate egress
     # step in the seeded dataset.
     add(h["customer_messages"], "response_sent", "sent_at")
     add(h["resolution_feedback"], "feedback", "customer_reply_at")

@@ -1,11 +1,11 @@
 ---
 name: receive-ticket
-description: Produce a concise IT-team intake summary for a customer-support ticket. Use when the user asks "what's in this ticket", "summarize ticket TKT-…", or is starting the human IT workflow on a newly submitted ticket and needs the receive/intake step before triage. The skill loads the ticket and customer context and writes one row to the action log.
+description: Produce a concise IT-team intake summary for a customer-support ticket. Use when the user asks "what's in this ticket", "summarize ticket TKT-…", or is starting the AI-assisted ticket workflow on a newly submitted ticket and needs the receive/intake step before triage. The skill loads the ticket and customer context and writes one row to the action log.
 ---
 
 # Receive and summarize a ticket
 
-Use this skill at step 1 of the human ticketing workflow: the IT team has just received a ticket and needs a quick, human-readable intake summary before classifying or prioritizing it. The actual data work lives in `scripts/receive_ticket.py`. Your job is to know the ticket id, run the script, and report the printed summary.
+Use this skill at step 1 of the AI-assisted ticketing workflow: a new ticket needs a quick, human-readable intake summary before classification and prioritization. The actual data work lives in `scripts/receive_ticket.py`. Your job is to know the ticket id, run the script, and report the printed summary.
 
 ## What the script needs
 

@@ -3,7 +3,7 @@ title: "verify-feedback-close-or-reopen skill"
 format: gfm
 ---
 
-Step 9 of the human IT ticketing workflow: verify the customer's reply and decide whether to close, reopen, or close-unresolved.
+Step 9 of the AI-assisted IT ticketing workflow: verify the customer's reply and decide whether to close, reopen, or close-unresolved.
 
 ## Layout
 

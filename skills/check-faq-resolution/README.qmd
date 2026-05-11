@@ -3,7 +3,7 @@ title: "check-faq-resolution skill"
 format: gfm
 ---
 
-Step 3 of the human IT ticketing workflow: decide whether the FAQ knowledge base can resolve a triaged ticket.
+Step 3 of the AI-assisted IT ticketing workflow: decide whether the FAQ knowledge base can resolve a triaged ticket.
 
 ## Layout
 

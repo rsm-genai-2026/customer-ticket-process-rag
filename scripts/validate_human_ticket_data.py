@@ -1,4 +1,4 @@
-"""Validate the generated human-ticketing dataset.
+"""Validate the generated synthetic ticketing dataset.
 
 Reads CSVs produced by ``generate_human_ticket_data.py`` and runs the
 schema, foreign-key, ordering, and rate-band checks listed in

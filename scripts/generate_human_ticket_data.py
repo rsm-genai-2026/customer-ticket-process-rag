@@ -1,6 +1,6 @@
-"""Generate synthetic CSV datasets for the human customer-support ticket process.
+"""Generate synthetic CSV datasets for the customer-support ticket process.
 
-The generator implements the human ("Current process") workflow described in
+The generator implements the source ticketing process described in
 ``customer-ticket-process.pdf``:
 
     User -> IT team intake/triage -> FAQ check
@@ -343,7 +343,8 @@ TICKET_TEMPLATES: dict[str, list[tuple[str, str, str]]] = {
     "login_access": [
         (
             "Cannot log into customer portal",
-            "I keep getting an 'invalid credentials' error when I try to sign in to the {sys}, even after typing my password carefully. tried twice already.",
+            "I keep getting an 'invalid credentials' error when I try to sign in to the {sys}, "
+            "even after typing my password carefully. tried twice already.",
             "One user blocked from logging in",
         ),
         (
@@ -399,7 +400,8 @@ TICKET_TEMPLATES: dict[str, list[tuple[str, str, str]]] = {
     "software_bug": [
         (
             "Records missing after CRM export",
-            "Exported a contact list from {sys} this morning and a chunk of records are missing. it definitely had more rows yesterday.",
+            "Exported a contact list from {sys} this morning and a chunk of records are missing. "
+            "it definitely had more rows yesterday.",
             "Sales pipeline data inconsistent",
         ),
         (
@@ -426,7 +428,8 @@ TICKET_TEMPLATES: dict[str, list[tuple[str, str, str]]] = {
         ),
         (
             "Printer offline error",
-            "The shared printer keeps showing offline even after restart. on the {sys} portal it's listed as online though.",
+            "The shared printer keeps showing offline even after restart. "
+            "on the {sys} portal it's listed as online though.",
             "Team cannot print client deliverables",
         ),
         (
@@ -533,7 +536,9 @@ FAQ_TEMPLATES: list[dict] = [
         "system_name": "Customer Portal",
         "issue_pattern": "browser_redirect_loop_on_sso",
         "symptoms": "Sign-in page loops between SSO and portal without completing.",
-        "solution_steps": "Clear cookies for portal domain, retry sign-in in private window, verify SSO cert is current.",
+        "solution_steps": (
+            "Clear cookies for portal domain, retry sign-in in private window, verify SSO cert is current."
+        ),
         "required_customer_info": "Browser, OS, screenshot if possible.",
     },
     {
@@ -1371,8 +1376,7 @@ def build_ticket_flows(
         target_first_response_at = submitted_at + timedelta(hours=sla_rule[3])
         target_resolution_at = submitted_at + timedelta(hours=sla_rule[4])
         triage_summary = (
-            f"{submitted_by} at {customer['customer_name']} reports {subject.lower()} in {system}; "
-            f"impact: {impact}."
+            f"{submitted_by} at {customer['customer_name']} reports {subject.lower()} in {system}; impact: {impact}."
         )
         classification_evidence = (
             f"subject='{subject}'; system='{system}'; symptom='{operational_details['error_or_symptom_detail']}'"
@@ -1485,9 +1489,7 @@ def build_ticket_flows(
                 f"{subject} in {system}; category={assigned_category}; priority={priority}; "
                 f"customer tried: {operational_details['steps_already_tried']}; impact: {impact}."
             )
-            specific_question = (
-                f"Please identify root cause and provide customer-safe resolution steps for {system}."
-            )
+            specific_question = f"Please identify root cause and provide customer-safe resolution steps for {system}."
             evidence_included = "|".join(
                 [
                     "ticket_description",
@@ -1534,7 +1536,8 @@ def build_ticket_flows(
             solution_created_at = inv_started_at + timedelta(hours=inv_hours)
             root, summary, sp_notes = _generate_solution_text(assigned_category, system, missing_info)
             diagnostic_steps = (
-                f"Reviewed ticket symptoms; checked {system} health/logs; compared against known {assigned_category} patterns."
+                f"Reviewed ticket symptoms; checked {system} health/logs; "
+                f"compared against known {assigned_category} patterns."
             )
             evidence_reviewed = "ticket_description|business_impact|faq_search_notes|system_health"
             customer_action_required = (
@@ -1610,7 +1613,9 @@ def build_ticket_flows(
                 "sent_at": message_sent_at.isoformat(timespec="seconds"),
                 "customer_action_required": customer_action,
                 "included_context": "issue summary|resolution steps|request to confirm outcome",
-                "follow_up_request": "Reply with whether the issue is resolved and include any remaining error details.",
+                "follow_up_request": (
+                    "Reply with whether the issue is resolved and include any remaining error details."
+                ),
                 "quality_check_notes": (
                     "Includes customer-safe steps and confirmation request."
                     if it_member["quality_score"] >= 0.85
@@ -1674,7 +1679,6 @@ def build_ticket_flows(
 
         accepted_first = not _bool(rng, reject_p)
         reopened = False
-        verified_rejection = False
         rejection_reason = ""
         feedback_text = ""
 
@@ -1728,7 +1732,6 @@ def build_ticket_flows(
             final_specialist_id = spec_escalations[-1][1]["specialist_id"] if spec_escalations else ""
             final_closed_at = closed_at
         else:
-            verified_rejection = True
             rejection_reason = str(
                 rng.choice(
                     [
@@ -1896,9 +1899,7 @@ def build_ticket_flows(
                         "draft_text": draft_text2,
                         "sent_text": sent_text2,
                         "sent_at": send2_at.isoformat(timespec="seconds"),
-                        "customer_action_required": _customer_action_required(
-                            "specialist_solution", None, summary2
-                        ),
+                        "customer_action_required": _customer_action_required("specialist_solution", None, summary2),
                         "included_context": "rejection acknowledgement|corrected specialist steps|confirmation request",
                         "follow_up_request": "Reply after retrying the corrected steps.",
                         "quality_check_notes": "Acknowledges first attempt and explains corrected next step.",
@@ -2158,7 +2159,7 @@ def main() -> None:
     msg_count = len(flows["customer_messages"])
     event_count = len(flows["ticket_lifecycle_events"])
 
-    print("Generated human ticketing dataset")
+    print("Generated synthetic ticketing dataset")
     print(f"  output dir              : {out_dir}")
     print(f"  tickets                 : {n}")
     print(f"  faq match rate          : {n_faq_match / n:.1%}")

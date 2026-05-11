@@ -3,7 +3,7 @@ title: "receive-ticket skill"
 format: gfm
 ---
 
-The first step in the human IT ticketing workflow: produce a clean intake summary for a freshly submitted ticket so the IT team can classify and prioritize it.
+The first step in the AI-assisted IT ticketing workflow: produce a clean intake summary for a freshly submitted ticket so the next skill can classify and prioritize it.
 
 ## Layout
 

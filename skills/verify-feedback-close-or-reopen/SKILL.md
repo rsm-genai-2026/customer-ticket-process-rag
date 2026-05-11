@@ -5,7 +5,7 @@ description: Verify a customer's reply to a sent response and decide whether to 
 
 # Verify customer feedback and close or reopen
 
-Step 9 of the human ticketing workflow. The IT team has a customer reply in hand and needs a decision: close, reopen, request clarification, or close-unresolved. The script in `scripts/verify_feedback.py` classifies the feedback, verifies that a response was actually sent, looks at any prior `feedback_decisions.csv` for this ticket, and produces a clear next action.
+Step 9 of the AI-assisted ticketing workflow. The customer has replied and the workflow needs a decision: close, reopen, request clarification, or close-unresolved. The script in `scripts/verify_feedback.py` classifies the feedback, verifies that a response was actually sent, looks at any prior `feedback_decisions.csv` for this ticket, and produces a clear next action.
 
 ## What the script needs
 

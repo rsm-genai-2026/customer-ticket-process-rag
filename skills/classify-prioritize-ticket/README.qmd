@@ -3,7 +3,7 @@ title: "classify-prioritize-ticket skill"
 format: gfm
 ---
 
-Step 2 of the human IT ticketing workflow: assign category, priority, recommended specialist group, and SLA target timestamps.
+Step 2 of the AI-assisted IT ticketing workflow: assign category, priority, recommended specialist group, and SLA target timestamps.
 
 ## Layout
 

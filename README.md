@@ -6,9 +6,27 @@ Push all deliverables to GitHub before the start of class on **May 7th**. Make s
 - `data/` Contains data and code for data preparation
 - `skill/` Contains the _skills_ you create for your project
 
-## Human customer-support ticketing dataset
+## Synthetic customer-support ticketing dataset
 
-The `data/` folder ships with a synthetic dataset that mirrors the **current human process** for customer-support ticket resolution. The authoritative source for the workflow is [`customer-ticket-process.pdf`](customer-ticket-process.pdf), which defines three swimlanes — **User**, **IT team**, and **IT specialist**. The automation/GenAI variant in the same PDF is intentionally **out of scope** for this dataset; it represents the future state we will build skills for later.
+The `data/` folder ships with a synthetic dataset for the AI-assisted customer-support ticket workflow. The process keeps the original roles visible — **User**, **IT team**, and **IT specialist** — but the repo now implements those steps as deterministic, script-backed AI skills coordinated by a small orchestrator.
+
+## Local web workflow demo
+
+The repo includes a browser demo that lets you submit a ticket and either run the AI-skill workflow all at once or step through it one skill at a time:
+
+```bash
+uv run python scripts/ticket_web_demo.py --host 127.0.0.1 --port 8767
+```
+
+Then open `http://127.0.0.1:8767`. The step-mode view has Previous/Next controls, 20 example tickets, a prepared narrative with inline dynamic values, branch visualization, and a skill input/output panel that shows the exact fields each skill consumed and produced. See [`WEB_WORKFLOW_DEMO.md`](WEB_WORKFLOW_DEMO.md) for the orchestrator, endpoints, data isolation, branch visualization, example suite, and likely stall points.
+
+For a nontechnical classroom overview, open the rendered MBA slide deck at [`slides/mba-ticket-workflow-demo.html`](slides/mba-ticket-workflow-demo.html). The source is [`slides/mba-ticket-workflow-demo.qmd`](slides/mba-ticket-workflow-demo.qmd), and the LLM companion guide is [`MBA_DEMO_LLM_GUIDE.md`](MBA_DEMO_LLM_GUIDE.md).
+
+To run the scenario suite and generate an HTML report:
+
+```bash
+uv run python skills/summarize-workflow-suite/scripts/summarize_workflow_suite.py
+```
 
 Process steps modelled (per the PDF):
 

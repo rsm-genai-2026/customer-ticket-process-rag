@@ -5,7 +5,7 @@ description: Decide whether a ticket can be resolved using an existing FAQ entry
 
 # Check FAQ resolution
 
-Step 3 of the human ticketing workflow. The IT team has just triaged the ticket; now they search the FAQ knowledge base. The script in `scripts/check_faq_resolution.py` filters to active FAQs, scores them by category, system, and text overlap, and decides whether the top hit is strong enough to use.
+Step 3 of the AI-assisted ticketing workflow. The ticket has just been triaged; now the skill searches the FAQ knowledge base. The script in `scripts/check_faq_resolution.py` filters to active FAQs, scores them by category, system, and text overlap, and decides whether the top hit is strong enough to use.
 
 ## What the script needs
 

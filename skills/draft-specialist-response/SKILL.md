@@ -5,7 +5,7 @@ description: Draft a customer-facing email response that translates a specialist
 
 # Draft a specialist-based response
 
-Step 8 of the human ticketing workflow. The IT team takes the specialist's solution and writes a plain-language message to the customer. The script in `scripts/draft_specialist_response.py` is deterministic — it never invents customer facts and refuses to run without a specialist solution.
+Step 8 of the AI-assisted ticketing workflow. The skill takes the specialist solution and writes a plain-language message to the customer. The script in `scripts/draft_specialist_response.py` is deterministic — it never invents customer facts and refuses to run without a specialist solution.
 
 ## What the script needs
 

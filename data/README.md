@@ -1,11 +1,11 @@
 # Data
 
-This folder contains the synthetic dataset for the **human customer-support ticket resolution process**, generated from the workflow described in [`../customer-ticket-process.pdf`](../customer-ticket-process.pdf). Three swimlanes are preserved: **User**, **IT team**, **IT specialist**. The GenAI/automation variant from the same PDF is intentionally out of scope.
+This folder contains the synthetic dataset for the **AI-assisted customer-support ticket resolution process**. Three process roles are preserved for traceability: **User**, **IT team**, and **IT specialist**. The repo's skills automate the ticketing steps while keeping those role labels in the data.
 
 ```text
 data/
 ├── raw/                       # source-of-truth tables (people, FAQ, raw tickets)
-├── processed/                 # tables produced by each step of the human workflow
+├── processed/                 # synthetic historical tables for each ticketing step
 └── dictionaries/              # reference enumerations
 ```
 
@@ -168,7 +168,7 @@ The result of the IT team's FAQ lookup. Exactly one row per ticket.
 | `faq_application_reason` | text | Why the FAQ path was or was not sufficient. |
 
 - **PK**: `ticket_id`
-- **Skill support**: retrieval evaluation, comparing human FAQ matching with LLM matching.
+- **Skill support**: retrieval evaluation, comparing historical FAQ matching with AI-assisted matching.
 
 ## processed/specialist_escalations.csv
 
@@ -213,7 +213,7 @@ Specialist investigations and solutions. One row per investigation; reopened tic
 
 ## processed/customer_messages.csv
 
-All human-drafted messages sent to the customer (FAQ-based or specialist-based). One row per message; reopened tickets get two messages.
+All workflow-drafted messages sent to the customer (FAQ-based or specialist-based). One row per message; reopened tickets get two messages.
 
 | Column | Type | Notes |
 | --- | --- | --- |

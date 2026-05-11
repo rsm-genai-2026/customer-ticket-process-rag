@@ -5,7 +5,7 @@ description: Draft a customer-safe email response based on a matched FAQ entry. 
 
 # Draft an FAQ-based response
 
-Step 5 (FAQ branch) of the human ticketing workflow. This skill never invents a fix — it relies on the matched FAQ row's `solution_steps` and `required_customer_info`. The script in `scripts/draft_faq_response.py` refuses to draft if the upstream FAQ decision says escalate.
+Step 5 (FAQ branch) of the AI-assisted ticketing workflow. This skill never invents a fix — it relies on the matched FAQ row's `solution_steps` and `required_customer_info`. The script in `scripts/draft_faq_response.py` refuses to draft if the upstream FAQ decision says escalate.
 
 ## What the script needs
 

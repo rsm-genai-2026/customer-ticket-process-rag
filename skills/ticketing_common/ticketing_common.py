@@ -1,7 +1,7 @@
 """Shared helpers for the IT ticketing skills.
 
 These utilities are used by every skill under ``skills/`` that runs the
-human IT ticketing workflow. They handle the boring-but-must-be-correct
+AI-assisted IT ticketing workflow. They handle the boring-but-must-be-correct
 pieces required for orchestrated execution:
 
 * Loading CSVs and requiring a ticket exists.

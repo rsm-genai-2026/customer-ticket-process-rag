@@ -3,7 +3,7 @@ title: "draft-faq-response skill"
 format: gfm
 ---
 
-Step 5 (FAQ branch) of the human IT ticketing workflow: turn a matched FAQ entry into a customer-safe email response.
+Step 5 (FAQ branch) of the AI-assisted IT ticketing workflow: turn a matched FAQ entry into a customer-safe email response.
 
 ## Layout
 

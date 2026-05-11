@@ -5,7 +5,7 @@ description: Route a ticket to an IT specialist with a complete handoff package.
 
 # Escalate to specialist
 
-Step 6 of the human ticketing workflow. The IT team can no longer self-serve and needs an IT specialist. The script in `scripts/escalate_to_specialist.py` selects a specialist by group and system support, builds a handoff summary, and writes one row to `data/working/escalation_decisions.csv`.
+Step 6 of the AI-assisted ticketing workflow. The FAQ branch could not confidently resolve the ticket, so the workflow needs an IT specialist. The script in `scripts/escalate_to_specialist.py` selects a specialist by group and system support, builds a handoff summary, and writes one row to `data/working/escalation_decisions.csv`.
 
 ## What the script needs
 

@@ -1,4 +1,4 @@
-"""Step 1 of the human IT ticketing workflow: receive and summarize a ticket.
+"""Step 1 of the AI-assisted IT ticketing workflow: receive and summarize a ticket.
 
 Loads the ticket and customer master record, prints a human-readable intake
 summary (or emits the orchestration JSON envelope when ``--json`` is set),

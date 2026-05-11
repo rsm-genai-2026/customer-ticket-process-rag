@@ -5,7 +5,7 @@ description: Act as the IT specialist to produce a root cause, diagnostic steps,
 
 # Investigate specialist solution
 
-Step 7 of the human ticketing workflow. The IT specialist reviews the handoff from the IT team, produces a root cause and a customer-safe solution. The script in `scripts/investigate_specialist_solution.py` uses category/system templates so the output is consistent and never invents customer facts.
+Step 7 of the AI-assisted ticketing workflow. The specialist path reviews the handoff, produces a root cause and a customer-safe solution. The script in `scripts/investigate_specialist_solution.py` uses category/system templates so the output is consistent and never invents customer facts.
 
 ## What the script needs
 

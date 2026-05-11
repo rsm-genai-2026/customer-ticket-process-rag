@@ -3,7 +3,7 @@ title: "draft-specialist-response skill"
 format: gfm
 ---
 
-Step 8 of the human IT ticketing workflow: turn a specialist solution into a customer-facing email response.
+Step 8 of the AI-assisted IT ticketing workflow: turn a specialist solution into a customer-facing email response.
 
 ## Layout
 
