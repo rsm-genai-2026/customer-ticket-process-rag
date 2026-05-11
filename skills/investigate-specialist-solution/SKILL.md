@@ -1,11 +1,29 @@
 ---
 name: investigate-specialist-solution
-description: Act as the IT specialist to produce a root cause, diagnostic steps, and a customer-safe solution summary for an escalated ticket. Use only when an escalation_decisions.csv row exists for the ticket — i.e. after the escalate-to-specialist skill has run. The output is written to specialist_solutions.csv for the IT team to relay back to the customer.
+description: Act as the IT specialist (via LLM) and produce a root cause, diagnostic steps, evidence reviewed, customer-safe solution summary, and customer action for an escalated ticket. Use only when an escalation_decisions.csv row exists — i.e. after the escalate-to-specialist automation has run. The skill calls an LLM to generate genuine diagnostic judgement; it never invents customer facts and refuses to run without the upstream escalation.
 ---
 
-# Investigate specialist solution
+# Investigate specialist solution (LLM-based)
 
-Step 7 of the AI-assisted ticketing workflow. The specialist path reviews the handoff, produces a root cause and a customer-safe solution. The script in `scripts/investigate_specialist_solution.py` uses category/system templates so the output is consistent and never invents customer facts.
+**Step 7** of the ticket workflow. One of the two real AI skills in this repo
+(along with `check-faq-resolution`). It runs only on the specialist branch —
+the FAQ check has already declared "no FAQ match" or "match but missing
+required info," and `escalate-to-specialist` has chosen a specialist.
+
+The skill asks an LLM to act as the assigned specialist and produce a
+diagnosis. The model receives the ticket, triage decision, escalation context,
+and specialist profile, and returns one structured JSON object.
+
+## When to invoke
+
+Use this skill when the user asks something like:
+
+- "What did the specialist find for TKT-…?"
+- "Investigate TKT-… — the FAQ couldn't help."
+- "Have the specialist take a look at this ticket."
+
+Refuse politely if `data/working/escalation_decisions.csv` has no row for the
+ticket and route the user to `escalate-to-specialist` first.
 
 ## What the script needs
 
@@ -14,36 +32,74 @@ Step 7 of the AI-assisted ticketing workflow. The specialist path reviews the ha
 | `--ticket-id` | yes | The ticket to investigate. |
 | `--data-dir` | no (default `data`) | Source data dir. |
 | `--out-dir` | no (default `data/working`) | Where `specialist_solutions.csv` is appended. |
+| `--model` | no | LLM model id. Defaults to `SPECIALIST_INVESTIGATION_MODEL` or the project default in `utils/connect.py`. |
+
+Plus the standard skill-CLI flags (`--workflow-run-id`, `--step-id`,
+`--mode`, `--idempotency-mode`, `--json`).
 
 Required upstream:
 
-- `data/working/escalation_decisions.csv` row for this ticket.
+- A row in `data/working/escalation_decisions.csv` for this ticket.
+- An API key in `.env` / `~/.env` / shell: `TRITONAI_API_KEY` (classroom
+  gateway) or `OPENAI_API_KEY` (standard OpenAI account).
 
 ## How to use this skill
 
-1. **Verify the escalation exists.** If `data/working/escalation_decisions.csv` has no row for the ticket, stop and route to `escalate-to-specialist` first.
-2. **Run** the script:
+1. **Verify the escalation exists.** If `data/working/escalation_decisions.csv`
+   has no row for the ticket, stop and route to `escalate-to-specialist` first.
+2. **Run the script:**
 
    ```bash
-   uv run python skills/investigate-specialist-solution/scripts/investigate_specialist_solution.py --ticket-id TKT-00042
+   uv run python skills/investigate-specialist-solution/scripts/investigate_specialist_solution.py \
+       --ticket-id TKT-00042
    ```
 
-3. **Report** to the user:
+3. **Report** back to the user:
    - The root cause (one line).
    - The diagnostic steps the specialist took.
    - The evidence reviewed.
    - The customer-safe `solution_summary` and the `customer_action_required`.
    - The confidence score and whether engineering follow-up is needed.
-   - When the upstream escalation flagged missing information, note which information would raise confidence.
-4. **Next valid action:** the IT team relays the solution to the customer via `draft-specialist-response`.
+   - When the escalation flagged missing information, note that the confidence
+     was capped because of it.
+4. **Next valid action:** the IT team relays the solution to the customer via
+   the `draft-specialist-response` automation.
+
+## What the LLM receives
+
+A compact JSON payload with:
+
+- Ticket fields: subject, description, affected system, symptom detail, steps
+  already tried, expected outcome, business impact, customer-reported urgency.
+- Triage fields: assigned category, priority, recommended specialist group.
+- Escalation fields: escalation reason, the specific question asked of the
+  specialist, the handoff summary, and the missing-information flag.
+- Specialist fields: id, name, group, seniority, systems supported.
+
+The model must return JSON with `root_cause`, `diagnostic_steps`,
+`evidence_reviewed`, `solution_summary`, `customer_action_required`,
+`confidence`, `requires_follow_up_flag`, and `reason`.
+
+If the upstream `missing_information_flag` is true, the confidence is capped
+at `0.60` regardless of what the model returned — so a ticket with missing
+reproduction details always lands in human review.
+
+## Testing offline
+
+Set `SPECIALIST_INVESTIGATION_MOCK_JSON` to a JSON string and the script will
+return it verbatim instead of calling an LLM. The full test suite uses this
+to exercise the skill without a network round-trip.
 
 ## Example
 
 > User: "What did the specialist find for TKT-00042?"
 
-Run the script, then report:
+Run the script, then report something like:
+
 - Root cause: "Permission cache out of sync between SSO and the Customer Portal."
-- Action: "Force a refresh of the user's SSO group membership and clear server-side session cache."
-- Customer action: "Sign out completely, wait two minutes, then sign back in."
-- Confidence: 0.78 (reduced because the customer hadn't supplied recent error timestamps).
-- Next: draft-specialist-response.
+- Diagnostic steps: ["Reviewed SSO assertions", "Checked cached group
+  membership", "Confirmed customer browser version"]
+- Customer action: "Sign out completely, wait two minutes, then sign back in.
+  Reply if the issue persists."
+- Confidence: 0.78 (or capped to 0.60 if missing info was flagged).
+- Next: `draft-specialist-response`.

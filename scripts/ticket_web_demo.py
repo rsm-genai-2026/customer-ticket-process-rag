@@ -44,22 +44,26 @@ MAX_BODY_BYTES = 64_000
 MAX_WORKFLOW_STEPS = 16
 
 # This table is the only place the web orchestrator knows how to execute a
-# workflow step. Each entry points at the Python script stored inside a skill
-# folder. SKILL.md is still meaningful for an LLM agent, but the browser demo
-# is not an LLM agent and does not load SKILL.md at runtime.
-SKILL_SCRIPTS = {
-    "receive-ticket": "skills/receive-ticket/scripts/receive_ticket.py",
-    "classify-prioritize-ticket": "skills/classify-prioritize-ticket/scripts/classify_prioritize_ticket.py",
+# workflow step. The two LLM-based skills live under skills/ (with a SKILL.md
+# the agent path reads); the seven deterministic steps live under
+# automations/ with only a README.md.
+STEP_SCRIPTS = {
+    "receive-ticket": "automations/receive-ticket/scripts/receive_ticket.py",
+    "classify-prioritize-ticket": "automations/classify-prioritize-ticket/scripts/classify_prioritize_ticket.py",
     "check-faq-resolution": "skills/check-faq-resolution/scripts/check_faq_resolution.py",
-    "draft-faq-response": "skills/draft-faq-response/scripts/draft_faq_response.py",
-    "escalate-to-specialist": "skills/escalate-to-specialist/scripts/escalate_to_specialist.py",
+    "draft-faq-response": "automations/draft-faq-response/scripts/draft_faq_response.py",
+    "escalate-to-specialist": "automations/escalate-to-specialist/scripts/escalate_to_specialist.py",
     "investigate-specialist-solution": (
         "skills/investigate-specialist-solution/scripts/investigate_specialist_solution.py"
     ),
-    "draft-specialist-response": "skills/draft-specialist-response/scripts/draft_specialist_response.py",
-    "send-customer-response": "skills/send-customer-response/scripts/send_customer_response.py",
-    "verify-feedback-close-or-reopen": "skills/verify-feedback-close-or-reopen/scripts/verify_feedback.py",
+    "draft-specialist-response": "automations/draft-specialist-response/scripts/draft_specialist_response.py",
+    "send-customer-response": "automations/send-customer-response/scripts/send_customer_response.py",
+    "verify-feedback-close-or-reopen": "automations/verify-feedback-close-or-reopen/scripts/verify_feedback.py",
 }
+
+# Backwards-compatible alias. Old name "SKILL_SCRIPTS" is preserved for any
+# external import that hasn't migrated yet. Prefer STEP_SCRIPTS in new code.
+SKILL_SCRIPTS = STEP_SCRIPTS
 
 SKILL_LABELS = {
     "receive-ticket": "Receive ticket",
@@ -272,12 +276,13 @@ def run_skill(
     extra: list[str] | None = None,
     timeout: int = 45,
 ) -> dict:
-    """Run one Python script stored inside a skill folder.
+    """Run one Python script stored inside a skill or automation folder.
 
     The orchestrator uses Python code here because orchestration is control
-    flow: choose the next skill, pass stable ids, enforce timeouts, and surface
-    failures. The domain work still lives in the scripts under ``skills/``.
-    ``SKILL.md`` is loaded by an LLM agent, not by this web server.
+    flow: choose the next step, pass stable ids, enforce timeouts, and
+    surface failures. The domain work lives in the scripts under ``skills/``
+    (the two LLM-based steps) and ``automations/`` (the seven deterministic
+    steps). ``SKILL.md`` is loaded by an LLM agent — not by this web server.
     """
 
     script = SKILL_SCRIPTS[skill_name]

@@ -3,7 +3,10 @@ title: "investigate-specialist-solution skill"
 format: gfm
 ---
 
-Step 7 of the AI-assisted IT ticketing workflow: act as the IT specialist to produce a root cause and customer-safe solution for an escalated ticket.
+Step 7 of the ticket workflow. One of the two real AI skills in this repo.
+The skill asks an LLM to act as the assigned specialist and produce a
+diagnosis (root cause + diagnostic steps + customer-safe solution) for an
+escalated ticket.
 
 ## Layout
 
@@ -26,35 +29,58 @@ bash skills/investigate-specialist-solution/install.sh
 
 > "What did the specialist find for TKT-00042?"
 
-Claude reads `SKILL.md`, verifies the escalation row exists, runs the script, and reports the root cause + solution + confidence.
+Claude reads `SKILL.md`, verifies the escalation row exists, runs the script,
+and reports the root cause, solution, customer action, and confidence.
 
 ## Direct CLI
 
 ```bash
-uv run python skills/investigate-specialist-solution/scripts/investigate_specialist_solution.py --ticket-id TKT-00042
+uv run python skills/investigate-specialist-solution/scripts/investigate_specialist_solution.py \
+    --ticket-id TKT-00042
 ```
 
-The script appends one row to `data/working/specialist_solutions.csv` and writes an action-log entry.
+The script expects `TRITONAI_API_KEY` in `.env`, `~/.env`, or the shell. It
+calls the model through `utils.connect.ask_json()`, the same helper used by
+the FAQ skill. Use `--model` to override the default model id.
+
+The script writes `data/working/specialist_solutions.csv` and appends to
+`data/working/ticket_action_log.csv`.
 
 ## Public functions
 
-- `load_investigation_context(data_dir, out_dir, ticket_id)` — loads ticket, escalation, specialist, systems dictionary; raises `LookupError` if no escalation.
-- `build_diagnostic_plan(context)` — list of diagnostic steps for the category.
-- `infer_root_cause(context)` — `{root_cause, evidence_reviewed}`.
-- `build_solution_summary(context, root_cause)` — customer summary, customer action, confidence (lower when missing-info flag was set), follow-up flag.
-- `build_solution_row(context)` — full row.
+- `load_investigation_context(data_dir, out_dir, ticket_id)` — loads ticket,
+  escalation, specialist, triage, and systems dictionary; raises `LookupError`
+  if no escalation or unknown specialist.
+- `build_llm_prompt(context)` — JSON prompt sent to the LLM.
+- `call_llm_for_specialist_solution(context, model)` — calls the LLM and
+  returns the parsed JSON dict. Honours `SPECIALIST_INVESTIGATION_MOCK_JSON`
+  for offline tests.
+- `normalize_llm_solution(raw, context)` — validates the model's response,
+  applies the missing-information confidence cap, and produces the workflow's
+  decision fields.
+- `build_solution_row(context, model)` — end-to-end row for
+  `specialist_solutions.csv`.
 - `write_specialist_solution(out_dir, solution)`.
-- `main(argv)` — CLI. Exits 2 on missing data, 3 on missing escalation.
+- `main(argv)` — CLI entrypoint. Exit codes: 0 ok, 2 missing ticket/data,
+  3 missing upstream escalation, 4 LLM call failed.
 
-## Determinism
+## Algorithm
 
-Solutions come from per-category templates (login_access, password_reset, billing_account, software_bug, hardware_issue, network_connectivity, email_calendar, data_reporting, security_request, other). The script never invents customer-specific facts; it produces a stable, customer-safe summary plus a clearly-labeled `customer_action_required`. Confidence = baseline-by-seniority × (0.85 if missing-information was flagged at escalation else 1.0).
+1. Load the ticket, the upstream escalation, the chosen specialist row, and
+   the latest triage decision.
+2. Build a structured prompt summarising the ticket, triage, escalation, and
+   specialist profile.
+3. Ask the LLM for one JSON object describing the diagnosis.
+4. Validate the response. Cap confidence at `0.60` if the escalation flagged
+   missing customer information.
+5. Write a row to `specialist_solutions.csv` and an action-log entry.
 
-## Refusal behavior
+## Refusal behaviour
 
 The script refuses to investigate when:
 
-- there is no `escalation_decisions.csv` row for the ticket (route to `escalate-to-specialist` first), or
+- there is no `escalation_decisions.csv` row for the ticket (route to
+  `escalate-to-specialist` first), or
 - the escalation references an unknown specialist id.
 
 ## Test

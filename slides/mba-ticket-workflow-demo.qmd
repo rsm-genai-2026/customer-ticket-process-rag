@@ -369,7 +369,7 @@ different business process.
 The repo can run all example tickets as a test suite:
 
 ```bash
-uv run python skills/summarize-workflow-suite/scripts/summarize_workflow_suite.py
+uv run python automations/summarize-workflow-suite/scripts/summarize_workflow_suite.py
 ```
 
 It writes an HTML report:
@@ -448,8 +448,8 @@ how should organizations define escalation policies?
 Point Claude or Codex to:
 
 ```text
-MBA_DEMO_LLM_GUIDE.md
-WEB_WORKFLOW_DEMO.md
+docs/mba-demo-llm-guide.md
+docs/web-workflow-demo.md
 slides/mba-ticket-workflow-demo.qmd
 ```
 

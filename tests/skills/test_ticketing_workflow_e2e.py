@@ -29,19 +29,19 @@ def _load(module_name: str, rel_path: str):
     return mod
 
 
-receive_ticket = _load("receive_ticket", "skills/receive-ticket/scripts/receive_ticket.py")
+receive_ticket = _load("receive_ticket", "automations/receive-ticket/scripts/receive_ticket.py")
 classify_prioritize_ticket = _load(
     "classify_prioritize_ticket",
-    "skills/classify-prioritize-ticket/scripts/classify_prioritize_ticket.py",
+    "automations/classify-prioritize-ticket/scripts/classify_prioritize_ticket.py",
 )
 check_faq_resolution = _load(
     "check_faq_resolution",
     "skills/check-faq-resolution/scripts/check_faq_resolution.py",
 )
-draft_faq_response = _load("draft_faq_response", "skills/draft-faq-response/scripts/draft_faq_response.py")
+draft_faq_response = _load("draft_faq_response", "automations/draft-faq-response/scripts/draft_faq_response.py")
 escalate_to_specialist = _load(
     "escalate_to_specialist",
-    "skills/escalate-to-specialist/scripts/escalate_to_specialist.py",
+    "automations/escalate-to-specialist/scripts/escalate_to_specialist.py",
 )
 investigate_specialist_solution = _load(
     "investigate_specialist_solution",
@@ -49,19 +49,19 @@ investigate_specialist_solution = _load(
 )
 draft_specialist_response = _load(
     "draft_specialist_response",
-    "skills/draft-specialist-response/scripts/draft_specialist_response.py",
+    "automations/draft-specialist-response/scripts/draft_specialist_response.py",
 )
 send_customer_response = _load(
     "send_customer_response",
-    "skills/send-customer-response/scripts/send_customer_response.py",
+    "automations/send-customer-response/scripts/send_customer_response.py",
 )
 verify_feedback = _load(
     "verify_feedback",
-    "skills/verify-feedback-close-or-reopen/scripts/verify_feedback.py",
+    "automations/verify-feedback-close-or-reopen/scripts/verify_feedback.py",
 )
 audit_ticket_process = _load(
     "audit_ticket_process",
-    "skills/audit-ticket-process/scripts/audit_ticket_process.py",
+    "automations/audit-ticket-process/scripts/audit_ticket_process.py",
 )
 
 
@@ -92,6 +92,40 @@ def _fake_faq_llm_decision(context: dict, *, model: str = "", client=None) -> di
 
 
 check_faq_resolution.call_llm_for_faq_decision = _fake_faq_llm_decision
+
+
+def _fake_specialist_llm_solution(context: dict, *, model: str = "", client=None) -> dict:
+    """Offline LLM fake for the specialist investigation skill.
+
+    Returns a generic-but-plausible diagnosis. The normalizer in the real
+    script will cap confidence when the upstream escalation flagged
+    missing customer info, so this fake can always return high confidence
+    and still exercise both review-required paths.
+    """
+
+    return {
+        "root_cause": "Provider-side state mismatch consistent with the customer report.",
+        "diagnostic_steps": [
+            "Reviewed audit log for the affected account",
+            "Replicated the issue against staging",
+            "Confirmed configuration with the runbook",
+        ],
+        "evidence_reviewed": [
+            "Ticket description and steps already tried",
+            "Recent change history on the affected system",
+        ],
+        "solution_summary": (
+            "Applied the documented mitigation against the provider so the account "
+            "returns to a known-good state. Please sign back in to confirm."
+        ),
+        "customer_action_required": ("Sign back in and reply to confirm whether the issue is resolved."),
+        "confidence": 0.82,
+        "requires_follow_up_flag": False,
+        "reason": "Offline test fixture — plausible default response.",
+    }
+
+
+investigate_specialist_solution.call_llm_for_specialist_solution = _fake_specialist_llm_solution
 
 
 def _common_args(ticket_id: str, out_dir: Path) -> list[str]:

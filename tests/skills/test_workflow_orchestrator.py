@@ -53,19 +53,36 @@ FAQ_NO_MATCH_JSON = json.dumps(
     }
 )
 
+SPECIALIST_SOLUTION_JSON = json.dumps(
+    {
+        "root_cause": "Provider-side state mismatch consistent with the ticket report.",
+        "diagnostic_steps": [
+            "Reviewed account audit log",
+            "Replicated in staging",
+            "Applied the documented mitigation",
+        ],
+        "evidence_reviewed": ["ticket description", "recent change history"],
+        "solution_summary": ("Applied the documented mitigation; please sign back in to confirm the issue is gone."),
+        "customer_action_required": ("Sign back in and reply to confirm whether the issue is resolved."),
+        "confidence": 0.82,
+        "requires_follow_up_flag": False,
+        "reason": "Offline test fixture for the specialist branch.",
+    }
+)
+
 SCRIPT_BY_SKILL = {
-    "receive-ticket": "skills/receive-ticket/scripts/receive_ticket.py",
-    "classify-prioritize-ticket": ("skills/classify-prioritize-ticket/scripts/classify_prioritize_ticket.py"),
+    "receive-ticket": "automations/receive-ticket/scripts/receive_ticket.py",
+    "classify-prioritize-ticket": ("automations/classify-prioritize-ticket/scripts/classify_prioritize_ticket.py"),
     "check-faq-resolution": "skills/check-faq-resolution/scripts/check_faq_resolution.py",
-    "draft-faq-response": "skills/draft-faq-response/scripts/draft_faq_response.py",
-    "escalate-to-specialist": "skills/escalate-to-specialist/scripts/escalate_to_specialist.py",
+    "draft-faq-response": "automations/draft-faq-response/scripts/draft_faq_response.py",
+    "escalate-to-specialist": "automations/escalate-to-specialist/scripts/escalate_to_specialist.py",
     "investigate-specialist-solution": (
         "skills/investigate-specialist-solution/scripts/investigate_specialist_solution.py"
     ),
-    "draft-specialist-response": ("skills/draft-specialist-response/scripts/draft_specialist_response.py"),
-    "send-customer-response": ("skills/send-customer-response/scripts/send_customer_response.py"),
-    "verify-feedback-close-or-reopen": ("skills/verify-feedback-close-or-reopen/scripts/verify_feedback.py"),
-    "audit-ticket-process": "skills/audit-ticket-process/scripts/audit_ticket_process.py",
+    "draft-specialist-response": ("automations/draft-specialist-response/scripts/draft_specialist_response.py"),
+    "send-customer-response": ("automations/send-customer-response/scripts/send_customer_response.py"),
+    "verify-feedback-close-or-reopen": ("automations/verify-feedback-close-or-reopen/scripts/verify_feedback.py"),
+    "audit-ticket-process": "automations/audit-ticket-process/scripts/audit_ticket_process.py",
 }
 
 
@@ -106,6 +123,8 @@ def _run(
             **os.environ,
             "FAQ_RESOLUTION_MOCK_JSON": FAQ_MATCH_JSON if ticket_number % 2 == 0 else FAQ_NO_MATCH_JSON,
         }
+    elif skill == "investigate-specialist-solution":
+        env = {**os.environ, "SPECIALIST_INVESTIGATION_MOCK_JSON": SPECIALIST_SOLUTION_JSON}
     result = subprocess.run(cmd, capture_output=True, text=True, env=env)
     assert result.returncode in (0, 2, 3), f"skill {skill} crashed unexpectedly:\n{result.stderr}"
     if not result.stdout.strip():

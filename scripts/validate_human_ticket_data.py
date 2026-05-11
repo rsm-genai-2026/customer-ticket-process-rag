@@ -2,7 +2,8 @@
 
 Reads CSVs produced by ``generate_human_ticket_data.py`` and runs the
 schema, foreign-key, ordering, and rate-band checks listed in
-``HUMAN_TICKETING_DATASET_PLAN.md``. Exits with status 1 if any check fails.
+``docs/human-ticketing-dataset-plan.md``. Exits with status 1 if any
+check fails.
 """
 
 from __future__ import annotations

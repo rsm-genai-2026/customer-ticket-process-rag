@@ -1,9 +1,16 @@
-"""Tests for the investigate-specialist-solution skill."""
+"""Tests for the investigate-specialist-solution skill (LLM-based).
+
+These tests never make real LLM calls. They use the script's
+``SPECIALIST_INVESTIGATION_MOCK_JSON`` environment variable to return a
+canned payload, exercising the same code path the real LLM would
+exercise (build prompt → call → normalize → write row).
+"""
 
 from __future__ import annotations
 
 import csv
 import importlib.util
+import json
 from pathlib import Path
 
 import polars as pl
@@ -20,6 +27,11 @@ _spec.loader.exec_module(iss)
 
 DATA_DIR = _REPO_ROOT / "data"
 SAMPLE_TICKET_ID = "TKT-00042"
+
+
+# ---------------------------------------------------------------------------
+# Fixtures
+# ---------------------------------------------------------------------------
 
 
 def _seed_triage(out_dir: Path, category: str = "login_access") -> None:
@@ -73,11 +85,47 @@ def _seed_escalation(
     ).write_csv(out_dir / "escalation_decisions.csv")
 
 
+def _mock_llm_payload(**overrides) -> dict:
+    """A reasonable default LLM response that tests can mutate."""
+
+    base = {
+        "root_cause": "Permission cache out of sync between SSO and the Customer Portal.",
+        "diagnostic_steps": [
+            "Reviewed audit log for recent SSO assertions",
+            "Checked cached group membership in target system",
+            "Confirmed customer's browser version",
+        ],
+        "evidence_reviewed": [
+            "SSO audit log for last 24h",
+            "Group propagation timing",
+        ],
+        "solution_summary": (
+            "Force a refresh of the user's SSO group membership and clear server-side "
+            "session cache so the user can sign back in with the correct permissions."
+        ),
+        "customer_action_required": (
+            "Sign out completely, wait two minutes, then sign back in. Reply to confirm whether the issue is resolved."
+        ),
+        "confidence": 0.82,
+        "requires_follow_up_flag": False,
+        "reason": "Strong evidence for SSO cache mismatch; straightforward mitigation.",
+    }
+    base.update(overrides)
+    return base
+
+
+# ---------------------------------------------------------------------------
+# Context loading
+# ---------------------------------------------------------------------------
+
+
 def test_load_investigation_context_happy(tmp_path: Path) -> None:
     _seed_escalation(tmp_path)
     ctx = iss.load_investigation_context(DATA_DIR, tmp_path, SAMPLE_TICKET_ID)
     assert ctx["ticket"]["ticket_id"] == SAMPLE_TICKET_ID
     assert ctx["specialist"]["specialist_id"] == "SP-001"
+    # The new context also returns triage (may be empty dict when not seeded)
+    assert "triage" in ctx
 
 
 def test_load_investigation_context_no_escalation_raises(tmp_path: Path) -> None:
@@ -93,61 +141,140 @@ def test_load_investigation_context_unknown_specialist_raises(tmp_path: Path) ->
     assert "SP-DOES-NOT-EXIST" in str(exc.value)
 
 
-def test_build_diagnostic_plan_login_access() -> None:
-    ctx = {"category": "login_access"}
-    steps = iss.build_diagnostic_plan(ctx)
-    assert steps
-    assert any("SSO" in s for s in steps)
-
-
-def test_infer_root_cause_unknown_falls_back_to_other() -> None:
-    ctx = {"category": "no_such_category"}
-    rc = iss.infer_root_cause(ctx)
-    assert "case-by-case" in rc["root_cause"]
-
-
-def test_build_solution_summary_lowers_confidence_on_missing_info(tmp_path: Path) -> None:
-    _seed_escalation(tmp_path, missing_info=False)
-    ctx_full = iss.load_investigation_context(DATA_DIR, tmp_path, SAMPLE_TICKET_ID)
-    ctx_full["category"] = "login_access"
-
-    out_dir2 = tmp_path / "with_missing"
-    out_dir2.mkdir()
-    _seed_escalation(out_dir2, missing_info=True)
-    ctx_missing = iss.load_investigation_context(DATA_DIR, out_dir2, SAMPLE_TICKET_ID)
-    ctx_missing["category"] = "login_access"
-
-    rc = iss.infer_root_cause(ctx_full)
-    full = iss.build_solution_summary(ctx_full, rc)
-    missing = iss.build_solution_summary(ctx_missing, rc)
-    assert missing["confidence_score"] < full["confidence_score"]
-    assert "missing" in missing["specialist_notes"].lower()
-
-
-def test_build_solution_summary_software_bug_sets_followup(tmp_path: Path) -> None:
-    _seed_escalation(tmp_path)
-    ctx = iss.load_investigation_context(DATA_DIR, tmp_path, SAMPLE_TICKET_ID)
-    ctx["category"] = "software_bug"
-    rc = iss.infer_root_cause(ctx)
-    out = iss.build_solution_summary(ctx, rc)
-    assert out["requires_follow_up_flag"] is True
-
-
-def test_build_solution_row_does_not_leak_internal_keywords(tmp_path: Path) -> None:
+def test_load_investigation_context_includes_triage_when_present(tmp_path: Path) -> None:
     _seed_triage(tmp_path, category="login_access")
     _seed_escalation(tmp_path)
     ctx = iss.load_investigation_context(DATA_DIR, tmp_path, SAMPLE_TICKET_ID)
-    ctx["_out_dir"] = str(tmp_path)
-    ctx["category"] = iss._category_for(ctx)
-    row = iss.build_solution_row(ctx)
+    assert ctx["triage"].get("assigned_category") == "login_access"
+
+
+# ---------------------------------------------------------------------------
+# Prompt construction
+# ---------------------------------------------------------------------------
+
+
+def test_build_llm_prompt_includes_required_fields(tmp_path: Path) -> None:
+    _seed_triage(tmp_path)
+    _seed_escalation(tmp_path)
+    ctx = iss.load_investigation_context(DATA_DIR, tmp_path, SAMPLE_TICKET_ID)
+    prompt = iss.build_llm_prompt(ctx)
+    payload = json.loads(prompt)
+    assert "ticket" in payload and payload["ticket"]["ticket_id"] == SAMPLE_TICKET_ID
+    assert "triage" in payload
+    assert "escalation" in payload
+    assert "specialist" in payload and payload["specialist"]["specialist_id"] == "SP-001"
+    assert "required_json" in payload
+    assert "decision_policy" in payload and isinstance(payload["decision_policy"], list)
+
+
+def test_build_llm_prompt_carries_missing_info_flag(tmp_path: Path) -> None:
+    _seed_escalation(tmp_path, missing_info=True)
+    ctx = iss.load_investigation_context(DATA_DIR, tmp_path, SAMPLE_TICKET_ID)
+    payload = json.loads(iss.build_llm_prompt(ctx))
+    assert payload["escalation"]["missing_information_flag"] is True
+
+
+# ---------------------------------------------------------------------------
+# Response normalisation
+# ---------------------------------------------------------------------------
+
+
+def test_normalize_llm_solution_passes_through_clean_response(tmp_path: Path) -> None:
+    _seed_escalation(tmp_path, missing_info=False)
+    ctx = iss.load_investigation_context(DATA_DIR, tmp_path, SAMPLE_TICKET_ID)
+    out = iss.normalize_llm_solution(_mock_llm_payload(), ctx)
+    assert out["confidence_score"] == 0.82
+    assert out["requires_follow_up_flag"] is False
+    assert isinstance(out["diagnostic_steps"], list) and out["diagnostic_steps"]
+    assert "SSO" in out["root_cause"]
+
+
+def test_normalize_caps_confidence_when_missing_info_flag(tmp_path: Path) -> None:
+    _seed_escalation(tmp_path, missing_info=True)
+    ctx = iss.load_investigation_context(DATA_DIR, tmp_path, SAMPLE_TICKET_ID)
+    raw = _mock_llm_payload(confidence=0.95)
+    out = iss.normalize_llm_solution(raw, ctx)
+    # Cap is 0.60 in the script — never exceed it when the upstream flag is set
+    assert out["confidence_score"] <= 0.60
+    assert "missing" in out["specialist_notes"].lower()
+
+
+def test_normalize_does_not_cap_when_missing_info_flag_is_false(tmp_path: Path) -> None:
+    _seed_escalation(tmp_path, missing_info=False)
+    ctx = iss.load_investigation_context(DATA_DIR, tmp_path, SAMPLE_TICKET_ID)
+    out = iss.normalize_llm_solution(_mock_llm_payload(confidence=0.95), ctx)
+    assert out["confidence_score"] == 0.95
+
+
+def test_normalize_clamps_confidence_into_unit_interval(tmp_path: Path) -> None:
+    _seed_escalation(tmp_path, missing_info=False)
+    ctx = iss.load_investigation_context(DATA_DIR, tmp_path, SAMPLE_TICKET_ID)
+    high = iss.normalize_llm_solution(_mock_llm_payload(confidence=5.0), ctx)
+    low = iss.normalize_llm_solution(_mock_llm_payload(confidence=-1.5), ctx)
+    assert 0.0 <= high["confidence_score"] <= 1.0
+    assert 0.0 <= low["confidence_score"] <= 1.0
+
+
+def test_normalize_handles_missing_or_blank_fields(tmp_path: Path) -> None:
+    _seed_escalation(tmp_path, missing_info=False)
+    ctx = iss.load_investigation_context(DATA_DIR, tmp_path, SAMPLE_TICKET_ID)
+    out = iss.normalize_llm_solution({"confidence": 0.5}, ctx)
+    # Defaults rather than KeyError
+    assert out["root_cause"]
+    assert out["solution_summary"]
+    assert out["customer_action_required"]
+    assert out["diagnostic_steps"]
+    assert out["evidence_reviewed"]
+
+
+def test_normalize_preserves_follow_up_flag(tmp_path: Path) -> None:
+    _seed_escalation(tmp_path)
+    ctx = iss.load_investigation_context(DATA_DIR, tmp_path, SAMPLE_TICKET_ID)
+    out = iss.normalize_llm_solution(_mock_llm_payload(requires_follow_up_flag=True), ctx)
+    assert out["requires_follow_up_flag"] is True
+
+
+# ---------------------------------------------------------------------------
+# Row construction (calls the mocked LLM)
+# ---------------------------------------------------------------------------
+
+
+def test_build_solution_row_uses_mock_payload(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    _seed_triage(tmp_path)
+    _seed_escalation(tmp_path)
+    monkeypatch.setenv("SPECIALIST_INVESTIGATION_MOCK_JSON", json.dumps(_mock_llm_payload()))
+    ctx = iss.load_investigation_context(DATA_DIR, tmp_path, SAMPLE_TICKET_ID)
+    row = iss.build_solution_row(ctx, model="mock-model")
+    assert row["specialist_id"] == "SP-001"
+    assert "SSO" in row["root_cause"]
+    assert row["confidence_score"] == 0.82
+    assert "llm_model=mock-model" in row["decision_summary"]
+
+
+def test_build_solution_row_does_not_leak_internal_keywords(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    _seed_triage(tmp_path)
+    _seed_escalation(tmp_path)
+    monkeypatch.setenv("SPECIALIST_INVESTIGATION_MOCK_JSON", json.dumps(_mock_llm_payload()))
+    ctx = iss.load_investigation_context(DATA_DIR, tmp_path, SAMPLE_TICKET_ID)
+    row = iss.build_solution_row(ctx, model="mock-model")
     summary_lower = (row["solution_summary"] + " " + row["customer_action_required"]).lower()
     for forbidden in ("credential", "password hash", "audit log id"):
         assert forbidden not in summary_lower
 
 
-def test_main_happy_path_writes_solution(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+# ---------------------------------------------------------------------------
+# CLI
+# ---------------------------------------------------------------------------
+
+
+def test_main_happy_path_writes_solution(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     _seed_triage(tmp_path)
     _seed_escalation(tmp_path)
+    monkeypatch.setenv("SPECIALIST_INVESTIGATION_MOCK_JSON", json.dumps(_mock_llm_payload()))
     rc = iss.main(
         [
             "--ticket-id",
@@ -178,6 +305,28 @@ def test_main_happy_path_writes_solution(tmp_path: Path, capsys: pytest.CaptureF
     assert "draft-specialist-response" in out
 
 
+def test_main_caps_confidence_when_escalation_flags_missing_info(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _seed_triage(tmp_path)
+    _seed_escalation(tmp_path, missing_info=True)
+    monkeypatch.setenv("SPECIALIST_INVESTIGATION_MOCK_JSON", json.dumps(_mock_llm_payload(confidence=0.95)))
+    rc = iss.main(
+        [
+            "--ticket-id",
+            SAMPLE_TICKET_ID,
+            "--data-dir",
+            str(DATA_DIR),
+            "--out-dir",
+            str(tmp_path),
+        ]
+    )
+    assert rc == 0
+    row = pl.read_csv(tmp_path / "specialist_solutions.csv").row(0, named=True)
+    assert float(row["confidence_score"]) <= 0.60
+
+
 def test_main_no_escalation_returns_3(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     rc = iss.main(
         [
@@ -191,3 +340,35 @@ def test_main_no_escalation_returns_3(tmp_path: Path, capsys: pytest.CaptureFixt
     )
     assert rc == 3
     assert "escalate-to-specialist" in capsys.readouterr().err
+
+
+def test_main_returns_4_on_llm_failure(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """If the LLM call raises, the script must emit error_code=llm_decision_failed."""
+
+    _seed_triage(tmp_path)
+    _seed_escalation(tmp_path)
+
+    def boom(*_args, **_kwargs):
+        raise RuntimeError("simulated network failure")
+
+    monkeypatch.setattr(iss, "call_llm_for_specialist_solution", boom)
+
+    rc = iss.main(
+        [
+            "--ticket-id",
+            SAMPLE_TICKET_ID,
+            "--data-dir",
+            str(DATA_DIR),
+            "--out-dir",
+            str(tmp_path),
+            "--json",
+        ]
+    )
+    assert rc == 4
+    envelope = json.loads(capsys.readouterr().out)
+    assert envelope["status"] == "error"
+    assert envelope["error"]["code"] == "llm_decision_failed"

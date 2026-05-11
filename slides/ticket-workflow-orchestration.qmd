@@ -106,23 +106,86 @@ clear escalation paths.
 
 ## Start with Skills {.section-slide}
 
-## What Is a Skill? {.content-slide}
+## Skill vs. Automation {.content-slide}
 
-A skill is a focused unit of work that can be explained, tested, and reused.
+These are **not** the same thing. The distinction is the most important
+slide in this deck.
 
-Examples from the diagram:
+**Skill** (Anthropic definition)
 
-- receive a ticket
-- classify a ticket
-- assign priority
-- check whether an FAQ applies
-- draft a customer response
-- escalate to a specialist
-- verify a rejected answer
+: A folder with `SKILL.md` that an LLM agent loads to decide *when* to
+invoke it. The script inside **calls an LLM** to do the work.
+
+**Automation**
+
+: A deterministic script that runs without an LLM. Rule-based code,
+table lookups, templates. The orchestrator runs it; no agent needed.
 
 ::: notes
-A skill is like a small standard operating procedure. It does
-one job and produces a handoff for the next job.
+Both produce the same kind of JSON envelope so the orchestrator can drive
+them identically. The difference is purely about where AI judgement lives.
+:::
+
+## Where Does the AI Actually Live? {.content-slide}
+
+This repo has ten workflow steps. **Only two are skills:**
+
+`skills/check-faq-resolution/`
+
+: An LLM decides whether the FAQ knowledge base resolves the ticket.
+
+`skills/investigate-specialist-solution/`
+
+: An LLM acts as the assigned specialist and produces a diagnosis plus
+customer-safe action.
+
+The other eight live under `automations/` — receive, classify, escalate,
+draft FAQ response, draft specialist response, send, verify feedback,
+audit. All deterministic.
+
+That is on purpose:
+
+- AI earns its keep on **genuine judgement** — the FAQ-or-not call, the
+  specialist diagnosis. Both are easy to verify when wrong.
+- Deterministic steps are trivially testable and give an auditable rationale
+  instead of "the model said so."
+- "AI-assisted workflow" ≠ "every step is an LLM call."
+
+::: notes
+This is the management lesson: GenAI adoption should target the
+judgement-heavy steps, not the whole process. Wrapping a classification
+rule in an LLM costs money, adds latency, and removes the audit trail.
+:::
+
+## Why Two Folders, Not One? {.content-slide}
+
+```text
+skills/                         # only LLM-based steps
+├── check-faq-resolution/
+│   ├── SKILL.md                  # agent contract
+│   ├── README.md
+│   ├── install.sh                # links into .claude/skills/
+│   └── scripts/
+└── investigate-specialist-solution/
+    ├── SKILL.md
+    ├── README.md
+    ├── install.sh
+    └── scripts/
+
+automations/                    # deterministic steps
+├── receive-ticket/
+│   ├── README.md                 # no SKILL.md, no install.sh
+│   └── scripts/
+├── classify-prioritize-ticket/
+├── …
+```
+
+The folder is the signal: if it has `SKILL.md`, an LLM agent can load it.
+If it doesn't, the step is plain Python and nothing more.
+
+::: notes
+The split makes the AI surface area legible to a non-technical reviewer.
+You can answer "where is AI used?" by listing the folders under `skills/`.
 :::
 
 ## Why Not One Big AI Prompt? {.content-slide}
@@ -159,36 +222,38 @@ Students can reuse this canvas for any workflow: admissions, claims, HR,
 procurement, loan approval, etc.
 :::
 
-## From Diagram Step to Skill {.content-slide}
+## From Diagram Step to Code {.content-slide}
 
 :::::: columns
 ::: {.column width="50%"}
-**Early workflow**
+**Automations** (deterministic)
 
-- Receives ticket -> `receive-ticket`
-- Classify Ticket -> `classify-prioritize-ticket`
-- Assign Priority -> `classify-prioritize-ticket`
-- FAQ resolution? -> `check-faq-resolution`
-- Finds resolution -> `draft-faq-response`
+- Receives ticket → `automations/receive-ticket`
+- Classify + priority → `automations/classify-prioritize-ticket`
+- Draft FAQ reply → `automations/draft-faq-response`
+- Escalate → `automations/escalate-to-specialist`
+- Draft specialist reply → `automations/draft-specialist-response`
+- Send → `automations/send-customer-response`
+- Verify feedback → `automations/verify-feedback-close-or-reopen`
+- Audit → `automations/audit-ticket-process`
 :::
 
 ::: {.column width="50%"}
-**Escalation and feedback**
+**Skills** (LLM-based)
 
-- Send to IT specialist -> `escalate-to-specialist`
-- Analyze issue -> `investigate-specialist-solution`
-- Creates solution -> `draft-specialist-response`
-- Sends message -> `send-customer-response`
-- Verifies rejection -> `verify-feedback-close-or-reopen`
+- FAQ resolution? → `skills/check-faq-resolution`
+- Specialist diagnosis → `skills/investigate-specialist-solution`
 :::
 ::::::
 
 ::: notes
-This slide maps the business diagram into the repo structure. Note that
-classify and priority are one combined skill in this implementation.
+Reading the two columns answers "where does AI live?" without opening any
+code. Eight steps are rule-based; two ask a model to make a judgement.
 :::
 
-## Example Skill: Classify and Prioritize {.content-slide}
+## Example Automation: Classify and Prioritize {.content-slide}
+
+A deterministic step. **No LLM call.**
 
 Input:
 
@@ -200,26 +265,27 @@ Input:
 
 Output:
 
-- assigned category
-- assigned priority
+- assigned category (keyword + system-match score)
+- assigned priority (additive rule)
 - recommended specialist group
 - rationale and confidence
 - next action: `check-faq-resolution`
 
 ::: notes
-This makes a fuzzy process step concrete. The skill does not just "think"; it
-produces structured data that the next step can use.
+The category score is keyword overlap plus a system-typicality bonus. The
+priority is `tier + urgency + category_bump`. Both fit on a page and are
+auditable line-by-line — exactly why AI is not needed here.
 :::
 
-## Example Skill: Check FAQ {.content-slide}
+## Example Skill: Check FAQ (LLM) {.content-slide}
 
-Input:
+Input to the LLM:
 
 - ticket details
 - triage category
-- FAQ knowledge base
+- the active FAQ knowledge base
 
-Decision:
+Decision the LLM must return as JSON:
 
 ```text
 Strong FAQ match?
@@ -232,46 +298,62 @@ Output:
 - `faq_match_found`
 - `faq_id`
 - `match_confidence`
+- `required_customer_info_available`
 - `recommended_next_step`
 
 ::: notes
-This is the most important branch point in the workflow. It determines whether
-the work stays automated or moves to a specialist.
+The most important branch point in the workflow — and the first place an
+LLM earns its keep. The judgement is "does this FAQ actually resolve this
+ticket?" — a comparison that's easy to verify when wrong.
 :::
 
-## Example Skill: Escalate to Specialist {.content-slide}
+## Example Skill: Investigate Specialist Solution (LLM) {.content-slide}
 
-When the FAQ path is not enough, the workflow creates a handoff package.
+When the FAQ branch can't resolve the ticket, the workflow asks an LLM to
+**act as the assigned specialist** and propose a fix.
 
-The handoff includes:
+Input to the LLM:
 
-- ticket summary
-- category and priority
-- business impact
-- steps already tried
-- why the FAQ did not resolve it
-- specialist group
-- specific question for the specialist
+- ticket (subject, description, affected system, urgency, steps tried)
+- triage (category, priority, specialist group)
+- escalation handoff and the specific question
+- specialist profile (group, seniority)
+
+JSON the LLM must return:
+
+- `root_cause`
+- `diagnostic_steps`
+- `evidence_reviewed`
+- `solution_summary` (customer-safe)
+- `customer_action_required`
+- `confidence`
+- `requires_follow_up_flag`
+
+If the escalation flagged missing customer info, confidence is **capped at
+0.60** during normalisation — that ticket always lands in human review.
 
 ::: notes
-This skill is where automation hands work to a human expert. A good AI workflow
-does not hide the reason for escalation.
+This is the second LLM step. It is structurally identical to FAQ check: a
+JSON-only prompt, a validated response, deterministic post-processing.
+Same pattern, different prompt.
 :::
 
-## Example Skill: Verify Feedback {.content-slide}
+## Example Automation: Verify Feedback {.content-slide}
 
-After the response is sent, the customer replies.
+After the response is sent, the customer replies. **Rule-based, no LLM.**
 
-The feedback skill decides:
+The feedback automation decides:
 
-- accepted -> close the ticket
-- rejected -> reopen and escalate
+- accepted (positive phrases) -> close the ticket
+- rejected (negative phrases), first time -> reopen and escalate
 - ambiguous -> ask for clarification
-- rejected twice -> close unresolved with follow-up
+- rejected twice -> close unresolved (loop-prevention guard)
 
 ::: notes
-This is where loops enter the process. Loops need explicit rules or they can
-run forever.
+This is where loops enter the process. Loops need explicit rules or they
+can run forever. A future iteration could replace the keyword matcher
+with an LLM sentiment classifier; that would move this folder under
+`skills/` and gain a `SKILL.md`.
 :::
 
 ## A Skill Must Leave Evidence {.content-slide}
@@ -291,28 +373,78 @@ This is the bridge from AI output to auditability. Students should look for
 evidence, not just final answers.
 :::
 
-## Skill Packages in This Repo {.content-slide}
+## Step Packages: Two Shapes {.content-slide}
 
-Each skill folder has two parts:
+A **skill** folder has the agent contract:
 
 ```text
 skills/check-faq-resolution/
-  SKILL.md
-  scripts/check_faq_resolution.py
+  SKILL.md                       # when to invoke (agent reads this)
+  README.md
+  install.sh
+  scripts/check_faq_resolution.py   # calls an LLM
 ```
 
-`SKILL.md`
+An **automation** folder is simpler — no agent contract:
 
-: Instructions for an LLM agent or human reader
-
-`scripts/*.py`
-
-: Repeatable implementation used by the browser demo
+```text
+automations/receive-ticket/
+  README.md
+  scripts/receive_ticket.py          # deterministic
+```
 
 ::: notes
-This distinction matters. The browser demo runs deterministic scripts from each
-skill package. The SKILL.md files document how an AI agent should think about
-the skill.
+The presence of `SKILL.md` is the signal: if you see it, an LLM agent can
+load this step. If you don't, the step is plain Python.
+:::
+
+## The Step Contract {.content-slide}
+
+Every step script — skill or automation — takes the same flags so the
+orchestrator can drive any of them:
+
+- `--ticket-id`
+- `--data-dir` / `--out-dir`
+- `--workflow-run-id` / `--step-id`
+- `--mode {live,demo}` — live = use only fresh working data;
+  demo = also accept seeded historical rows
+- `--idempotency-mode {skip,replace}` — re-running the same step is safe
+- `--json` — emit the envelope instead of a text summary
+
+The shared parser lives in `lib/ticketing_common.py`. New steps inherit
+the contract; they do not redesign it.
+
+::: notes
+This is the boring-on-purpose part. Uniform flags = uniform orchestration.
+The orchestrator does not need to know what any given step does — only how
+to invoke it.
+:::
+
+## The Envelope: Every Step Talks Like This {.content-slide}
+
+```json
+{
+  "status": "ok",
+  "skill_name": "check-faq-resolution",
+  "ticket_id": "TKT-00042",
+  "next_action": "draft-faq-response",
+  "confidence": 0.91,
+  "review_required": false,
+  "artifact_refs": ["working/faq_decisions.csv"],
+  "outputs": {…},
+  "error": null
+}
+```
+
+- `next_action` → routes the orchestrator.
+- `review_required` → routes a human.
+- `artifact_refs` → audit trail.
+
+(The field is `skill_name` for historical reasons — it carries the step
+name whether the step is a skill or an automation.)
+
+::: notes
+Process governance ≈ the envelope. Anything you want oversight on goes here.
 :::
 
 ## Then Add Orchestration {.section-slide}
@@ -598,7 +730,7 @@ The repo includes 20 curated examples.
 Run them all:
 
 ```bash
-uv run python skills/summarize-workflow-suite/scripts/summarize_workflow_suite.py
+uv run python automations/summarize-workflow-suite/scripts/summarize_workflow_suite.py
 ```
 
 Open the HTML report:

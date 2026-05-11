@@ -1,9 +1,23 @@
-"""Step 7: produce a specialist root cause + solution for an escalated ticket.
+"""Step 7: ask an LLM to act as the IT specialist and propose a solution.
 
-Reads the latest ``escalation_decisions.csv`` row (refusing if absent) and
-builds a deterministic specialist solution from category/system templates.
-Confidence is reduced when the upstream escalation flagged missing
-information.
+This is one of the **two** real skills in the repo (along with
+``check-faq-resolution``). It runs only when the FAQ branch could not
+resolve the ticket — the workflow needs genuine specialist judgement to
+diagnose the issue and produce a customer-safe action.
+
+The LLM receives:
+
+* the original ticket (subject, description, affected system, symptom,
+  steps already tried, business impact, urgency),
+* the upstream triage (category, priority, recommended specialist group),
+* the upstream escalation (specialist id, group, seniority, escalation
+  reason, missing-information flag),
+* and a request to return one structured JSON object.
+
+The model must produce a root cause, diagnostic steps, evidence reviewed,
+a plain-language ``solution_summary``, a ``customer_action_required``
+string, a confidence score, and a ``requires_follow_up_flag`` (set when
+engineering follow-up is needed and the immediate mitigation is partial).
 
 Run from the repo root::
 
@@ -13,20 +27,21 @@ Run from the repo root::
 
 from __future__ import annotations
 
-import argparse
+import json
+import os
 import sys
 from pathlib import Path
+from typing import Any
 
 import polars as pl
+from dotenv import load_dotenv
+from openai import OpenAIError
 
 _REPO_ROOT = Path(__file__).resolve().parents[3]
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
-from skills.ticketing_common.ticketing_common import (  # noqa: E402
-    DEFAULT_MODE,
-    MODE_DEMO,
-    MODE_LIVE,
+from lib.ticketing_common import (  # noqa: E402
     STATUS_OK,
     STATUS_SKIPPED,
     append_action_log,
@@ -34,9 +49,11 @@ from skills.ticketing_common.ticketing_common import (  # noqa: E402
     default_step_id,
     default_workflow_run_id,
     emit_envelope,
+    emit_error,
     find_step_row,
     latest_working_row,
     make_envelope,
+    make_skill_parser,
     needs_human_review,
     now_iso,
     pipe_join,
@@ -44,159 +61,18 @@ from skills.ticketing_common.ticketing_common import (  # noqa: E402
     replace_step_row,
     require_ticket,
 )
+from utils.connect import DEFAULT_MODEL as DEFAULT_LLM_MODEL  # noqa: E402
+from utils.connect import ask_json  # noqa: E402
 
 SKILL_NAME = "investigate-specialist-solution"
 SOLUTIONS_TABLE = "specialist_solutions"
 NEXT_ACTION = "draft-specialist-response"
+DEFAULT_MODEL = os.environ.get("SPECIALIST_INVESTIGATION_MODEL", DEFAULT_LLM_MODEL)
 
-CATEGORY_TEMPLATES: dict[str, dict[str, object]] = {
-    "login_access": {
-        "root_cause": "Permission cache out of sync between SSO and the target system.",
-        "diagnostic_steps": [
-            "Reviewed audit log for recent SSO assertions",
-            "Checked cached group membership in target system",
-            "Confirmed user agent and browser version reported by customer",
-        ],
-        "evidence_reviewed": [
-            "submitted_tickets.description",
-            "audit log for last 24h",
-            "SSO group propagation timing",
-        ],
-        "solution_summary": (
-            "Force a refresh of the user's SSO group membership and clear server-side "
-            "session cache; user signs back in to receive new permissions."
-        ),
-        "customer_action_required": (
-            "Sign out completely, wait two minutes, then sign back in. Reply if the issue persists."
-        ),
-    },
-    "password_reset": {
-        "root_cause": "Privileged account reset workflow required manual approval.",
-        "diagnostic_steps": [
-            "Verified account type and approval policy",
-            "Confirmed manager approval token",
-            "Issued elevated reset link",
-        ],
-        "evidence_reviewed": ["account metadata", "approval policy"],
-        "solution_summary": ("Reset the privileged account via the elevated workflow and confirm sign-in."),
-        "customer_action_required": (
-            "Use the reset link we just sent to set a new password and confirm you can sign in."
-        ),
-    },
-    "billing_account": {
-        "root_cause": "Tax engine cache stale after the customer's region change.",
-        "diagnostic_steps": [
-            "Inspected billing region setting",
-            "Cleared tax engine cache for the account",
-            "Recomputed affected invoice lines",
-        ],
-        "evidence_reviewed": ["account billing region", "invoice line items"],
-        "solution_summary": (
-            "Refresh the tax engine cache for the account and reissue the affected invoice with corrected line items."
-        ),
-        "customer_action_required": (
-            "Confirm the reissued invoice totals match expectations and reply with any discrepancies."
-        ),
-    },
-    "software_bug": {
-        "root_cause": "Race condition in a background sync job; no permanent fix yet.",
-        "diagnostic_steps": [
-            "Reproduced in staging with a comparable record set",
-            "Identified the sync job that re-queues affected records",
-            "Logged a follow-up engineering ticket",
-        ],
-        "evidence_reviewed": [
-            "ticket description",
-            "staging reproduction",
-            "recent deploy notes",
-        ],
-        "solution_summary": (
-            "Apply the temporary mitigation (re-queue the affected records) so the user "
-            "is unblocked. Engineering will track a permanent fix."
-        ),
-        "customer_action_required": (
-            "Refresh the affected page once we confirm the records are re-queued; reply if the issue recurs."
-        ),
-    },
-    "hardware_issue": {
-        "root_cause": "Driver version on the device is incompatible with the current OS image.",
-        "diagnostic_steps": [
-            "Checked device model and current driver version via MDM",
-            "Confirmed compatible driver in approved-driver catalog",
-            "Pushed updated driver via MDM",
-        ],
-        "evidence_reviewed": ["device inventory", "MDM compliance status"],
-        "solution_summary": (
-            "Pushed the updated driver via MDM. The device should report healthy in the next inventory cycle."
-        ),
-        "customer_action_required": ("Restart the device and confirm the issue no longer occurs."),
-    },
-    "network_connectivity": {
-        "root_cause": "Misconfigured route on the regional gateway.",
-        "diagnostic_steps": [
-            "Reviewed gateway logs for the user's region",
-            "Identified the offending route entry",
-            "Applied corrected route table entry",
-        ],
-        "evidence_reviewed": ["gateway logs", "route table snapshot"],
-        "solution_summary": (
-            "Apply the corrected route table entry and validate connectivity to the internal hosts the user reported."
-        ),
-        "customer_action_required": ("Reconnect to VPN and confirm the affected internal app loads normally."),
-    },
-    "email_calendar": {
-        "root_cause": "Stale OAuth token in the calendar provider integration.",
-        "diagnostic_steps": [
-            "Verified token state in the identity provider",
-            "Revoked the stale token",
-            "Issued a fresh token and shared the device-prompt for reauthorization",
-        ],
-        "evidence_reviewed": ["OAuth token audit log"],
-        "solution_summary": (
-            "Revoke and reissue the OAuth token; the user reauthorizes the calendar app on their device."
-        ),
-        "customer_action_required": (
-            "Reauthorize the calendar app on your device when prompted; confirm events are syncing again."
-        ),
-    },
-    "data_reporting": {
-        "root_cause": "Warehouse refresh job missed its scheduled run.",
-        "diagnostic_steps": [
-            "Inspected job scheduler for the affected pipeline",
-            "Manually triggered the refresh",
-            "Adjusted scheduler dependency to avoid recurrence",
-        ],
-        "evidence_reviewed": ["job scheduler logs", "warehouse run history"],
-        "solution_summary": (
-            "Manually triggered the warehouse refresh and tightened the scheduler so the next run does not slip."
-        ),
-        "customer_action_required": ("Reload the dashboard and confirm the latest data is visible."),
-    },
-    "security_request": {
-        "root_cause": "Sensitive role required a manual access review.",
-        "diagnostic_steps": [
-            "Validated identity and role request",
-            "Obtained manager and security approval",
-            "Granted the scoped role with a documented expiry",
-        ],
-        "evidence_reviewed": ["identity record", "approval emails"],
-        "solution_summary": (
-            "Granted the requested scoped role with a documented expiry; access has been logged for audit."
-        ),
-        "customer_action_required": ("Sign in to confirm the new access works and reply if anything is missing."),
-    },
-    "other": {
-        "root_cause": "Cross-team request requiring case-by-case handling.",
-        "diagnostic_steps": [
-            "Coordinated with the requested team",
-            "Confirmed scope and any approvals",
-            "Documented next steps",
-        ],
-        "evidence_reviewed": ["ticket description"],
-        "solution_summary": ("Coordinated with the relevant team and produced tailored next steps for this request."),
-        "customer_action_required": ("Review the next steps and confirm whether they are workable for you."),
-    },
-}
+# Confidence floor below which we always queue for human review even if
+# the LLM reports higher. Used as the cap during normalisation when the
+# upstream escalation flagged missing information.
+_MISSING_INFO_CONFIDENCE_CAP = 0.60
 
 
 def load_investigation_context(
@@ -206,10 +82,10 @@ def load_investigation_context(
     *,
     workflow_run_id: str | None = None,
 ) -> dict:
-    """Return ticket, escalation, specialist details, and dictionaries.
+    """Return ticket, escalation, specialist, triage, and dictionaries.
 
-    Raises ``LookupError`` if no escalation exists for this ticket or
-    the named specialist is not in ``it_specialists.csv``.
+    Raises ``LookupError`` if no escalation exists for this ticket or the
+    named specialist is not in ``it_specialists.csv``.
     """
 
     ticket = require_ticket(data_dir, ticket_id)
@@ -221,86 +97,211 @@ def load_investigation_context(
     matching = specialists.filter(pl.col("specialist_id") == sp_id).to_dicts()
     if not matching:
         raise LookupError(f"escalation references specialist {sp_id!r} which is not in raw/it_specialists.csv.")
+    triage = latest_working_row(out_dir, "triage_decisions", ticket_id, workflow_run_id=workflow_run_id)
     return {
         "ticket": ticket,
         "escalation": escalation,
         "specialist": matching[0],
+        "triage": triage or {},
         "systems": read_csv(data_dir, "dictionaries/systems.csv"),
     }
 
 
-def _category_for(context: dict) -> str:
-    """Determine the category for template selection.
-
-    Pulls the category from the escalation row's recorded triage if
-    available, else falls back to the ticket's affected-system → category
-    mapping. Defaults to ``other`` when nothing is available.
-    """
-
-    triage = latest_working_row(
-        Path(context.get("_out_dir", ".")),
-        "triage_decisions",
-        context["ticket"]["ticket_id"],
-        workflow_run_id=context.get("_workflow_run_id"),
-    )
-    if triage:
-        return triage.get("assigned_category", "other") or "other"
-    return "other"
-
-
-def build_diagnostic_plan(context: dict) -> list[str]:
-    """Return the list of diagnostic steps for the relevant category."""
-
-    template = CATEGORY_TEMPLATES.get(context["category"], CATEGORY_TEMPLATES["other"])
-    return list(template["diagnostic_steps"])
-
-
-def infer_root_cause(context: dict) -> dict:
-    """Return ``{"root_cause": str, "evidence_reviewed": list[str]}``."""
-
-    template = CATEGORY_TEMPLATES.get(context["category"], CATEGORY_TEMPLATES["other"])
+def _ticket_for_prompt(ticket: dict) -> dict:
     return {
-        "root_cause": template["root_cause"],
-        "evidence_reviewed": list(template["evidence_reviewed"]),
+        "ticket_id": ticket.get("ticket_id", ""),
+        "subject": ticket.get("subject", ""),
+        "description": ticket.get("description", ""),
+        "affected_system": ticket.get("affected_system", ""),
+        "customer_reported_urgency": ticket.get("customer_reported_urgency", ""),
+        "business_impact_text": ticket.get("business_impact_text", ""),
+        "error_or_symptom_detail": ticket.get("error_or_symptom_detail", ""),
+        "steps_already_tried": ticket.get("steps_already_tried", ""),
+        "expected_outcome": ticket.get("expected_outcome", ""),
     }
 
 
-def build_solution_summary(context: dict, root_cause: dict) -> dict:
-    """Build the customer-safe summary, customer action, and confidence.
+def _triage_for_prompt(triage: dict) -> dict:
+    return {
+        "assigned_category": triage.get("assigned_category", ""),
+        "assigned_priority": triage.get("assigned_priority", ""),
+        "recommended_specialist_group": triage.get("recommended_specialist_group", ""),
+    }
 
-    Confidence baseline depends on specialist seniority and is reduced
-    when the upstream escalation flagged missing information.
+
+def _escalation_for_prompt(escalation: dict) -> dict:
+    return {
+        "escalation_reason": escalation.get("escalation_reason", ""),
+        "specific_question_for_specialist": escalation.get("specific_question_for_specialist", ""),
+        "missing_information_flag": str(escalation.get("missing_information_flag", "")).lower() == "true",
+        "handoff_summary": escalation.get("handoff_summary", ""),
+    }
+
+
+def _specialist_for_prompt(specialist: dict) -> dict:
+    return {
+        "specialist_id": specialist.get("specialist_id", ""),
+        "name": specialist.get("name", ""),
+        "specialist_group": specialist.get("specialist_group", ""),
+        "seniority": specialist.get("seniority", ""),
+        "systems_supported": specialist.get("systems_supported", ""),
+    }
+
+
+def build_llm_prompt(context: dict) -> str:
+    """Compose the JSON prompt sent to the LLM specialist."""
+
+    payload = {
+        "task": (
+            "You are an IT specialist. Diagnose the escalated ticket below and "
+            "propose a customer-safe action. Use only the information present "
+            "in the ticket and escalation context; do not invent customer "
+            "facts. If key reproduction details are missing, return a lower "
+            "confidence and flag follow-up."
+        ),
+        "decision_policy": [
+            "Only describe diagnostic steps you can justify from the ticket text.",
+            "The solution_summary must be plain language a non-technical "
+            "customer can act on; never include internal log lines, credentials, "
+            "or specialist-only jargon.",
+            "Set requires_follow_up_flag=true only when the immediate action is "
+            "a temporary mitigation and engineering work is needed for a "
+            "permanent fix.",
+            "If the escalation missing_information_flag is true, cap confidence "
+            f"at {_MISSING_INFO_CONFIDENCE_CAP:.2f}.",
+            "customer_action_required must ask the customer to confirm or "
+            "reply, so the workflow gets a clean accept/reject signal.",
+        ],
+        "ticket": _ticket_for_prompt(context["ticket"]),
+        "triage": _triage_for_prompt(context["triage"]),
+        "escalation": _escalation_for_prompt(context["escalation"]),
+        "specialist": _specialist_for_prompt(context["specialist"]),
+        "required_json": {
+            "root_cause": "one-sentence root cause hypothesis",
+            "diagnostic_steps": "list of 2-5 short strings — what the specialist checked",
+            "evidence_reviewed": "list of 1-4 short strings — what the specialist looked at",
+            "solution_summary": "one short paragraph, customer-safe language",
+            "customer_action_required": "one sentence asking the customer to confirm or reply",
+            "confidence": "number between 0 and 1",
+            "requires_follow_up_flag": "boolean",
+            "reason": "one-sentence rationale for the confidence value",
+        },
+    }
+    return json.dumps(payload, indent=2)
+
+
+def _system_prompt() -> str:
+    return (
+        "You are a senior IT specialist diagnosing an escalated support ticket. "
+        "Return only valid JSON. Be conservative with confidence — if the ticket "
+        "lacks reproduction details, say so."
+    )
+
+
+def _load_env() -> None:
+    load_dotenv(_REPO_ROOT / ".env")
+    load_dotenv(Path.home() / ".env")
+
+
+def call_llm_for_specialist_solution(
+    context: dict,
+    *,
+    model: str = DEFAULT_MODEL,
+    client: Any | None = None,
+) -> dict:
+    """Ask the LLM for the specialist solution and return its JSON object.
+
+    For tests and offline demos, set ``SPECIALIST_INVESTIGATION_MOCK_JSON``
+    to a JSON string and this function will return it verbatim without
+    making a network call. Mirrors the pattern used by
+    ``check-faq-resolution``.
     """
 
-    template = CATEGORY_TEMPLATES.get(context["category"], CATEGORY_TEMPLATES["other"])
-    seniority = (context["specialist"].get("seniority") or "").lower()
-    base = {"junior": 0.65, "mid": 0.75, "senior": 0.85, "principal": 0.92}.get(seniority, 0.75)
-    missing = str(context["escalation"].get("missing_information_flag", "")).lower() == "true"
-    confidence = round(base * (0.85 if missing else 1.0), 2)
-    notes = "Investigated within the documented runbook for this category. " + (
-        "Customer did not provide reproduction details up front; added a request for missing information."
-        if missing
-        else "Customer-supplied detail was sufficient."
+    mock_json = os.environ.get("SPECIALIST_INVESTIGATION_MOCK_JSON", "").strip()
+    if mock_json:
+        return json.loads(mock_json)
+
+    _load_env()
+    prompt = build_llm_prompt(context)
+    result = ask_json(
+        prompt,
+        model=model,
+        system=_system_prompt(),
+        temperature=0,
+        max_tokens=900,
+        client=client,
     )
+    if not isinstance(result, dict):
+        raise TypeError("LLM did not return a JSON object.")
+    return result
+
+
+def _as_bool(value: object, *, default: bool = False) -> bool:
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        return value.strip().lower() in {"true", "yes", "1"}
+    return default
+
+
+def _as_confidence(value: object) -> float:
+    try:
+        confidence = float(value)
+    except (TypeError, ValueError):
+        confidence = 0.0
+    return round(min(max(confidence, 0.0), 1.0), 2)
+
+
+def _as_list_of_strings(value: object) -> list[str]:
+    if isinstance(value, list):
+        return [str(v).strip() for v in value if str(v).strip()]
+    if isinstance(value, str) and value.strip():
+        return [value.strip()]
+    return []
+
+
+def normalize_llm_solution(raw: dict, context: dict) -> dict:
+    """Validate the LLM response and apply the missing-info confidence cap."""
+
+    root_cause = str(raw.get("root_cause") or "").strip() or "(no root cause provided)"
+    diagnostic_steps = _as_list_of_strings(raw.get("diagnostic_steps")) or ["(no diagnostic steps reported)"]
+    evidence_reviewed = _as_list_of_strings(raw.get("evidence_reviewed")) or ["(no evidence list reported)"]
+    solution_summary = str(raw.get("solution_summary") or "").strip()
+    customer_action = str(raw.get("customer_action_required") or "").strip()
+    if not solution_summary:
+        solution_summary = "Specialist did not produce a clear solution summary; human review needed."
+    if not customer_action:
+        customer_action = "Please reply and confirm whether this resolves the issue."
+
+    confidence = _as_confidence(raw.get("confidence"))
+    missing_info = str(context["escalation"].get("missing_information_flag", "")).lower() == "true"
+    if missing_info and confidence > _MISSING_INFO_CONFIDENCE_CAP:
+        confidence = _MISSING_INFO_CONFIDENCE_CAP
+
+    requires_follow_up = _as_bool(raw.get("requires_follow_up_flag"))
+
+    reason = str(raw.get("reason") or "LLM specialist judgement.").strip()
+    notes = reason
+    if missing_info:
+        notes += " (Confidence capped because the escalation flagged missing customer information.)"
+
     return {
-        "solution_summary": template["solution_summary"],
-        "customer_action_required": template["customer_action_required"],
+        "root_cause": root_cause,
+        "diagnostic_steps": diagnostic_steps,
+        "evidence_reviewed": evidence_reviewed,
+        "solution_summary": solution_summary,
+        "customer_action_required": customer_action,
         "confidence_score": confidence,
+        "requires_follow_up_flag": requires_follow_up,
         "specialist_notes": notes,
-        "requires_follow_up_flag": context["category"] == "software_bug",
     }
 
 
-def write_specialist_solution(out_dir: Path, solution: dict) -> None:
-    append_csv_row(Path(out_dir) / f"{SOLUTIONS_TABLE}.csv", solution)
+def build_solution_row(context: dict, *, model: str = DEFAULT_MODEL, client: Any | None = None) -> dict:
+    """End-to-end: ask the LLM, validate, build the working CSV row."""
 
-
-def build_solution_row(context: dict) -> dict:
-    """Run all helpers and produce the row written to the working CSV."""
-
-    diagnostic_steps = build_diagnostic_plan(context)
-    rc = infer_root_cause(context)
-    summary = build_solution_summary(context, rc)
+    raw = call_llm_for_specialist_solution(context, model=model, client=client)
+    decision = normalize_llm_solution(raw, context)
     return {
         "ticket_id": context["ticket"]["ticket_id"],
         "created_at": now_iso(),
@@ -308,14 +309,14 @@ def build_solution_row(context: dict) -> dict:
         "specialist_id": context["specialist"]["specialist_id"],
         "specialist_name": context["specialist"].get("name", ""),
         "specialist_group": context["specialist"].get("specialist_group", ""),
-        "root_cause": rc["root_cause"],
-        "diagnostic_steps": pipe_join(diagnostic_steps),
-        "evidence_reviewed": pipe_join(rc["evidence_reviewed"]),
-        "solution_summary": summary["solution_summary"],
-        "customer_action_required": summary["customer_action_required"],
-        "specialist_notes": summary["specialist_notes"],
-        "requires_follow_up_flag": summary["requires_follow_up_flag"],
-        "confidence_score": summary["confidence_score"],
+        "root_cause": decision["root_cause"],
+        "diagnostic_steps": pipe_join(decision["diagnostic_steps"]),
+        "evidence_reviewed": pipe_join(decision["evidence_reviewed"]),
+        "solution_summary": decision["solution_summary"],
+        "customer_action_required": decision["customer_action_required"],
+        "specialist_notes": decision["specialist_notes"],
+        "requires_follow_up_flag": decision["requires_follow_up_flag"],
+        "confidence_score": decision["confidence_score"],
         "inputs_used": pipe_join(
             [
                 "raw/submitted_tickets.csv",
@@ -326,22 +327,21 @@ def build_solution_row(context: dict) -> dict:
             ]
         ),
         "decision_summary": (
-            f"specialist {context['specialist']['specialist_id']} produced solution "
-            f"for category {context['category']}; confidence={summary['confidence_score']}"
+            f"llm_model={model}; "
+            f"specialist={context['specialist']['specialist_id']}; "
+            f"confidence={decision['confidence_score']}; "
+            f"follow_up={decision['requires_follow_up_flag']}"
         ),
     }
 
 
+def write_specialist_solution(out_dir: Path, solution: dict) -> None:
+    append_csv_row(Path(out_dir) / f"{SOLUTIONS_TABLE}.csv", solution)
+
+
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0] if __doc__ else "")
-    parser.add_argument("--ticket-id", required=True)
-    parser.add_argument("--data-dir", default="data")
-    parser.add_argument("--out-dir", default="data/working")
-    parser.add_argument("--workflow-run-id", default="")
-    parser.add_argument("--step-id", default="")
-    parser.add_argument("--mode", choices=[MODE_LIVE, MODE_DEMO], default=DEFAULT_MODE)
-    parser.add_argument("--json", dest="as_json", action="store_true")
-    parser.add_argument("--idempotency-mode", choices=["skip", "replace"], default="skip")
+    parser = make_skill_parser(__doc__.splitlines()[0] if __doc__ else "")
+    parser.add_argument("--model", default=DEFAULT_MODEL)
     args = parser.parse_args(argv)
 
     data_dir = Path(args.data_dir).resolve()
@@ -372,53 +372,36 @@ def main(argv: list[str] | None = None) -> int:
         )
         return 0
 
+    err_kwargs = {
+        "skill_name": SKILL_NAME,
+        "workflow_run_id": workflow_run_id,
+        "step_id": step_id,
+        "ticket_id": args.ticket_id,
+        "as_json": args.as_json,
+    }
     try:
         context = load_investigation_context(data_dir, out_dir, args.ticket_id, workflow_run_id=read_workflow_run_id)
+        row = build_solution_row(context, model=args.model)
     except KeyError as exc:
-        env = make_envelope(
-            status="error",
-            skill_name=SKILL_NAME,
-            workflow_run_id=workflow_run_id,
-            step_id=step_id,
-            ticket_id=args.ticket_id,
-            error={"code": "ticket_not_found", "message": str(exc)},
-        )
-        emit_envelope(env, as_json=args.as_json, text_summary=f"error: {exc}")
-        if not args.as_json:
-            print(f"error: {exc}", file=sys.stderr)
-        return 2
+        return emit_error(**err_kwargs, error_code="ticket_not_found", message=str(exc))
     except FileNotFoundError as exc:
-        env = make_envelope(
-            status="error",
-            skill_name=SKILL_NAME,
-            workflow_run_id=workflow_run_id,
-            step_id=step_id,
-            ticket_id=args.ticket_id,
-            error={"code": "missing_data", "message": str(exc)},
-        )
-        emit_envelope(env, as_json=args.as_json, text_summary=f"error: {exc}")
-        if not args.as_json:
-            print(f"error: {exc}", file=sys.stderr)
-        return 2
+        return emit_error(**err_kwargs, error_code="missing_data", message=str(exc))
     except LookupError as exc:
-        env = make_envelope(
-            status="error",
-            skill_name=SKILL_NAME,
-            workflow_run_id=workflow_run_id,
-            step_id=step_id,
-            ticket_id=args.ticket_id,
+        return emit_error(
+            **err_kwargs,
+            error_code="missing_upstream",
+            message=str(exc),
+            exit_code=3,
             next_action="escalate-to-specialist",
-            error={"code": "missing_upstream", "message": str(exc)},
         )
-        emit_envelope(env, as_json=args.as_json, text_summary=f"error: {exc}")
-        if not args.as_json:
-            print(f"error: {exc}", file=sys.stderr)
-        return 3
+    except (RuntimeError, ValueError, TypeError, json.JSONDecodeError, OpenAIError) as exc:
+        return emit_error(
+            **err_kwargs,
+            error_code="llm_decision_failed",
+            message=str(exc),
+            exit_code=4,
+        )
 
-    context["_out_dir"] = str(out_dir)
-    context["_workflow_run_id"] = read_workflow_run_id
-    context["category"] = _category_for(context)
-    row = build_solution_row(context)
     row["workflow_run_id"] = workflow_run_id
     row["step_id"] = step_id
     if args.idempotency_mode == "replace":
@@ -435,8 +418,8 @@ def main(argv: list[str] | None = None) -> int:
 
     text_summary = (
         f"Specialist solution for {row['ticket_id']}:\n"
+        f"  LLM model         : {args.model}\n"
         f"  specialist        : {row['specialist_id']} ({row['specialist_name']})\n"
-        f"  category          : {context['category']}\n"
         f"  root cause        : {row['root_cause']}\n"
         f"  diagnostic steps  : {row['diagnostic_steps']}\n"
         f"  evidence reviewed : {row['evidence_reviewed']}\n"
@@ -477,7 +460,6 @@ def main(argv: list[str] | None = None) -> int:
         artifact_refs=[f"working/{SOLUTIONS_TABLE}.csv"],
         outputs={
             "specialist_id": row["specialist_id"],
-            "category": context["category"],
             "root_cause": row["root_cause"],
             "diagnostic_steps": row["diagnostic_steps"],
             "evidence_reviewed": row["evidence_reviewed"],

@@ -73,7 +73,7 @@ reply = ask("Explain a p-value in one sentence.", model=MODEL)
 - Single string prompt → wrapped in system + user messages automatically.
 - Pre-built messages list → passed through (for multi-turn dialogs).
 - Need structured JSON? Use `ask_json(prompt, schema=MyPydanticModel)`.
-- Supported model ids route through `https://tritonai-api.ucsd.edu/v1`. Cheap (On-Prem Instructional): `api-llama-4-scout`, `api-gemma-4-26b`, `api-mistral-small-3.2-2506`, `api-gpt-oss-120b`. Expensive (AWS Instructional — use sparingly): `claude-opus-4-6-v1`, `mistral.mistral-large-3-675b-instruct`, `us.amazon.nova-premier-v1:0`. Run `list_models()` for the live list.
+- Supported model ids route through `https://tritonai-api.ucsd.edu/v1`. The curated short-lists `CHEAP_MODELS` and `EXPENSIVE_MODELS` in `utils/connect.py` are the source of truth for which ids are blessed for classroom use — read them there rather than memorising names. Run `list_models()` for the full live list from the gateway.
 - There is also a reserved id `"oauth-gpt"` (see `OAUTH_MODELS`) that routes through `utils.oauth_gpt` and uses the student's own ChatGPT/Codex OAuth subscription instead of TritonAI. First call opens a browser sign-in, then credentials are cached at `~/.oauth_gpt/openai_codex_oauth.json`. Useful when the TritonAI key is missing or the requested team model isn't authorized. Students switch by setting `MODEL = "oauth-gpt"` — no other code changes.
 - The API key comes from `TRITONAI_API_KEY` in `.env` (copy `.env.example`).
 

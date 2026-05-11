@@ -15,7 +15,6 @@ Run from the repo root::
 
 from __future__ import annotations
 
-import argparse
 import json
 import os
 import sys
@@ -30,10 +29,8 @@ _REPO_ROOT = Path(__file__).resolve().parents[3]
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
-from skills.ticketing_common.ticketing_common import (  # noqa: E402
-    DEFAULT_MODE,
+from lib.ticketing_common import (  # noqa: E402
     MODE_DEMO,
-    MODE_LIVE,
     STATUS_OK,
     STATUS_SKIPPED,
     append_action_log,
@@ -41,9 +38,11 @@ from skills.ticketing_common.ticketing_common import (  # noqa: E402
     default_step_id,
     default_workflow_run_id,
     emit_envelope,
+    emit_error,
     find_step_row,
     latest_working_row,
     make_envelope,
+    make_skill_parser,
     needs_human_review,
     now_iso,
     pipe_join,
@@ -297,44 +296,9 @@ def write_faq_decision(out_dir: Path, decision: dict) -> None:
     append_csv_row(Path(out_dir) / f"{FAQ_DECISIONS_TABLE}.csv", decision)
 
 
-def _emit_error(
-    *,
-    status_code: int,
-    skill_name: str,
-    workflow_run_id: str,
-    step_id: str,
-    ticket_id: str,
-    error_code: str,
-    message: str,
-    as_json: bool,
-    next_action: str = "",
-) -> int:
-    env = make_envelope(
-        status="error",
-        skill_name=skill_name,
-        workflow_run_id=workflow_run_id,
-        step_id=step_id,
-        ticket_id=ticket_id,
-        next_action=next_action,
-        error={"code": error_code, "message": message},
-    )
-    emit_envelope(env, as_json=as_json, text_summary=f"error: {message}")
-    if not as_json:
-        print(f"error: {message}", file=sys.stderr)
-    return status_code
-
-
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0] if __doc__ else "")
-    parser.add_argument("--ticket-id", required=True)
-    parser.add_argument("--data-dir", default="data")
-    parser.add_argument("--out-dir", default="data/working")
-    parser.add_argument("--workflow-run-id", default="")
-    parser.add_argument("--step-id", default="")
-    parser.add_argument("--mode", choices=[MODE_LIVE, MODE_DEMO], default=DEFAULT_MODE)
+    parser = make_skill_parser(__doc__.splitlines()[0] if __doc__ else "")
     parser.add_argument("--model", default=DEFAULT_MODEL)
-    parser.add_argument("--json", dest="as_json", action="store_true")
-    parser.add_argument("--idempotency-mode", choices=["skip", "replace"], default="skip")
     args = parser.parse_args(argv)
 
     data_dir = Path(args.data_dir).resolve()
@@ -364,6 +328,13 @@ def main(argv: list[str] | None = None) -> int:
         )
         return 0
 
+    err_kwargs = {
+        "skill_name": SKILL_NAME,
+        "workflow_run_id": workflow_run_id,
+        "step_id": step_id,
+        "ticket_id": args.ticket_id,
+        "as_json": args.as_json,
+    }
     try:
         context = load_faq_context(
             data_dir,
@@ -374,50 +345,19 @@ def main(argv: list[str] | None = None) -> int:
         )
         row = build_faq_decision_row(context, model=args.model)
     except KeyError as exc:
-        return _emit_error(
-            status_code=2,
-            skill_name=SKILL_NAME,
-            workflow_run_id=workflow_run_id,
-            step_id=step_id,
-            ticket_id=args.ticket_id,
-            error_code="ticket_not_found",
-            message=str(exc),
-            as_json=args.as_json,
-        )
+        return emit_error(**err_kwargs, error_code="ticket_not_found", message=str(exc))
     except LookupError as exc:
-        return _emit_error(
-            status_code=3,
-            skill_name=SKILL_NAME,
-            workflow_run_id=workflow_run_id,
-            step_id=step_id,
-            ticket_id=args.ticket_id,
+        return emit_error(
+            **err_kwargs,
             error_code="missing_upstream",
             message=str(exc),
-            as_json=args.as_json,
+            exit_code=3,
             next_action="classify-prioritize-ticket",
         )
     except FileNotFoundError as exc:
-        return _emit_error(
-            status_code=2,
-            skill_name=SKILL_NAME,
-            workflow_run_id=workflow_run_id,
-            step_id=step_id,
-            ticket_id=args.ticket_id,
-            error_code="missing_data",
-            message=str(exc),
-            as_json=args.as_json,
-        )
+        return emit_error(**err_kwargs, error_code="missing_data", message=str(exc))
     except (RuntimeError, ValueError, TypeError, json.JSONDecodeError, OpenAIError) as exc:
-        return _emit_error(
-            status_code=4,
-            skill_name=SKILL_NAME,
-            workflow_run_id=workflow_run_id,
-            step_id=step_id,
-            ticket_id=args.ticket_id,
-            error_code="llm_decision_failed",
-            message=str(exc),
-            as_json=args.as_json,
-        )
+        return emit_error(**err_kwargs, error_code="llm_decision_failed", message=str(exc), exit_code=4)
 
     row["workflow_run_id"] = workflow_run_id
     row["step_id"] = step_id

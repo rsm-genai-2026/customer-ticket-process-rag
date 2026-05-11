@@ -1,229 +1,332 @@
-# Milestone 02
+# Customer-ticket process
 
-Push all deliverables to GitHub before the start of class on **May 7th**. Make sure to have the required folders and files starting from the base provided in this repo. GitHub will run automated check to ensure each file is available.
+A reference repo that turns a customer-support workflow into a sequence of
+small, testable **skills** coordinated by a thin **orchestrator**. The intended
+audience is graduate business-school students who want a complete worked
+example of how to put GenAI inside a process — not how to make a single
+chatbot.
 
-- README.md
-- `data/` Contains data and code for data preparation
-- `skill/` Contains the _skills_ you create for your project
+Everything in here is synthetic. No real customers, tickets, or employees.
 
-## Synthetic customer-support ticketing dataset
+---
 
-The `data/` folder ships with a synthetic dataset for the AI-assisted customer-support ticket workflow. The process keeps the original roles visible — **User**, **IT team**, and **IT specialist** — but the repo now implements those steps as deterministic, script-backed AI skills coordinated by a small orchestrator.
-
-## Local web workflow demo
-
-The repo includes a browser demo that lets you submit a ticket and either run the AI-skill workflow all at once or step through it one skill at a time:
+## Start here
 
 ```bash
-uv run python scripts/ticket_web_demo.py --host 127.0.0.1 --port 8767
+uv sync                                                      # install deps
+cp .env.example .env && $EDITOR .env                         # add TRITONAI_API_KEY
+uv run python scripts/ticket_web_demo.py --port 8767         # run the demo
 ```
 
-Then open `http://127.0.0.1:8767`. The step-mode view has Previous/Next controls, 20 example tickets, a prepared narrative with inline dynamic values, branch visualization, and a skill input/output panel that shows the exact fields each skill consumed and produced. See [`WEB_WORKFLOW_DEMO.md`](WEB_WORKFLOW_DEMO.md) for the orchestrator, endpoints, data isolation, branch visualization, example suite, and likely stall points.
+Then open `http://127.0.0.1:8767`, pick an example ticket from the dropdown,
+click **Start Step Mode**, and walk forward one skill at a time. Each panel
+shows what data went in, what data came out, and which skill runs next.
 
-For a nontechnical classroom tutorial, open the rendered MBA slide deck at [`slides/ticket-workflow-orchestration.html`](slides/ticket-workflow-orchestration.html). The source is [`slides/ticket-workflow-orchestration.qmd`](slides/ticket-workflow-orchestration.qmd), and the LLM companion guide is [`MBA_DEMO_LLM_GUIDE.md`](MBA_DEMO_LLM_GUIDE.md).
+For a non-technical tour, open the rendered deck:
+[`slides/ticket-workflow-orchestration.html`](slides/ticket-workflow-orchestration.html).
 
-To run the scenario suite and generate an HTML report:
+That's it. Everything below explains why the pieces are shaped the way they
+are.
 
-```bash
-uv run python skills/summarize-workflow-suite/scripts/summarize_workflow_suite.py
-```
+---
 
-Process steps modelled (per the PDF):
+## The shape of the workflow
+
+The repo implements an eleven-step customer-support process from the source
+PDF (`customer-ticket-process-genai.pdf`):
 
 1. User submits a ticket.
 2. IT team receives the ticket.
-3. IT team classifies the ticket and assigns priority.
+3. IT team classifies and prioritizes it.
 4. IT team checks whether an FAQ resolution exists.
-5. If an FAQ resolution exists → IT team finds it, drafts the message, sends it.
-6. If no FAQ resolution → IT team forwards the ticket to an IT specialist.
-7. IT specialist analyzes and creates a solution.
-8. IT team relays the specialist solution to the user.
-9. User accepts or rejects the resolution.
-10. If accepted → IT team closes the ticket and records feedback.
-11. If rejected → IT team verifies the rejection and (optionally) routes back for one more review cycle.
+5. If FAQ matches → IT team drafts an FAQ response, sends it.
+6. If FAQ does not match → IT team escalates to an IT specialist.
+7. Specialist investigates and creates a solution.
+8. IT team drafts a specialist-based customer response.
+9. IT team sends the response.
+10. Customer accepts → close. Customer rejects → reopen and re-escalate once,
+    then close-unresolved on a second rejection.
 
-Process-step → dataset mapping:
+Each numbered step is exactly one skill under `skills/<name>/`. The only
+branching is at step 4 (FAQ vs. specialist). Loops are bounded — a ticket can
+be reopened at most once before it is closed as unresolved.
 
-| Step | Dataset(s) |
-| --- | --- |
-| User submits a ticket | `raw/submitted_tickets.csv` |
-| IT team triage (classify + prioritize) | `processed/ticket_triage.csv` |
-| FAQ check | `processed/faq_checks.csv`, `raw/faq_knowledge_base.csv` |
-| Escalation to specialist | `processed/specialist_escalations.csv` |
-| Specialist investigation and solution | `processed/specialist_investigations.csv` |
-| IT team drafts/sends customer message | `processed/customer_messages.csv` |
-| User accept/reject + close + reopen | `processed/resolution_feedback.csv` |
-| End-to-end timeline / process mining | `processed/ticket_lifecycle_events.csv` |
-| One-row-per-ticket analytics view | `processed/ticket_summary.csv` |
-| Reference dictionaries | `dictionaries/{categories,priority_rules,systems,status_codes}.csv` |
-| People / customer master | `raw/customers.csv`, `raw/it_team_members.csv`, `raw/it_specialists.csv` |
+### Skills vs. automations
 
-Actions performed by a human IT team member carry an `it_member_id`; specialist actions carry a `specialist_id`; user actions are tied to `customer_id`. This separation maps directly to the swimlanes in the PDF.
+The ten workflow steps are split into two folders by a strict rule:
 
-### Regenerate the data
+| Folder | What lives there | Has `SKILL.md`? | Calls an LLM? |
+| --- | --- | --- | --- |
+| `skills/` | The two real AI **skills** | yes | yes |
+| `automations/` | Seven deterministic steps | no | no |
 
-```bash
-uv run python scripts/generate_human_ticket_data.py --n-tickets 250 --seed 49502
+**Skills** in this repo follow Anthropic's definition: a folder with a
+`SKILL.md` that an LLM agent (Claude Code, Codex) loads at runtime to decide
+*when* the skill applies, and a script the agent invokes that performs the
+work — including a real LLM call. Two steps qualify:
+
+- `skills/check-faq-resolution/` — asks an LLM whether the FAQ knowledge
+  base contains a direct resolution for the ticket.
+- `skills/investigate-specialist-solution/` — asks an LLM to act as the
+  assigned IT specialist and produce a root cause + diagnostic steps +
+  customer-safe solution.
+
+**Automations** are everything else: deterministic Python scripts that look
+up rows, score keywords, fill templates, and write CSVs. They never call an
+LLM. They live under `automations/` with just a `README.md` and a
+`scripts/` folder — no `SKILL.md`, no `install.sh`, because there is
+nothing for an LLM agent to decide. The orchestrator runs them as
+subprocesses.
+
+That split is the most important lesson of the repo: **an "AI-assisted
+workflow" is not the same thing as a workflow where every step is an LLM
+call.** AI earns its keep on the genuine judgement calls; the rest of the
+process stays rule-based, auditable, and fast.
+
+---
+
+## How a step is shaped
+
+Both skills and automations follow the same external contract — same CLI
+flags, same JSON envelope, same shared helpers — so the orchestrator can
+drive any of them identically. The only differences are *where* they live
+and whether they call an LLM.
+
+A skill folder under `skills/` looks like:
+
+```text
+skills/check-faq-resolution/
+├── SKILL.md                          # agent-loaded contract: when to invoke
+├── README.md                         # human-readable docs
+├── install.sh                        # symlinks the skill into .claude/skills/
+└── scripts/check_faq_resolution.py   # the executable (calls an LLM inside)
 ```
 
-Output goes to `data/raw/`, `data/processed/`, and `data/dictionaries/` (folders are created if missing). The generator is deterministic for a given `--seed`.
+An automation folder under `automations/` is simpler — there is no agent
+contract, so no `SKILL.md`:
 
-### Validate the data
+```text
+automations/receive-ticket/
+├── README.md                         # what the automation does
+└── scripts/receive_ticket.py         # the executable (deterministic)
+```
+
+Every script — skill or automation — takes the same standard flags:
+
+| Flag | Meaning |
+| --- | --- |
+| `--ticket-id` | which ticket to act on |
+| `--data-dir` / `--out-dir` | where to read source data and write working CSVs |
+| `--workflow-run-id` / `--step-id` | identifiers passed by the orchestrator |
+| `--mode {live,demo}` | live = use only fresh `data/working/` rows from this run; demo = also accept seeded `data/processed/` rows so a single step can be narrated against the synthetic history |
+| `--idempotency-mode {skip,replace}` | re-running the same `(workflow_run_id, step_id)` either skips (default) or rewrites the existing row, so retries are safe |
+| `--json` | emit a JSON envelope instead of a human-readable summary |
+
+The standard argument list is built by `make_skill_parser()` in
+`lib/ticketing_common.py`. Step-specific flags (e.g. `--feedback-text` on
+`verify-feedback-close-or-reopen`, `--model` on the two LLM skills) are
+added on top.
+
+### The envelope
+
+Every skill prints a JSON envelope with a stable shape:
+
+```json
+{
+  "status": "ok",
+  "skill_name": "check-faq-resolution",
+  "workflow_run_id": "wf-…",
+  "step_id": "check-faq-resolution-…",
+  "ticket_id": "TKT-00042",
+  "next_action": "draft-faq-response",
+  "confidence": 0.91,
+  "review_required": false,
+  "artifact_refs": ["working/faq_decisions.csv"],
+  "outputs": {…},
+  "error": null
+}
+```
+
+The orchestrator reads `next_action` to choose the next step. The IT team
+reads `review_required` to decide where a human still has to look. The whole
+audit trail is written to `data/working/ticket_action_log.csv`.
+
+### Shared helpers
+
+The plumbing every script would otherwise duplicate lives in one place,
+`lib/ticketing_common.py`, and is imported by both skills and automations:
+
+- `make_skill_parser()` — the standard CLI surface above.
+- `make_envelope()` / `emit_envelope()` — build and print the JSON contract.
+- `emit_error()` — emit a uniform error envelope and return the right exit
+  code; every script's `except` blocks call this.
+- `find_step_row()` — the idempotency check.
+- `append_csv_row()` / `replace_step_row()` — schema-stable CSV writes
+  guarded by a POSIX advisory lock so concurrent runs cannot interleave.
+- `append_action_log()` — the audit trail.
+- `latest_working_row()` — read the most recent upstream row for a ticket.
+- `needs_human_review()` — the human-review threshold (`confidence < 0.60`
+  or an explicit `extra` flag).
+
+That last point matters: students adding a new step don't redesign error
+handling, CSV schemas, or idempotency. They write the business logic and
+call into the shared helpers.
+
+---
+
+## The orchestrator
+
+The orchestrator is in `scripts/ticket_web_demo.py`. It is intentionally
+boring code, not a skill:
+
+1. Creates an isolated run folder under
+   `/tmp/customer-ticket-process-web-demo/<workflow_run_id>/`.
+2. Copies the baseline `data/raw/` and `data/dictionaries/` into that
+   folder.
+3. Runs one step at a time via `subprocess` with `--json`,
+   `--workflow-run-id`, `--step-id`. It picks the right script from
+   `STEP_SCRIPTS` (skills live under `skills/`, automations under
+   `automations/`).
+4. Reads each envelope's `next_action` to decide what to run next.
+5. Pauses when the workflow needs a human (`verify-feedback-close-or-reopen`
+   needs the customer's reply, supplied via the web form).
+
+Keeping the control flow in plain Python means the demo is testable and
+predictable. The work — classification, FAQ matching, drafting, specialist
+investigation — stays inside the scripts. See
+[`docs/web-workflow-demo.md`](docs/web-workflow-demo.md) for the API
+endpoints, branch visualisation, and likely stall points.
+
+---
+
+## Running the rest
 
 ```bash
+# Run from the repo root. Two LLM skills need TRITONAI_API_KEY set;
+# the other seven are deterministic and run offline.
+
+# Automations (deterministic)
+uv run python automations/receive-ticket/scripts/receive_ticket.py --ticket-id TKT-00042
+uv run python automations/classify-prioritize-ticket/scripts/classify_prioritize_ticket.py --ticket-id TKT-00042
+uv run python automations/draft-faq-response/scripts/draft_faq_response.py --ticket-id TKT-00042
+uv run python automations/escalate-to-specialist/scripts/escalate_to_specialist.py --ticket-id TKT-00042
+uv run python automations/draft-specialist-response/scripts/draft_specialist_response.py --ticket-id TKT-00042
+uv run python automations/send-customer-response/scripts/send_customer_response.py --ticket-id TKT-00042
+uv run python automations/verify-feedback-close-or-reopen/scripts/verify_feedback.py --ticket-id TKT-00042 --feedback-text "Thanks, that fixed it!"
+uv run python automations/audit-ticket-process/scripts/audit_ticket_process.py --ticket-id TKT-00042
+
+# Skills (LLM-based)
+uv run python skills/check-faq-resolution/scripts/check_faq_resolution.py --ticket-id TKT-00042
+uv run python skills/investigate-specialist-solution/scripts/investigate_specialist_solution.py --ticket-id TKT-00042
+```
+
+Each step writes one row to a working CSV in `data/working/` (or appends to
+`ticket_action_log.csv`), so you can `cat` the files between steps and see
+the trail.
+
+### Scenario suite
+
+The repo ships 20 curated example tickets in `scripts/ticket_scenarios.py`,
+covering FAQ resolution, specialist escalation, rejection-then-rework,
+ambiguous feedback, and the loop-prevention edge case. Run them all:
+
+```bash
+uv run python automations/summarize-workflow-suite/scripts/summarize_workflow_suite.py
+```
+
+The HTML report at `/tmp/customer-ticket-process-suite-report.html` shows
+expected versus actual branch, terminal feedback action, review flags, and
+FAQ-backlog candidates from specialist cases.
+
+---
+
+## Data
+
+```text
+data/
+├── raw/            # source-of-truth tables (people, FAQ, raw tickets)
+├── processed/      # synthetic historical tables for each ticketing step
+├── dictionaries/   # reference enumerations (categories, priorities, …)
+└── working/        # written by skills + automations during a workflow run
+```
+
+Regenerate everything (deterministic for a given seed):
+
+```bash
+uv run python scripts/generate_human_ticket_data.py --n-tickets 250 --seed 49502 --out-dir data
 uv run python scripts/validate_human_ticket_data.py --data-dir data
 ```
 
-The validator checks file presence, primary/foreign keys, timestamp ordering, terminal `closed_at`, and that key rates (FAQ match, escalation, acceptance, reopen) sit in plausible ranges. It exits non-zero if any check fails.
+The validator runs structural checks and exits non-zero on any failure. See
+[`data/README.md`](data/README.md) for the column-level schema and
+[`docs/human-ticketing-dataset-plan.md`](docs/human-ticketing-dataset-plan.md)
+for the original generation design.
 
-### Tests
+---
+
+## Testing
 
 ```bash
-uv run pytest tests/test_human_ticket_data.py
+uv run pytest                       # full suite (~30s, 238 tests)
+uv run pytest tests/skills          # the two LLM skills + end-to-end
+uv run pytest tests/automations     # the seven deterministic steps
+uv run pytest tests/lib             # shared infra in lib/ticketing_common.py
+uv run pytest -k faq_resolution     # one pattern
 ```
 
-The tests run the generator into a temp directory, run the validator, and assert structural invariants and determinism for a fixed seed.
+Test layout mirrors the source layout:
 
-> All data is synthetic and safe for coursework — no real customer information is included.
+- `tests/lib/test_ticketing_common.py` — the shared CLI parser, envelope,
+  error helper, CSV writers, idempotency, action log.
+- `tests/skills/test_check_faq_resolution.py` — the FAQ skill (mocked LLM
+  via `FAQ_RESOLUTION_MOCK_JSON`).
+- `tests/skills/test_investigate_specialist_solution.py` — the specialist
+  skill (mocked LLM via `SPECIALIST_INVESTIGATION_MOCK_JSON`).
+- `tests/skills/test_ticketing_workflow_e2e.py` — full workflow paths
+  (FAQ branch, specialist branch, reopen-then-close-unresolved). Patches
+  both LLM calls so the tests run offline.
+- `tests/skills/test_workflow_orchestrator.py` — orchestrator + subprocess
+  invocation paths.
+- `tests/automations/test_<name>.py` — one test file per deterministic
+  step, with at least a happy-path and an edge-case test.
 
-## Claude usage logging
+When you add a new step, add tests in the same change. See
+[`CLAUDE.md`](CLAUDE.md) for the standing rules Claude Code follows on this
+project — `uv` for packages, numpy + polars only, tests required.
 
-> **Heads up:** Your Claude Code usage in this repo is logged. Prompts you submit and the tools Claude runs are written to `.claude/usage-log/<username>-session-*.jsonl` and auto-staged on every `git commit`, so they end up on GitHub alongside your code. This repo lives in a **private GitHub organization** — only you, your teammates, and the instructional team can see it. The instructor uses these logs to see how the class is using the tool — please work normally and know that **file contents and command output are not captured**, only prompts and tool names/arguments. Details in [`.claude/usage-log/README.md`](.claude/usage-log/README.md).
+---
 
-## How to use Claude for milestone 02 (even if you're new to coding)
+## Building your own workflow
 
-Claude Code is your coding partner for this assignment. **Describe what you want in plain English** — Claude writes the code, runs the tests, and tells you if something looks wrong. You don't have to remember any commands; the helpers below cover almost every situation you'll hit.
+The intended adaptation pattern is:
 
-### Two ways to ask for help
+1. Draw the business process. Identify lanes, decisions, loops, and handoffs.
+2. Pick the smallest set of skills that covers the process — one per decision
+   or transformation, not one per LLM call.
+3. Decide where each skill reads from and writes to. Put fast-changing
+   working data in a separate folder from source-of-truth data.
+4. Define the envelope contract (or reuse this one). Make sure every skill
+   names its `next_action` so the orchestrator never has to guess.
+5. Build deterministic skills first. Only swap in an LLM where the judgment
+   is genuinely hard and a wrong call is easy to verify.
+6. Write a test for every function, scenarios for every branch, and a
+   summary report so you can see the workflow's behaviour over a portfolio
+   of cases — not just one happy path.
 
-**1) Slash commands — type `/` at the start of a message.** A menu appears. Pick one and Claude does the rest.
+The same shape works for loan approvals, claims triage, HR onboarding,
+admissions, and procurement.
 
-| Command | When to use it |
-| --- | --- |
-| `/run-tests` | Run the project tests and see what passed or failed. |
-| `/review` | You changed some code — have Claude check it before you commit. |
-| `/add-function` | You need a new Python function. Claude asks four short questions, then writes the function **and** its tests in one shot. |
-| `/explain <name>` | You see a file, function, or term and want it explained in plain language. Example: `/explain data/examples/1-data-simulation.qmd`. |
+---
 
-You can get the path to a file by right clicking on it in VS Code.
+## Further reading
 
-**2) Just describe your problem — some helpers switch on automatically.** You don't have to remember the names below; just type naturally and Claude will pull in the right helper.
-
-| Say something like… | What happens |
-| --- | --- |
-| _"my setup is broken"_, _"ModuleNotFoundError"_, _"uv sync isn't working"_ | Claude runs a diagnostic and tells you exactly what to fix. |
-| _"VS Code opened the wrong folder"_, _"Claude can't find my project"_ | Claude checks your project folder and shows how to reopen the right one. |
-| _"how do I push?"_, _"I have a merge conflict"_, _"my push was rejected"_ | Claude prints your git status and walks you through the correct commands. |
-
-### A suggested path through milestone 02
-
-**Before every work session.** Ask:
-> _"Please confirm my workspace and Python environment are set up correctly."_
-
-If anything fails, follow the one-line fix Claude prints.
-
-**Deliverable 1 — data preparation (due April 30).**
-
-1. Open the three tutorial files in [`data/examples/`](data/examples/). They show how to simulate data end-to-end with `numpy` and `polars`:
-   - `1-data-simulation.qmd` — simulate a numeric dataset
-   - `2-llm_persona_simulation.qmd` — use an LLM to generate realistic customer personas
-   - `3-llm-dialog-simulation.qmd` — simulate conversation transcripts
-2. Pick the closest one to your project and ask:
-   > _"Walk me through `data/examples/1-data-simulation.qmd` step by step."_
-3. Start your own file under `data/` (e.g., `data/orders.qmd`). Tell Claude:
-   > _"Help me simulate weekly customer orders for the process in my Milestone 01 workflow. Use `data/examples/1-data-simulation.qmd` as a template."_
-4. Update [`data/README.md`](data/README.md) with a one-line description of each dataset you create.
-
-**Deliverable 2 — build at least four skills (due May 7). At least two must include analytics** (charts, forecasting, statistics, etc.).
-
-1. Open [`skills/check-faq-resolution/`](skills/check-faq-resolution/) — it is a compact working skill with `SKILL.md`, `README.qmd`, `install.sh`, a script, and tests. Ask:
-   > _"Explain how `skills/check-faq-resolution` works."_
-2. For each of your four skills, pick one task from your Milestone 01 workflow and ask:
-   > _"Help me build a skill that does `<task>`. Use `skills/check-faq-resolution/` as a simple template."_
-3. Review the draft with `/review`, then run the tests with `/run-tests`.
-4. Once a skill is finished, install it so Claude can use it on the next session:
-
-   ```bash
-   bash skills/<your-skill-name>/install.sh
-   ```
-
-**Deliverable 3 — the top-level `README.md` (due May 7).** After your skills exist, ask:
-> _"Draft a milestone 02 README that maps each Milestone 01 workflow task to the skill that addresses it, the dataset it uses, and the Python functions involved."_
-
-Then edit the result in your own words so it sounds like your team.
-
-**Deliverable 4 — 10-minute demo video (due May 7).** Nothing to type here. Record your team walking through each skill live with Claude, showing realistic inputs and outputs. Re-run every skill at least once before recording so nothing surprises you on camera.
-
-**At the end of every work session.** Ask:
-> _"Please commit my changes with a short message and push to GitHub."_
-
-If the push is rejected (e.g., a teammate pushed first), just say _"my push failed, help"_ — Claude will pull up the git helper and walk you through it safely.
-
-### Where to find working examples in this repo
-
-- [`data/examples/`](data/examples/) — three tutorial Quarto (`.qmd`) files showing data simulation end-to-end with `numpy` + `polars`.
-- [`skills/check-faq-resolution/`](skills/check-faq-resolution/) — a compact sample skill that shows the expected layout.
-- [`CLAUDE.md`](CLAUDE.md) — rules Claude already follows automatically: use `uv` for packages, use the approved data stack, and add tests for functions. You don't have to read it, but it explains why Claude makes certain choices.
-
-## Content
-
-This repo contains some examples and settings to help you get started:
-
-- `.claude/settings.json` — tells Claude what it can and can't do without asking for explicit permission
-- `.claude/hooks/` — small scripts that run at key moments (auto-format, lint reminder, stale-test reminder, secret scanning, usage logging)
-- `.claude/commands/` — project-local slash commands (`/run-tests`, `/review`, `/add-function`, `/explain`)
-- `CLAUDE.md` — rules Claude reads automatically on every session (uv workflow, testing requirements, etc.)
-
-See [this video](https://www.youtube.com/watch?v=ZlDnsf_DOzg) for a very nice overview video about providing guidance for Claude Code. Come to the worksession to discuss or ask questions (or post to piazza)
-
-## Hooks — automatic helpers
-
-A *hook* is a small script that Claude Code runs for you automatically at certain moments — you don't have to remember to call them. Think of them like the spell-checker in a word processor: it just runs in the background and catches mistakes before they cause trouble. The hooks configured in this repo are:
-
-- **After Claude edits a Python file** → `ruff` formats it. Your code ends up tidy (correct spacing, quotes, etc.) without you learning the style rules first.
-- **After you run `pytest`** → a timestamp is saved so Claude knows when tests were last green.
-- **When Claude finishes its turn** → two soft reminders appear if (a) Python files changed since the last test run, or (b) `ruff` found any lint issues. Nothing is blocked — they're nudges.
-- **Before every `git commit`** → the commit is paused if any staged file looks like a secret (`.env`, API keys, private keys, …). You'll get a prompt asking if you really want to proceed.
-- **On every prompt you send and every tool Claude runs** → a short entry is appended to `.claude/usage-log/` for instructor review (see the Claude usage logging section above).
-
-You don't need to run any of these yourself. They live in `.claude/hooks/` if you want to peek.
-
-## Version control with git (and Claude's `/rewind`)
-
-Version control = a time machine for your files. Every time you *commit*, git takes a snapshot of your whole project. If something later breaks, you can go back to any earlier snapshot.
-
-### The basic loop
-
-Whenever you finish something that works (even partly), ask Claude to commit:
-
-> *"Commit these changes with a short message describing what we just did."*
-
-Claude will run these commands for you:
-
-- `git status` — shows which files changed
-- `git add <files>` — marks files to include in the next snapshot
-- `git commit -m "…"` — takes the snapshot with a message describing it
-
-When you're done for the day, ask Claude to **push** — this uploads your commits to GitHub so they're backed up and your instructor/teammates can see them:
-
-> *"Push my commits to GitHub."*
-
-### Two different "rewind" tools — know which one you need
-
-You have **two different ways to undo work**, and they do different things. Pick the right one.
-
-| If you want to undo… | Use | What it does |
-| --- | --- | --- |
-| The last few things Claude said/did in *this conversation* | `/rewind` in Claude Code | Rolls the conversation back to an earlier message. Files Claude edited are restored to how they were at that point. Nothing is committed either way. |
-| Code changes that are already committed to git | `git checkout <commit>` or "revert" | Uses git snapshots to bring back an older version of a file or the whole repo. Works even across sessions, days later, on any computer. |
-
-**`/rewind`** is like hitting "Back" in a browser — great for "wait, that last edit was wrong, take it back." Type `/rewind` in the Claude Code prompt and pick the message to return to.
-
-**Git commits** are the real safety net. `/rewind` only remembers the current conversation; if you close Claude Code or start a new session, that history is gone. Commits last forever.
-
-### Rule of thumb
-
-- **Commit often.** After every small piece of working progress — not just at the end. Five small commits beat one giant commit.
-- **Push at the end of each work session** so your work is safely on GitHub.
-- **Use `/rewind` for "oops" during the current conversation**; use git to recover from anything older than that.
-- **Don't panic if something breaks.** Between `/rewind` and your git history, you can almost always get back to a working state. Ask Claude for help restoring if you're unsure.
+- [`docs/web-workflow-demo.md`](docs/web-workflow-demo.md) — orchestrator
+  internals, API endpoints, branching, likely stall points.
+- [`docs/mba-demo-llm-guide.md`](docs/mba-demo-llm-guide.md) — guide for
+  asking Claude Code or Codex to explain this repo back to you.
+- [`docs/it-ticketing-skills-plan.md`](docs/it-ticketing-skills-plan.md) —
+  original design notes for the skill set.
+- [`docs/human-ticketing-dataset-plan.md`](docs/human-ticketing-dataset-plan.md) —
+  design notes for the synthetic dataset.
+- [`CLAUDE.md`](CLAUDE.md) — project-wide rules that Claude Code reads on
+  every session (uv workflow, testing requirements, secret-scan hook, …).
