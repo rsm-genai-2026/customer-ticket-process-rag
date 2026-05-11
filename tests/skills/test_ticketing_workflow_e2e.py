@@ -65,6 +65,35 @@ audit_ticket_process = _load(
 )
 
 
+def _fake_faq_llm_decision(context: dict, *, model: str = "", client=None) -> dict:
+    """Keep workflow tests offline while preserving both FAQ and escalation paths."""
+
+    ticket_id = context["ticket"]["ticket_id"]
+    ticket_number = int(ticket_id.rsplit("-", 1)[1])
+    if ticket_number % 2 == 0:
+        return {
+            "faq_match_found": True,
+            "faq_id": "FAQ-001",
+            "confidence": 0.91,
+            "required_customer_info_available": True,
+            "reason": "Offline test fixture selected a known FAQ branch.",
+            "ticket_evidence": ticket_id,
+            "faq_evidence": "FAQ-001",
+        }
+    return {
+        "faq_match_found": False,
+        "faq_id": "",
+        "confidence": 0.22,
+        "required_customer_info_available": False,
+        "reason": "Offline test fixture selected the specialist branch.",
+        "ticket_evidence": ticket_id,
+        "faq_evidence": "",
+    }
+
+
+check_faq_resolution.call_llm_for_faq_decision = _fake_faq_llm_decision
+
+
 def _common_args(ticket_id: str, out_dir: Path) -> list[str]:
     return [
         "--ticket-id",

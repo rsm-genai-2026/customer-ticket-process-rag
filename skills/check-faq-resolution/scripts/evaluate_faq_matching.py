@@ -1,7 +1,7 @@
 """Evaluate FAQ matching approaches on curated synthetic tickets.
 
-The production ``check_faq_resolution.py`` skill stays deterministic. This
-script is a separate experiment that compares:
+The production ``check_faq_resolution.py`` skill now uses a direct LLM judgment.
+This separate experiment keeps the older heuristic for comparison and compares:
 
 1. The current transparent scoring heuristic.
 2. A pure LLM judge that sees the ticket plus the full FAQ table.
@@ -19,6 +19,7 @@ import hashlib
 import importlib.util
 import json
 import os
+import re
 import sys
 from dataclasses import dataclass
 from pathlib import Path
@@ -641,6 +642,20 @@ NO_FAQ_CASES: list[TicketCase] = [
 
 ALL_CASES = FAQ_MATCH_CASES + NO_FAQ_CASES
 
+LEGACY_STOPWORDS = {
+    "the",
+    "and",
+    "for",
+    "with",
+    "this",
+    "that",
+    "issue",
+    "problem",
+    "ticket",
+    "cannot",
+    "user",
+}
+
 
 def _load_faqs(data_dir: Path) -> list[dict]:
     frame = cfr.read_csv(data_dir, "raw/faq_knowledge_base.csv").filter(pl.col("active_flag"))
@@ -672,40 +687,70 @@ def _case_for_prompt(case: TicketCase) -> dict:
     }
 
 
+def _tokens(text: str) -> set[str]:
+    raw = re.findall(r"[a-zA-Z]+", text.lower())
+    return {token for token in raw if len(token) >= 4 and token not in LEGACY_STOPWORDS}
+
+
+def _legacy_ticket_text(case: TicketCase) -> str:
+    return " ".join(
+        [
+            case.subject,
+            case.description,
+            case.error_or_symptom_detail,
+            case.steps_already_tried,
+            case.business_impact_text,
+        ]
+    )
+
+
+def _legacy_rank_faq_candidates(case: TicketCase, faqs: list[dict]) -> list[dict]:
+    """A local copy of the older classroom heuristic for comparison only."""
+
+    ticket_tokens = _tokens(_legacy_ticket_text(case))
+    rows = []
+    for faq in faqs:
+        faq_text = " ".join(str(faq.get(key) or "") for key in ("symptoms", "issue_pattern", "solution_steps"))
+        overlap = ticket_tokens & _tokens(faq_text)
+        score = min(len(overlap), 6)
+        if faq.get("category") == case.category:
+            score += 3
+        if faq.get("system_name") == case.system_name:
+            score += 2
+        rows.append(
+            {
+                **faq,
+                "score": score,
+                "overlap_terms": "|".join(sorted(overlap)),
+            }
+        )
+    return sorted(rows, key=lambda row: (-row["score"], row.get("faq_id", "")))
+
+
 def current_heuristic_prediction(case: TicketCase, faqs: list[dict]) -> dict:
-    context = {
-        "ticket": case.ticket_row(),
-        "triage": case.triage_row(),
-        "faqs": pl.DataFrame(faqs),
-        "triage_source": "curated_case",
-    }
-    ranked = cfr.rank_faq_candidates(context, context["faqs"])
-    decision = cfr.decide_faq_applicability(context, ranked)
-    top = ranked.row(0, named=True) if ranked.height else {}
+    ranked = _legacy_rank_faq_candidates(case, faqs)
+    top = ranked[0] if ranked else {}
+    candidate_ids = [row["faq_id"] for row in ranked[:5]]
+    match = bool(top) and top["score"] >= 5
+    confidence = round(max(0.10, min(0.95, 0.10 + 0.10 * float(top.get("score", 0)))), 2)
     return {
         "method": "current_heuristic",
-        "predicted_match": bool(decision["faq_match_found"])
-        and decision["recommended_next_step"] == "draft-faq-response",
-        "predicted_faq_id": decision["faq_id"] or None,
-        "confidence": float(decision["match_confidence"]),
-        "reason": decision["faq_application_reason"],
-        "candidate_faq_ids": decision["candidate_faq_ids"],
+        "predicted_match": match,
+        "predicted_faq_id": top.get("faq_id") if match else None,
+        "confidence": confidence,
+        "reason": (
+            f"Legacy heuristic score {top.get('score', 0)} with overlap [{top.get('overlap_terms', '')}]"
+            if top
+            else "No active FAQs"
+        ),
+        "candidate_faq_ids": "|".join(candidate_ids),
         "top_score": top.get("score", ""),
-        "recommended_next_step": decision["recommended_next_step"],
+        "recommended_next_step": "draft-faq-response" if match else "escalate-to-specialist",
     }
 
 
 def hybrid_candidate_faqs(case: TicketCase, faqs: list[dict], *, top_k: int = 5) -> list[dict]:
-    context = {
-        "ticket": case.ticket_row(),
-        "triage": case.triage_row(),
-        "faqs": pl.DataFrame(faqs),
-        "triage_source": "curated_case",
-    }
-    ranked = cfr.rank_faq_candidates(context, context["faqs"])
-    ids = ranked.head(top_k)["faq_id"].to_list()
-    by_id = {faq["faq_id"]: faq for faq in faqs}
-    return [by_id[faq_id] for faq_id in ids if faq_id in by_id]
+    return _legacy_rank_faq_candidates(case, faqs)[:top_k]
 
 
 def _cache_key(method: str, case: TicketCase, model: str, faq_ids: list[str]) -> str:

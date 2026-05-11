@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import csv
 import importlib.util
+import json
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -19,6 +21,26 @@ cfr = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(cfr)
 
 DATA_DIR = _REPO_ROOT / "data"
+
+LLM_MATCH = {
+    "faq_match_found": True,
+    "faq_id": "FAQ-001",
+    "confidence": 0.91,
+    "required_customer_info_available": True,
+    "reason": "The ticket describes the same SSO redirect loop covered by the FAQ.",
+    "ticket_evidence": "portal loops between SSO and portal",
+    "faq_evidence": "Sign-in page loops between SSO and portal",
+}
+
+LLM_NO_MATCH = {
+    "faq_match_found": False,
+    "faq_id": "",
+    "confidence": 0.24,
+    "required_customer_info_available": False,
+    "reason": "No FAQ directly covers the reported issue.",
+    "ticket_evidence": "unlisted issue",
+    "faq_evidence": "",
+}
 
 
 def _seed_triage(out_dir: Path, ticket_id: str, category: str) -> None:
@@ -45,6 +67,13 @@ def _seed_triage(out_dir: Path, ticket_id: str, category: str) -> None:
     ).write_csv(out_dir / "triage_decisions.csv")
 
 
+def _mock_llm(monkeypatch: pytest.MonkeyPatch, raw: dict) -> None:
+    def fake_call(context: dict, *, model: str = cfr.DEFAULT_MODEL, client=None) -> dict:
+        return raw
+
+    monkeypatch.setattr(cfr, "call_llm_for_faq_decision", fake_call)
+
+
 def test_load_faq_context_uses_working_triage_first(tmp_path: Path) -> None:
     _seed_triage(tmp_path, "TKT-00042", "login_access")
     ctx = cfr.load_faq_context(DATA_DIR, tmp_path, "TKT-00042")
@@ -67,16 +96,12 @@ def test_load_faq_context_live_mode_refuses_processed_fallback(tmp_path: Path) -
 
 
 def test_load_faq_context_no_triage_anywhere_raises(tmp_path: Path) -> None:
-    # Build a tiny data dir with the raw tables but a triage CSV that
-    # contains no row for the test ticket.
     fake = tmp_path / "fake_data"
     (fake / "raw").mkdir(parents=True)
     (fake / "processed").mkdir()
     pl.DataFrame([{"ticket_id": "TKT-X", "subject": "x", "description": "y", "customer_id": "c"}]).write_csv(
         fake / "raw" / "submitted_tickets.csv"
     )
-    # one inactive FAQ row so polars infers the boolean schema correctly,
-    # and the active-flag filter then produces an empty frame.
     pl.DataFrame([{"faq_id": "FAQ-X", "active_flag": False}]).write_csv(fake / "raw" / "faq_knowledge_base.csv")
     pl.DataFrame([{"ticket_id": "TKT-OTHER", "assigned_category": "other"}]).write_csv(
         fake / "processed" / "ticket_triage.csv"
@@ -85,103 +110,65 @@ def test_load_faq_context_no_triage_anywhere_raises(tmp_path: Path) -> None:
         cfr.load_faq_context(fake, tmp_path / "out", "TKT-X")
 
 
-def test_rank_faq_candidates_active_only_and_category_priority() -> None:
-    ctx = cfr.load_faq_context(DATA_DIR, Path("/tmp/this_does_not_exist"), "TKT-00042")
-    faqs = ctx["faqs"]
-    assert faqs["active_flag"].all()  # only active rows kept
-    ranked = cfr.rank_faq_candidates(ctx, faqs)
-    top = ranked.row(0, named=True)
-    assert top["score"] > 0
-    # Top match should belong to a category we'd reasonably expect for TKT-00042
-    # (we don't pin the exact id, but the category should match assigned_category
-    # OR system_name should match the ticket affected_system).
-    ticket_cat = ctx["triage"]["assigned_category"]
-    ticket_sys = ctx["ticket"]["affected_system"]
-    assert top["category"] == ticket_cat or top["system_name"] == ticket_sys
+def test_build_llm_prompt_passes_ticket_triage_and_all_active_faqs(tmp_path: Path) -> None:
+    _seed_triage(tmp_path, "TKT-00042", "login_access")
+    ctx = cfr.load_faq_context(DATA_DIR, tmp_path, "TKT-00042")
+    prompt = cfr.build_llm_prompt(ctx)
+
+    assert "Choose the single FAQ" in prompt
+    assert "TKT-00042" in prompt
+    assert "assigned_category" in prompt
+    assert "FAQ-001" in prompt
+    assert "FAQ-033" in prompt
+    assert "required_json" in prompt
 
 
-def test_decide_faq_applicability_no_match_recommends_escalation() -> None:
-    ctx = {
-        "ticket": {
-            "error_or_symptom_detail": "x",
-            "steps_already_tried": "x",
-            "business_impact_text": "x",
-        },
-        "triage": {"assigned_category": "other"},
-    }
-    ranked = pl.DataFrame(
-        [
-            {
-                "faq_id": "FAQ-001",
-                "category": "other",
-                "system_name": "Customer Portal",
-                "issue_pattern": "p",
-                "score": 1,
-                "overlap_terms": "",
-            }
-        ]
-    )
-    decision = cfr.decide_faq_applicability(ctx, ranked)
-    assert decision["faq_match_found"] is False
-    assert decision["recommended_next_step"] == "escalate-to-specialist"
+def test_normalize_llm_decision_recommends_draft_for_confident_match() -> None:
+    decision = cfr.normalize_llm_decision(LLM_MATCH, {"FAQ-001"})
 
-
-def test_decide_faq_applicability_strong_match_recommends_draft() -> None:
-    ctx = {
-        "ticket": {
-            "error_or_symptom_detail": "x",
-            "steps_already_tried": "x",
-            "business_impact_text": "x",
-        },
-        "triage": {"assigned_category": "login_access"},
-    }
-    ranked = pl.DataFrame(
-        [
-            {
-                "faq_id": "FAQ-001",
-                "category": "login_access",
-                "system_name": "Customer Portal",
-                "issue_pattern": "redirect",
-                "score": 8,
-                "overlap_terms": "redirect|portal",
-            }
-        ]
-    )
-    decision = cfr.decide_faq_applicability(ctx, ranked)
     assert decision["faq_match_found"] is True
     assert decision["faq_id"] == "FAQ-001"
+    assert decision["match_confidence"] == 0.91
     assert decision["recommended_next_step"] == "draft-faq-response"
+    assert "Evidence:" in decision["faq_application_reason"]
 
 
-def test_decide_faq_applicability_match_but_missing_info_recommends_escalation() -> None:
-    ctx = {
-        "ticket": {
-            "error_or_symptom_detail": "",
-            "steps_already_tried": "",
-            "business_impact_text": "",
-        },
-        "triage": {"assigned_category": "login_access"},
-    }
-    ranked = pl.DataFrame(
-        [
-            {
-                "faq_id": "FAQ-001",
-                "category": "login_access",
-                "system_name": "Customer Portal",
-                "issue_pattern": "redirect",
-                "score": 8,
-                "overlap_terms": "redirect|portal",
-            }
-        ]
-    )
-    decision = cfr.decide_faq_applicability(ctx, ranked)
-    assert decision["faq_match_found"] is True
+def test_normalize_llm_decision_routes_no_match_to_specialist() -> None:
+    decision = cfr.normalize_llm_decision(LLM_NO_MATCH, {"FAQ-001"})
+
+    assert decision["faq_match_found"] is False
+    assert decision["faq_id"] == ""
     assert decision["recommended_next_step"] == "escalate-to-specialist"
-    assert "required information" in decision["faq_application_reason"]
 
 
-def test_main_happy_path_writes_faq_decision(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
-    # Live mode (default) requires a working triage row for the ticket.
+def test_normalize_llm_decision_rejects_unknown_faq_id() -> None:
+    raw = dict(LLM_MATCH, faq_id="FAQ-999", confidence=0.95)
+    decision = cfr.normalize_llm_decision(raw, {"FAQ-001"})
+
+    assert decision["faq_match_found"] is False
+    assert decision["faq_id"] == ""
+    assert decision["match_confidence"] == 0.40
+    assert "unknown FAQ id" in decision["faq_application_reason"]
+
+
+def test_build_faq_decision_row_calls_llm(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    _mock_llm(monkeypatch, LLM_MATCH)
+    _seed_triage(tmp_path, "TKT-00042", "login_access")
+    ctx = cfr.load_faq_context(DATA_DIR, tmp_path, "TKT-00042")
+
+    row = cfr.build_faq_decision_row(ctx, model="test-model")
+
+    assert row["faq_match_found"] is True
+    assert row["faq_id"] == "FAQ-001"
+    assert row["search_terms"] == "llm_full_faq_review"
+    assert "FAQ-001" in row["candidate_faq_ids"]
+    assert "llm_model=test-model" in row["decision_summary"]
+
+
+def test_main_happy_path_writes_faq_decision(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    _mock_llm(monkeypatch, LLM_MATCH)
     _seed_triage(tmp_path, "TKT-00042", "login_access")
     rc = cfr.main(
         [
@@ -204,11 +191,13 @@ def test_main_happy_path_writes_faq_decision(tmp_path: Path, capsys: pytest.Capt
     assert "search_terms" in header
     assert "workflow_run_id" in header
     assert rows[1][header.index("ticket_id")] == "TKT-00042"
-    assert "FAQ check for TKT-00042" in capsys.readouterr().out
+    assert "LLM model" in capsys.readouterr().out
 
 
-def test_main_demo_mode_falls_back_to_processed(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
-    # No working triage; demo mode should still work using processed/ data.
+def test_main_demo_mode_falls_back_to_processed(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    _mock_llm(monkeypatch, LLM_NO_MATCH)
     rc = cfr.main(
         [
             "--ticket-id",
@@ -226,7 +215,6 @@ def test_main_demo_mode_falls_back_to_processed(tmp_path: Path, capsys: pytest.C
 
 
 def test_main_live_mode_refuses_processed_fallback(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
-    # No working triage in tmp_path → live mode must refuse with exit 3.
     rc = cfr.main(
         [
             "--ticket-id",
@@ -242,7 +230,6 @@ def test_main_live_mode_refuses_processed_fallback(tmp_path: Path, capsys: pytes
 
 
 def test_main_missing_triage_returns_3(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
-    # Fabricate a tiny data dir with no row for TKT-X in processed triage
     fake = tmp_path / "fake_data"
     (fake / "raw").mkdir(parents=True)
     (fake / "processed").mkdir()
@@ -304,7 +291,9 @@ def test_main_missing_triage_returns_3(tmp_path: Path, capsys: pytest.CaptureFix
 
 
 def test_cli_runs_via_subprocess(tmp_path: Path) -> None:
-    """Smoke test that the script runs end-to-end via uv run python."""
+    """Smoke test that the script runs end-to-end without making a network call."""
+
+    env = {**os.environ, "FAQ_RESOLUTION_MOCK_JSON": json.dumps(LLM_MATCH)}
     result = subprocess.run(
         [
             sys.executable,
@@ -320,14 +309,14 @@ def test_cli_runs_via_subprocess(tmp_path: Path) -> None:
         ],
         capture_output=True,
         text=True,
+        env=env,
     )
     assert result.returncode == 0, result.stderr
     assert (tmp_path / "faq_decisions.csv").exists()
 
 
 def test_cli_emits_json_envelope(tmp_path: Path) -> None:
-    import json
-
+    env = {**os.environ, "FAQ_RESOLUTION_MOCK_JSON": json.dumps(LLM_NO_MATCH)}
     result = subprocess.run(
         [
             sys.executable,
@@ -348,10 +337,11 @@ def test_cli_emits_json_envelope(tmp_path: Path) -> None:
         ],
         capture_output=True,
         text=True,
+        env=env,
     )
     assert result.returncode == 0, result.stderr
-    env = json.loads(result.stdout.strip())
-    assert env["status"] == "ok"
-    assert env["skill_name"] == "check-faq-resolution"
-    assert env["workflow_run_id"] == "wf-cli"
-    assert env["next_action"] in {"draft-faq-response", "escalate-to-specialist"}
+    env_out = json.loads(result.stdout.strip())
+    assert env_out["status"] == "ok"
+    assert env_out["skill_name"] == "check-faq-resolution"
+    assert env_out["workflow_run_id"] == "wf-cli"
+    assert env_out["next_action"] == "escalate-to-specialist"

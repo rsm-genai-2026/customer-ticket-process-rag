@@ -1,9 +1,12 @@
 # FAQ Matching Evaluation
 
-This report compares three approaches for connecting support tickets to FAQ
-entries:
+This report was generated before the production skill was simplified. It now
+serves as background showing why the rule-based FAQ matcher was replaced by a
+direct LLM decision.
 
-1. **Current heuristic**: deterministic category/system/token-overlap scoring.
+It compares three approaches for connecting support tickets to FAQ entries:
+
+1. **Legacy heuristic**: deterministic category/system/token-overlap scoring.
 2. **Pure LLM**: the ticket and the full FAQ table are passed to an LLM, which
    selects the best FAQ or `no_match` with confidence.
 3. **Hybrid LLM rerank**: the current heuristic retrieves the top 5 candidates,

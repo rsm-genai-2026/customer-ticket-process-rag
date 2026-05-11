@@ -5,6 +5,10 @@ format: gfm
 
 Step 3 of the AI-assisted IT ticketing workflow: decide whether the FAQ knowledge base can resolve a triaged ticket.
 
+This version is deliberately easy to explain to MBA students. It does not score
+FAQ rows with custom rules. Instead, it gives the LLM the ticket, the triage
+decision, and the active FAQ table, then asks for a structured JSON decision.
+
 ## Layout
 
 ```text
@@ -34,30 +38,38 @@ Claude reads `SKILL.md`, runs the script, and reports the verdict plus the recom
 uv run python skills/check-faq-resolution/scripts/check_faq_resolution.py --ticket-id TKT-00042
 ```
 
+The script expects either `TRITONAI_API_KEY` or `OPENAI_API_KEY` in `.env`,
+`~/.env`, or the shell. Use `--model` to override the default model.
+
 The script writes `data/working/faq_decisions.csv` and appends to `data/working/ticket_action_log.csv`.
 
 ## Public functions
 
 - `load_faq_context(data_dir, out_dir, ticket_id)` — loads ticket, active FAQs, and the latest triage decision. Live mode requires working triage; demo mode can use processed fallback.
-- `build_search_terms(context)` — tokenized search terms used for ranking.
-- `rank_faq_candidates(context, faqs)` — scored polars DataFrame, sorted descending.
-- `decide_faq_applicability(context, ranked)` — match / no-match / weak-match decision.
-- `build_faq_decision_row(context)` — end-to-end row for `faq_decisions.csv`.
+- `build_llm_prompt(context)` — JSON prompt containing ticket, triage, and active FAQs.
+- `call_llm_for_faq_decision(context, model)` — calls the LLM and parses its JSON response.
+- `normalize_llm_decision(raw, valid_faq_ids)` — validates the model response and derives the next step.
+- `build_faq_decision_row(context, model)` — end-to-end row for `faq_decisions.csv`.
 - `write_faq_decision(out_dir, decision)` — appends to `data/working/faq_decisions.csv`.
-- `main(argv)` — CLI entrypoint. Exit codes: 0 ok, 2 missing ticket / data, 3 missing upstream triage.
+- `main(argv)` — CLI entrypoint. Exit codes: 0 ok, 2 missing ticket / data, 3 missing upstream triage, 4 LLM decision failed.
 
 ## Algorithm
 
-1. Filter to active FAQ entries.
-2. For each FAQ:
-   - +3 if FAQ category equals the assigned category.
-   - +2 if FAQ system equals the affected system.
-   - +text-overlap (0–6) between the ticket text and the FAQ symptoms / issue pattern (lowercased, ≥4-char tokens, stopwords removed).
-3. Sort by score descending, then by `faq_id` for determinism.
-4. Top FAQ wins **only if** its score ≥ 5.
-5. Even when matched, if the customer has not provided enough operational detail (heuristic on `error_or_symptom_detail` plus `steps_already_tried`/`business_impact_text`), the recommended next step is escalation.
+1. Load the submitted ticket.
+2. Load the upstream triage decision.
+3. Load every active FAQ.
+4. Ask the LLM to choose the one FAQ that directly resolves the ticket, or to choose no match.
+5. Validate the JSON response.
+6. Draft from the FAQ only when the model found a direct match, the confidence is at least `0.70`, and the required customer information is present.
+7. Otherwise, escalate to a specialist.
 
-The decision row records: `faq_match_found`, `faq_id`, `match_confidence`, `search_terms`, `candidate_faq_ids` (top 5), `required_customer_info_available`, and a human-readable `faq_application_reason`.
+The decision row records: `faq_match_found`, `faq_id`, `match_confidence`,
+`search_terms` (`llm_full_faq_review`), `candidate_faq_ids` (all active FAQ ids
+reviewed), `required_customer_info_available`, and a human-readable
+`faq_application_reason`.
+
+See `IMPROVEMENT_IDEAS.md` for ways to harden this simple version after
+students understand the core skill.
 
 ## Test
 

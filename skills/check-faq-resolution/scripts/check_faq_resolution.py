@@ -1,21 +1,11 @@
-"""Step 3: decide whether an FAQ entry resolves a ticket.
+"""Step 3: ask an LLM whether an existing FAQ resolves a ticket.
 
-Deterministic logic:
+This skill is intentionally simple for teaching:
 
-* Load the triage decision. Live mode requires ``working/triage_decisions.csv``;
-  demo mode can fall back to ``processed/ticket_triage.csv`` for synthetic
-  historical examples.
-* Filter to active FAQ entries.
-* Score each FAQ:
-    * +3 if FAQ category equals the ticket's assigned category.
-    * +2 if FAQ system equals the ticket's affected system.
-    * +text-overlap score (number of distinct meaningful tokens that
-      appear in both the ticket text and the FAQ symptoms / issue
-      pattern, capped at 6).
-* Top-scoring FAQ wins. If the top score is below the threshold (5),
-  no match is declared. If a match is found but the customer has not
-  supplied the required info, the recommended next step is still
-  escalation.
+1. Load the submitted ticket, the triage decision, and all active FAQs.
+2. Send that context to an LLM.
+3. Ask for one JSON decision: best FAQ match, confidence, and reason.
+4. Write the same ``faq_decisions.csv`` row the rest of the workflow expects.
 
 Run from the repo root::
 
@@ -26,11 +16,14 @@ Run from the repo root::
 from __future__ import annotations
 
 import argparse
-import re
+import json
+import os
 import sys
 from pathlib import Path
 
 import polars as pl
+from dotenv import load_dotenv
+from openai import OpenAI, OpenAIError
 
 _REPO_ROOT = Path(__file__).resolve().parents[3]
 if str(_REPO_ROOT) not in sys.path:
@@ -60,109 +53,8 @@ from skills.ticketing_common.ticketing_common import (  # noqa: E402
 
 SKILL_NAME = "check-faq-resolution"
 FAQ_DECISIONS_TABLE = "faq_decisions"
-MATCH_SCORE_THRESHOLD = 5
-
-STOPWORDS = {
-    "the",
-    "a",
-    "an",
-    "and",
-    "or",
-    "to",
-    "of",
-    "in",
-    "on",
-    "for",
-    "with",
-    "is",
-    "it",
-    "this",
-    "that",
-    "i",
-    "we",
-    "you",
-    "my",
-    "our",
-    "be",
-    "been",
-    "are",
-    "at",
-    "as",
-    "by",
-    "from",
-    "but",
-    "not",
-    "no",
-    "yes",
-    "do",
-    "does",
-    "did",
-    "have",
-    "has",
-    "had",
-    "was",
-    "were",
-    "will",
-    "would",
-    "should",
-    "can",
-    "could",
-    "if",
-    "when",
-    "while",
-    "any",
-    "some",
-    "all",
-    "very",
-    "every",
-    "other",
-    "than",
-    "then",
-    "so",
-    "just",
-    "also",
-    "out",
-    "over",
-    "into",
-    "about",
-    "after",
-    "before",
-    "again",
-    "still",
-    "now",
-    "here",
-    "there",
-    "ticket",
-    "issue",
-    "problem",
-}
-
-
-def _tokens(text: str) -> set[str]:
-    """Lowercase tokenize, drop short/stopword tokens.
-
-    Used both for ticket text and FAQ symptoms/issue_pattern. Tokens
-    shorter than 4 chars are dropped to suppress noise.
-    """
-
-    if not text:
-        return set()
-    raw = re.findall(r"[a-zA-Z]+", text.lower())
-    return {t for t in raw if len(t) >= 4 and t not in STOPWORDS}
-
-
-def _ticket_text(ticket: dict) -> str:
-    return " ".join(
-        ticket.get(k, "") or ""
-        for k in (
-            "subject",
-            "description",
-            "error_or_symptom_detail",
-            "steps_already_tried",
-            "expected_outcome",
-            "business_impact_text",
-        )
-    )
+DEFAULT_MODEL = os.environ.get("FAQ_RESOLUTION_MODEL", "gpt-4.1-mini")
+DRAFT_CONFIDENCE_THRESHOLD = 0.70
 
 
 def load_faq_context(
@@ -173,19 +65,7 @@ def load_faq_context(
     mode: str = MODE_DEMO,
     workflow_run_id: str | None = None,
 ) -> dict:
-    """Return everything needed to make an FAQ decision.
-
-    Loads the ticket, the FAQ knowledge base (active rows only), and the
-    triage decision.
-
-    * ``mode="live"`` (production-safe choice; default of the CLI):
-      triage must come from ``data/working/triage_decisions.csv``. If
-      absent, ``LookupError`` is raised. The synthetic ``processed/``
-      tables are training data, not workflow state.
-    * ``mode="demo"`` (this function's default for back-compat with
-      tutorials and existing tests): if no working row exists, fall
-      back to ``data/processed/ticket_triage.csv``.
-    """
+    """Load the ticket, active FAQs, and upstream triage decision."""
 
     ticket = require_ticket(data_dir, ticket_id)
     faqs = read_csv(data_dir, "raw/faq_knowledge_base.csv").filter(pl.col("active_flag"))
@@ -216,143 +96,191 @@ def load_faq_context(
     }
 
 
-def build_search_terms(context: dict) -> list[str]:
-    """Return the deduplicated list of search terms used for ranking.
-
-    Uses the ticket's assigned category as a leading term so it always
-    appears in ``search_terms``, even when no other tokens cross the
-    minimum-length filter.
-    """
-
-    terms = list(_tokens(_ticket_text(context["ticket"])))
-    terms.sort()
-    cat = context["triage"].get("assigned_category", "")
-    if cat:
-        cat_token = cat.replace("_", " ")
-        if cat_token not in terms:
-            terms.insert(0, cat_token)
-    return terms
-
-
-def rank_faq_candidates(context: dict, faqs: pl.DataFrame) -> pl.DataFrame:
-    """Score every active FAQ. Sorted descending by score then ``faq_id``."""
-
-    ticket = context["ticket"]
-    triage = context["triage"]
-    ticket_tokens = _tokens(_ticket_text(ticket))
-    assigned_category = triage.get("assigned_category", "")
-    affected_system = ticket.get("affected_system", "")
-
-    rows = []
-    for faq in faqs.to_dicts():
-        text = " ".join(faq.get(k, "") or "" for k in ("symptoms", "issue_pattern", "solution_steps"))
-        faq_tokens = _tokens(text)
-        overlap = ticket_tokens & faq_tokens
-        score = min(len(overlap), 6)
-        if faq.get("category") == assigned_category:
-            score += 3
-        if faq.get("system_name") == affected_system:
-            score += 2
-        rows.append(
-            {
-                "faq_id": faq["faq_id"],
-                "category": faq.get("category", ""),
-                "system_name": faq.get("system_name", ""),
-                "issue_pattern": faq.get("issue_pattern", ""),
-                "score": score,
-                "overlap_terms": pipe_join(sorted(overlap)),
-            }
-        )
-    return pl.DataFrame(rows).sort(["score", "faq_id"], descending=[True, False])
-
-
-def _required_info_available(ticket: dict) -> bool:
-    """Return True if the ticket has enough operational detail to apply an FAQ.
-
-    Heuristic: the ``error_or_symptom_detail`` field must be non-empty
-    AND at least one of ``steps_already_tried`` or
-    ``business_impact_text`` must be non-empty. This mirrors what the
-    generator already populates and is a deliberately strict bar.
-    """
-
-    detail = (ticket.get("error_or_symptom_detail") or "").strip()
-    steps = (ticket.get("steps_already_tried") or "").strip()
-    impact = (ticket.get("business_impact_text") or "").strip()
-    return bool(detail) and bool(steps or impact)
-
-
-def decide_faq_applicability(context: dict, ranked: pl.DataFrame) -> dict:
-    """Return a dict of fields ready for ``faq_decisions.csv``."""
-
-    if ranked.is_empty():
-        return {
-            "faq_match_found": False,
-            "faq_id": "",
-            "match_confidence": 0.10,
-            "candidate_faq_ids": "",
-            "faq_application_reason": "no active FAQ entries available",
-            "recommended_next_step": "escalate-to-specialist",
-        }
-
-    top = ranked.row(0, named=True)
-    runner_up = ranked.row(1, named=True) if ranked.height >= 2 else None
-    margin = top["score"] - (runner_up["score"] if runner_up else 0)
-
-    candidate_ids = ranked.head(5)["faq_id"].to_list()
-    info_ok = _required_info_available(context["ticket"])
-
-    if top["score"] < MATCH_SCORE_THRESHOLD:
-        return {
-            "faq_match_found": False,
-            "faq_id": "",
-            "match_confidence": round(min(0.45, 0.10 + 0.05 * top["score"]), 2),
-            "candidate_faq_ids": pipe_join(candidate_ids),
-            "faq_application_reason": (
-                f"top FAQ score {top['score']} below threshold "
-                f"{MATCH_SCORE_THRESHOLD}; symptoms do not match closely enough"
-            ),
-            "recommended_next_step": "escalate-to-specialist",
-        }
-
-    confidence = max(0.55, min(0.95, 0.50 + 0.05 * top["score"] + 0.05 * margin))
-    if not info_ok:
-        return {
-            "faq_match_found": True,
-            "faq_id": top["faq_id"],
-            "match_confidence": round(confidence * 0.85, 2),
-            "candidate_faq_ids": pipe_join(candidate_ids),
-            "faq_application_reason": (
-                f"FAQ {top['faq_id']} matches but customer has not provided "
-                f"required information; cannot apply confidently"
-            ),
-            "recommended_next_step": "escalate-to-specialist",
-        }
+def _ticket_for_prompt(ticket: dict, triage: dict) -> dict:
+    """Keep only fields the model needs for the FAQ decision."""
 
     return {
-        "faq_match_found": True,
-        "faq_id": top["faq_id"],
-        "match_confidence": round(confidence, 2),
-        "candidate_faq_ids": pipe_join(candidate_ids),
-        "faq_application_reason": (
-            f"FAQ {top['faq_id']} ({top['issue_pattern']}) matches category "
-            f"{top['category']} and system {top['system_name']}"
-            + (f" with overlap [{top['overlap_terms']}]" if top["overlap_terms"] else "")
-        ),
-        "recommended_next_step": "draft-faq-response",
+        "ticket_id": ticket.get("ticket_id", ""),
+        "subject": ticket.get("subject", ""),
+        "description": ticket.get("description", ""),
+        "affected_system": ticket.get("affected_system", ""),
+        "customer_reported_urgency": ticket.get("customer_reported_urgency", ""),
+        "business_impact_text": ticket.get("business_impact_text", ""),
+        "error_or_symptom_detail": ticket.get("error_or_symptom_detail", ""),
+        "steps_already_tried": ticket.get("steps_already_tried", ""),
+        "expected_outcome": ticket.get("expected_outcome", ""),
+        "assigned_category": triage.get("assigned_category", ""),
+        "assigned_priority": triage.get("assigned_priority", ""),
+        "recommended_specialist_group": triage.get("recommended_specialist_group", ""),
     }
 
 
-def write_faq_decision(out_dir: Path, decision: dict) -> None:
-    append_csv_row(Path(out_dir) / f"{FAQ_DECISIONS_TABLE}.csv", decision)
+def _faq_for_prompt(faq: dict) -> dict:
+    return {
+        "faq_id": faq.get("faq_id", ""),
+        "category": faq.get("category", ""),
+        "system_name": faq.get("system_name", ""),
+        "issue_pattern": faq.get("issue_pattern", ""),
+        "symptoms": faq.get("symptoms", ""),
+        "solution_steps": faq.get("solution_steps", ""),
+        "required_customer_info": faq.get("required_customer_info", ""),
+    }
 
 
-def build_faq_decision_row(context: dict) -> dict:
-    """End-to-end: search terms → ranked candidates → decision row."""
+def build_llm_prompt(context: dict) -> str:
+    """Create the full ticket + FAQ prompt sent to the LLM."""
 
-    search_terms = build_search_terms(context)
-    ranked = rank_faq_candidates(context, context["faqs"])
-    decision = decide_faq_applicability(context, ranked)
-    info_ok = _required_info_available(context["ticket"])
+    faqs = [_faq_for_prompt(faq) for faq in context["faqs"].to_dicts()]
+    payload = {
+        "task": "Choose the single FAQ that directly resolves this support ticket, or choose no_match.",
+        "decision_policy": [
+            "Use the FAQ only when its symptoms and solution steps directly address the ticket.",
+            "Do not match merely because the category or affected system is similar.",
+            "If no FAQ directly applies, set faq_match_found to false and faq_id to an empty string.",
+            "Set required_customer_info_available to true only when the ticket contains "
+            "the information needed by the chosen FAQ.",
+            f"Use confidence >= {DRAFT_CONFIDENCE_THRESHOLD:.2f} only for strong, directly supported matches.",
+        ],
+        "ticket": _ticket_for_prompt(context["ticket"], context["triage"]),
+        "faqs": faqs,
+        "required_json": {
+            "faq_match_found": "boolean",
+            "faq_id": "FAQ id string, or empty string when no FAQ directly applies",
+            "confidence": "number between 0 and 1",
+            "required_customer_info_available": "boolean",
+            "reason": "brief business-readable explanation",
+            "ticket_evidence": "short quote or paraphrase from the ticket",
+            "faq_evidence": "short quote or paraphrase from the FAQ, or empty string for no_match",
+        },
+    }
+    return json.dumps(payload, indent=2)
+
+
+def _system_prompt() -> str:
+    return (
+        "You are an FAQ matching assistant for an IT support workflow. "
+        "Return only valid JSON. Be conservative: choose an FAQ only when it directly resolves the ticket."
+    )
+
+
+def _load_env() -> None:
+    load_dotenv(_REPO_ROOT / ".env")
+    load_dotenv(Path.home() / ".env")
+
+
+def make_llm_client() -> OpenAI:
+    """Create an OpenAI-compatible client.
+
+    The classroom environment commonly uses ``TRITONAI_API_KEY``. Standard
+    OpenAI accounts can use ``OPENAI_API_KEY`` instead.
+    """
+
+    _load_env()
+    triton_key = os.environ.get("TRITONAI_API_KEY", "").strip()
+    if triton_key:
+        return OpenAI(api_key=triton_key, base_url="https://tritonai-api.ucsd.edu/v1")
+
+    openai_key = os.environ.get("OPENAI_API_KEY", "").strip()
+    if openai_key:
+        return OpenAI(api_key=openai_key)
+
+    raise RuntimeError("No TRITONAI_API_KEY or OPENAI_API_KEY found in environment, .env, or ~/.env.")
+
+
+def call_llm_for_faq_decision(context: dict, *, model: str = DEFAULT_MODEL, client: OpenAI | None = None) -> dict:
+    """Ask the LLM for the FAQ decision and return its raw JSON object."""
+
+    mock_json = os.environ.get("FAQ_RESOLUTION_MOCK_JSON", "").strip()
+    if mock_json:
+        return json.loads(mock_json)
+
+    prompt = build_llm_prompt(context)
+    client = client or make_llm_client()
+    response = client.chat.completions.create(
+        model=model,
+        messages=[
+            {"role": "system", "content": _system_prompt()},
+            {"role": "user", "content": prompt},
+        ],
+        temperature=0,
+        max_tokens=900,
+        response_format={"type": "json_object"},
+    )
+    return json.loads(response.choices[0].message.content or "{}")
+
+
+def _as_bool(value: object, *, default: bool = False) -> bool:
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        return value.strip().lower() in {"true", "yes", "1"}
+    return default
+
+
+def _as_confidence(value: object) -> float:
+    try:
+        confidence = float(value)
+    except (TypeError, ValueError):
+        confidence = 0.0
+    return round(min(max(confidence, 0.0), 1.0), 2)
+
+
+def normalize_llm_decision(raw: dict, valid_faq_ids: set[str]) -> dict:
+    """Convert the LLM response into the workflow's decision fields."""
+
+    faq_id = str(raw.get("faq_id") or "").strip()
+    if faq_id.lower() in {"none", "no_match", "no match", "null"}:
+        faq_id = ""
+
+    confidence = _as_confidence(raw.get("confidence"))
+    match_found = _as_bool(raw.get("faq_match_found")) and bool(faq_id)
+
+    if faq_id and faq_id not in valid_faq_ids:
+        match_found = False
+        reason = f"LLM returned unknown FAQ id {faq_id}; treating as no match."
+        faq_id = ""
+        confidence = min(confidence, 0.40)
+    else:
+        reason = str(raw.get("reason") or "LLM evaluated the ticket against the active FAQ table.").strip()
+
+    required_info_ok = _as_bool(raw.get("required_customer_info_available"), default=match_found)
+    if not match_found:
+        required_info_ok = False
+
+    recommended_next_step = (
+        "draft-faq-response"
+        if match_found and required_info_ok and confidence >= DRAFT_CONFIDENCE_THRESHOLD
+        else "escalate-to-specialist"
+    )
+
+    ticket_evidence = str(raw.get("ticket_evidence") or "").strip()
+    faq_evidence = str(raw.get("faq_evidence") or "").strip()
+    evidence = []
+    if ticket_evidence:
+        evidence.append(f"ticket: {ticket_evidence}")
+    if faq_evidence:
+        evidence.append(f"faq: {faq_evidence}")
+    if evidence:
+        reason = f"{reason} Evidence: {'; '.join(evidence)}"
+
+    return {
+        "faq_match_found": match_found,
+        "faq_id": faq_id,
+        "match_confidence": confidence,
+        "required_customer_info_available": required_info_ok,
+        "faq_application_reason": reason,
+        "recommended_next_step": recommended_next_step,
+    }
+
+
+def build_faq_decision_row(context: dict, *, model: str = DEFAULT_MODEL, client: OpenAI | None = None) -> dict:
+    """Ask the LLM and build a row for ``faq_decisions.csv``."""
+
+    raw = call_llm_for_faq_decision(context, model=model, client=client)
+    valid_faq_ids = set(context["faqs"]["faq_id"].to_list()) if not context["faqs"].is_empty() else set()
+    decision = normalize_llm_decision(raw, valid_faq_ids)
+    candidate_ids = pipe_join(sorted(valid_faq_ids))
+
     return {
         "ticket_id": context["ticket"]["ticket_id"],
         "created_at": now_iso(),
@@ -360,9 +288,9 @@ def build_faq_decision_row(context: dict) -> dict:
         "faq_match_found": decision["faq_match_found"],
         "faq_id": decision["faq_id"],
         "match_confidence": decision["match_confidence"],
-        "search_terms": pipe_join(search_terms),
-        "candidate_faq_ids": decision["candidate_faq_ids"],
-        "required_customer_info_available": info_ok,
+        "search_terms": "llm_full_faq_review",
+        "candidate_faq_ids": candidate_ids,
+        "required_customer_info_available": decision["required_customer_info_available"],
         "faq_application_reason": decision["faq_application_reason"],
         "recommended_next_step": decision["recommended_next_step"],
         "inputs_used": pipe_join(
@@ -373,11 +301,43 @@ def build_faq_decision_row(context: dict) -> dict:
             ]
         ),
         "decision_summary": (
+            f"llm_model={model}; "
             f"match={decision['faq_match_found']}; "
             f"faq_id={decision['faq_id'] or '(none)'}; "
             f"next={decision['recommended_next_step']}"
         ),
     }
+
+
+def write_faq_decision(out_dir: Path, decision: dict) -> None:
+    append_csv_row(Path(out_dir) / f"{FAQ_DECISIONS_TABLE}.csv", decision)
+
+
+def _emit_error(
+    *,
+    status_code: int,
+    skill_name: str,
+    workflow_run_id: str,
+    step_id: str,
+    ticket_id: str,
+    error_code: str,
+    message: str,
+    as_json: bool,
+    next_action: str = "",
+) -> int:
+    env = make_envelope(
+        status="error",
+        skill_name=skill_name,
+        workflow_run_id=workflow_run_id,
+        step_id=step_id,
+        ticket_id=ticket_id,
+        next_action=next_action,
+        error={"code": error_code, "message": message},
+    )
+    emit_envelope(env, as_json=as_json, text_summary=f"error: {message}")
+    if not as_json:
+        print(f"error: {message}", file=sys.stderr)
+    return status_code
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -388,6 +348,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--workflow-run-id", default="")
     parser.add_argument("--step-id", default="")
     parser.add_argument("--mode", choices=[MODE_LIVE, MODE_DEMO], default=DEFAULT_MODE)
+    parser.add_argument("--model", default=DEFAULT_MODEL)
     parser.add_argument("--json", dest="as_json", action="store_true")
     parser.add_argument("--idempotency-mode", choices=["skip", "replace"], default="skip")
     args = parser.parse_args(argv)
@@ -427,48 +388,53 @@ def main(argv: list[str] | None = None) -> int:
             mode=args.mode,
             workflow_run_id=read_workflow_run_id,
         )
+        row = build_faq_decision_row(context, model=args.model)
     except KeyError as exc:
-        env = make_envelope(
-            status="error",
+        return _emit_error(
+            status_code=2,
             skill_name=SKILL_NAME,
             workflow_run_id=workflow_run_id,
             step_id=step_id,
             ticket_id=args.ticket_id,
-            error={"code": "ticket_not_found", "message": str(exc)},
+            error_code="ticket_not_found",
+            message=str(exc),
+            as_json=args.as_json,
         )
-        emit_envelope(env, as_json=args.as_json, text_summary=f"error: {exc}")
-        if not args.as_json:
-            print(f"error: {exc}", file=sys.stderr)
-        return 2
     except LookupError as exc:
-        env = make_envelope(
-            status="error",
+        return _emit_error(
+            status_code=3,
             skill_name=SKILL_NAME,
             workflow_run_id=workflow_run_id,
             step_id=step_id,
             ticket_id=args.ticket_id,
+            error_code="missing_upstream",
+            message=str(exc),
+            as_json=args.as_json,
             next_action="classify-prioritize-ticket",
-            error={"code": "missing_upstream", "message": str(exc)},
         )
-        emit_envelope(env, as_json=args.as_json, text_summary=f"error: {exc}")
-        if not args.as_json:
-            print(f"error: {exc}", file=sys.stderr)
-        return 3
     except FileNotFoundError as exc:
-        env = make_envelope(
-            status="error",
+        return _emit_error(
+            status_code=2,
             skill_name=SKILL_NAME,
             workflow_run_id=workflow_run_id,
             step_id=step_id,
             ticket_id=args.ticket_id,
-            error={"code": "missing_data", "message": str(exc)},
+            error_code="missing_data",
+            message=str(exc),
+            as_json=args.as_json,
         )
-        emit_envelope(env, as_json=args.as_json, text_summary=f"error: {exc}")
-        if not args.as_json:
-            print(f"error: {exc}", file=sys.stderr)
-        return 2
+    except (RuntimeError, json.JSONDecodeError, OpenAIError) as exc:
+        return _emit_error(
+            status_code=4,
+            skill_name=SKILL_NAME,
+            workflow_run_id=workflow_run_id,
+            step_id=step_id,
+            ticket_id=args.ticket_id,
+            error_code="llm_decision_failed",
+            message=str(exc),
+            as_json=args.as_json,
+        )
 
-    row = build_faq_decision_row(context)
     row["workflow_run_id"] = workflow_run_id
     row["step_id"] = step_id
     if args.idempotency_mode == "replace":
@@ -488,11 +454,12 @@ def main(argv: list[str] | None = None) -> int:
 
     text_summary = (
         f"FAQ check for {row['ticket_id']}:\n"
+        f"  LLM model          : {args.model}\n"
         f"  match found        : {row['faq_match_found']}\n"
         f"  matched FAQ        : {row['faq_id'] or '(none)'}\n"
         f"  match confidence   : {row['match_confidence']}\n"
         f"  required info ok?  : {row['required_customer_info_available']}\n"
-        f"  candidates         : {row['candidate_faq_ids'] or '(none)'}\n"
+        f"  FAQ ids reviewed   : {row['candidate_faq_ids'] or '(none)'}\n"
         f"  reason             : {row['faq_application_reason']}\n"
         f"  review required?   : {review_required}\n"
         f"\nNext valid action: {row['recommended_next_step']}."

@@ -1,6 +1,6 @@
 ---
 title: "Building an AI Ticket Workflow"
-subtitle: "A tutorial for MBA students: skills first, then orchestration and the demo"
+subtitle: "A tutorial: skills first, then orchestration and the demo"
 format:
   revealjs:
     slide-number: true
@@ -32,8 +32,6 @@ repo = "customer-ticket-process"
 ::: notes
 This deck is a tutorial. It starts with the process diagram, teaches students
 how to think about skills, then introduces the orchestrator and the web demo.
-The intended audience is MBA students who understand business processes but may
-not have much technical background.
 :::
 
 ## What You Will Learn {.content-slide}
@@ -72,9 +70,7 @@ The diagram shows:
 - **arrows**: handoffs from one step to the next
 - **loops**: what happens when the first answer is rejected
 
-The business question:
-
-> Which steps can AI handle, which steps need human review, and how do we keep the handoffs visible?
+Which steps can AI handle, which steps need human review, and how do we keep the handoffs visible?
 
 ::: notes
 Students should first read this as a business process map. Do not start with
@@ -125,7 +121,7 @@ Examples from the diagram:
 - verify a rejected answer
 
 ::: notes
-For MBA students, a skill is like a small standard operating procedure. It does
+A skill is like a small standard operating procedure. It does
 one job and produces a handoff for the next job.
 :::
 
