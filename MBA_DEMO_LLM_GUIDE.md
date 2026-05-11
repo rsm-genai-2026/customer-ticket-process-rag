@@ -21,7 +21,7 @@ Complex process -> small skills -> explicit handoffs -> auditable workflow
 
 For a student-friendly overview, read:
 
-1. `slides/mba-ticket-workflow-demo.qmd`
+1. `slides/ticket-workflow-orchestration.qmd`
 2. `WEB_WORKFLOW_DEMO.md`
 3. `README.md`
 
@@ -197,4 +197,3 @@ To reuse this idea for another process:
 5. Decide where human review is required.
 6. Build example scenarios covering normal, exception, and failure paths.
 7. Create a suite report so the workflow can be tested repeatedly.
-

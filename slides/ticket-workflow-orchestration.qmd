@@ -1,9 +1,10 @@
 ---
-title: "AI Ticket Workflow: Skills and Orchestration"
+title: "Building an AI Ticket Workflow"
+subtitle: "A tutorial for MBA students: skills first, then orchestration and the demo"
 format:
   revealjs:
     slide-number: true
-    code-line-numbers: true
+    code-line-numbers: false
     theme: [default, ../../../gh/rsm-teaching/quarto-files/scss/rsm-slides.scss]
     resource-path: ["../../../gh/rsm-teaching/quarto-files"]
     embed-resources: true
@@ -13,420 +14,758 @@ execute:
 
 ```{python}
 #| tags: [parameters]
-title = "AI Ticket Workflow: Skills and Orchestration"
+title = "Building an AI Ticket Workflow"
+subtitle = "Skills first, then orchestration and the demo"
 author = "Professor Vincent R. Nijs"
-program = "Rady MSBA"
+program = "Rady MBA / MSBA"
 repo = "customer-ticket-process"
 ```
 
 ## `{python} title` {.title-slide}
+
+`{python} subtitle`
 
 `{python} program`
 
 `{python} author`
 
 ::: notes
-The purpose of this short deck is to remove ambiguity about one specific point:
-what is the orchestrator, what is a skill, and how does a skill actually start?
+This deck is a tutorial. It starts with the process diagram, teaches students
+how to think about skills, then introduces the orchestrator and the web demo.
+The intended audience is MBA students who understand business processes but may
+not have much technical background.
 :::
 
-## The short answer {.content-slide}
+## What You Will Learn {.content-slide}
 
-* **The orchestrator is not `audit-ticket-process`**
-* **The orchestrator is** `scripts/ticket_web_demo.py`
-* Specifically: `TicketWorkflowOrchestrator`
-* `audit-ticket-process` is a diagnostic skill
-* The web app does **not** load `SKILL.md` with an LLM
+By the end, you should be able to explain:
+
+1. How to read the support-ticket workflow diagram
+2. What an AI skill is
+3. How to turn process steps into skills
+4. Why skills need clear inputs and outputs
+5. What an orchestrator does
+6. How the browser demo lets you inspect the workflow
+7. Where human review still matters
 
 ::: notes
-The main misconception to address: `audit-ticket-process` sounds like it might
-be the orchestrator because it can inspect state and recommend a next action.
-It is not the web-demo orchestrator. It is one skill package among the skill
-packages. Also be explicit that the browser demo is not using an LLM skill
-loader.
+Frame this as workflow design, not programming. The technical details exist to
+make the business process visible and testable.
 :::
 
-## Three different things {.content-slide}
+## The Process We Are Automating {.content-slide}
+
+![](assets/customer-ticket-process-genai-page-2.png){fig-alt="Swimlane diagram for customer support ticket resolution" width="100%"}
+
+::: notes
+This is the anchor diagram for the whole deck. It has three lanes: User, GenAI
+Assistant, and IT specialist. The repo turns this picture into a working demo.
+:::
+
+## How to Read the Diagram {.content-slide}
+
+The diagram shows:
+
+- **lanes**: who owns each action
+- **boxes**: work to be done
+- **diamonds**: decisions or branch points
+- **arrows**: handoffs from one step to the next
+- **loops**: what happens when the first answer is rejected
+
+The business question:
+
+> Which steps can AI handle, which steps need human review, and how do we keep the handoffs visible?
+
+::: notes
+Students should first read this as a business process map. Do not start with
+code. Start with roles, work, decisions, and handoffs.
+:::
+
+## The Three Lanes {.content-slide}
 
 :::::: columns
 ::: {.column width="32%"}
-**Orchestrator**
+**User**
 
-`scripts/ticket_web_demo.py`
-
-Runs the workflow.
+Submits the ticket and later accepts or rejects the answer.
 :::
 
-::: {.column width="34%"}
-**Skill instructions**
+::: {.column width="36%"}
+**GenAI Assistant**
 
-`skills/<skill>/SKILL.md`
-
-Tells an AI agent when/how to use a skill.
+Receives, classifies, checks FAQ, drafts, sends, and closes routine work.
 :::
 
-::: {.column width="34%"}
-**Skill implementation**
+::: {.column width="32%"}
+**IT Specialist**
 
-`skills/<skill>/scripts/*.py`
-
-Executable code used by the web demo.
+Handles cases where the issue needs expert diagnosis or approval.
 :::
 ::::::
 
 ::: notes
-In this repo, a skill folder is really a small package. The SKILL.md file is
-loaded by an LLM agent such as Codex or Claude when the agent is using skills.
-The web demo is not that kind of runtime. It directly executes the Python file
-inside the same folder.
+The workflow is not "AI does everything." It is an AI-assisted process with
+clear escalation paths.
 :::
 
-## Where is THE orchestrator? {.content-slide}
+## Start with Skills {.section-slide}
+
+## What Is a Skill? {.content-slide}
+
+A skill is a focused unit of work that can be explained, tested, and reused.
+
+Examples from the diagram:
+
+- receive a ticket
+- classify a ticket
+- assign priority
+- check whether an FAQ applies
+- draft a customer response
+- escalate to a specialist
+- verify a rejected answer
+
+::: notes
+For MBA students, a skill is like a small standard operating procedure. It does
+one job and produces a handoff for the next job.
+:::
+
+## Why Not One Big AI Prompt? {.content-slide}
+
+One giant prompt would be hard to manage.
+
+Small skills are better because they are:
+
+- easier to understand
+- easier to improve
+- easier to test
+- easier to audit
+- easier to assign to a process owner
+- easier to escalate when something goes wrong
+
+::: notes
+This is a core management lesson: modularity is governance. It makes process
+quality observable.
+:::
+
+## Skill Design Canvas {.content-slide}
+
+For each skill, define six things:
+
+- **Trigger:** a new ticket exists
+- **Input data:** ticket text, customer tier, affected system
+- **Work:** classify and prioritize
+- **Output data:** category, priority, rationale
+- **Next action:** check FAQ
+- **Human review trigger:** low confidence or missing information
+
+::: notes
+Students can reuse this canvas for any workflow: admissions, claims, HR,
+procurement, loan approval, etc.
+:::
+
+## From Diagram Step to Skill {.content-slide}
+
+:::::: columns
+::: {.column width="50%"}
+**Early workflow**
+
+- Receives ticket -> `receive-ticket`
+- Classify Ticket -> `classify-prioritize-ticket`
+- Assign Priority -> `classify-prioritize-ticket`
+- FAQ resolution? -> `check-faq-resolution`
+- Finds resolution -> `draft-faq-response`
+:::
+
+::: {.column width="50%"}
+**Escalation and feedback**
+
+- Send to IT specialist -> `escalate-to-specialist`
+- Analyze issue -> `investigate-specialist-solution`
+- Creates solution -> `draft-specialist-response`
+- Sends message -> `send-customer-response`
+- Verifies rejection -> `verify-feedback-close-or-reopen`
+:::
+::::::
+
+::: notes
+This slide maps the business diagram into the repo structure. Note that
+classify and priority are one combined skill in this implementation.
+:::
+
+## Example Skill: Classify and Prioritize {.content-slide}
+
+Input:
+
+- ticket subject and description
+- affected system
+- customer tier
+- urgency
+- reference categories and priority rules
+
+Output:
+
+- assigned category
+- assigned priority
+- recommended specialist group
+- rationale and confidence
+- next action: `check-faq-resolution`
+
+::: notes
+This makes a fuzzy process step concrete. The skill does not just "think"; it
+produces structured data that the next step can use.
+:::
+
+## Example Skill: Check FAQ {.content-slide}
+
+Input:
+
+- ticket details
+- triage category
+- FAQ knowledge base
+
+Decision:
+
+```text
+Strong FAQ match?
+  Yes -> draft FAQ response
+  No  -> escalate to specialist
+```
+
+Output:
+
+- `faq_match_found`
+- `faq_id`
+- `match_confidence`
+- `recommended_next_step`
+
+::: notes
+This is the most important branch point in the workflow. It determines whether
+the work stays automated or moves to a specialist.
+:::
+
+## Example Skill: Escalate to Specialist {.content-slide}
+
+When the FAQ path is not enough, the workflow creates a handoff package.
+
+The handoff includes:
+
+- ticket summary
+- category and priority
+- business impact
+- steps already tried
+- why the FAQ did not resolve it
+- specialist group
+- specific question for the specialist
+
+::: notes
+This skill is where automation hands work to a human expert. A good AI workflow
+does not hide the reason for escalation.
+:::
+
+## Example Skill: Verify Feedback {.content-slide}
+
+After the response is sent, the customer replies.
+
+The feedback skill decides:
+
+- accepted -> close the ticket
+- rejected -> reopen and escalate
+- ambiguous -> ask for clarification
+- rejected twice -> close unresolved with follow-up
+
+::: notes
+This is where loops enter the process. Loops need explicit rules or they can
+run forever.
+:::
+
+## A Skill Must Leave Evidence {.content-slide}
+
+Each skill should leave behind:
+
+- what it read
+- what it decided
+- why it decided that
+- what file or artifact it wrote
+- what should happen next
+
+In the demo, this appears in the **Skill input / output** panel.
+
+::: notes
+This is the bridge from AI output to auditability. Students should look for
+evidence, not just final answers.
+:::
+
+## Skill Packages in This Repo {.content-slide}
+
+Each skill folder has two parts:
+
+```text
+skills/check-faq-resolution/
+  SKILL.md
+  scripts/check_faq_resolution.py
+```
+
+`SKILL.md`
+
+: Instructions for an LLM agent or human reader
+
+`scripts/*.py`
+
+: Repeatable implementation used by the browser demo
+
+::: notes
+This distinction matters. The browser demo runs deterministic scripts from each
+skill package. The SKILL.md files document how an AI agent should think about
+the skill.
+:::
+
+## Then Add Orchestration {.section-slide}
+
+## What Is the Orchestrator? {.content-slide}
+
+The orchestrator is the workflow manager.
+
+It does not classify, draft, or solve tickets.
+
+It does:
+
+- remember which skill is next
+- run one skill at a time
+- pass the right ticket and run IDs
+- read the skill's `next_action`
+- pause when customer or human input is needed
+- update the web page
+
+::: notes
+This is the answer to the earlier confusion: the orchestrator is not a domain
+skill. It is the control layer that coordinates the skills.
+:::
+
+## Why the Orchestrator Is Code {.content-slide}
+
+The orchestrator is code because control flow must be predictable.
+
+It should be:
+
+- boring
+- explicit
+- testable
+- repeatable
+- easy to debug
+
+The skills can contain business logic. The orchestrator should not improvise
+the route.
+
+::: notes
+Analogy: the orchestrator is like a workflow engine, conductor, or air traffic
+controller. The skills are the specialized work teams.
+:::
+
+## The Mental Model {.content-slide}
+
+```text
+Orchestrator = workflow engine
+Skill = focused work unit
+Working CSVs = shared case file
+JSON envelope = handoff note
+Web page = control room dashboard
+```
+
+::: notes
+Use this vocabulary consistently. It helps students distinguish process design,
+execution, data, and user interface.
+:::
+
+## How Skills Talk to the Orchestrator {.content-slide}
+
+Each skill returns a structured handoff:
+
+```json
+{
+  "skill_name": "check-faq-resolution",
+  "status": "ok",
+  "ticket_id": "WEB-1234ABCD",
+  "next_action": "draft-faq-response"
+}
+```
+
+The orchestrator reads `next_action` and stores the next skill.
+
+::: notes
+This is the simplest possible control contract. The skill says what happened
+and what should happen next.
+:::
+
+## Orchestration Loop {.content-slide}
+
+```mermaid
+flowchart LR
+  A[Current state] --> B[Run next skill]
+  B --> C[Skill writes output]
+  C --> D[Skill returns next_action]
+  D --> E[Orchestrator updates state]
+  E --> F{Need human or customer input?}
+  F -->|No| A
+  F -->|Yes| G[Pause workflow]
+```
+
+::: notes
+This is the engine behind the step-by-step demo.
+:::
+
+## Where the Orchestrator Lives {.content-slide}
+
+In this repo:
 
 ```text
 scripts/ticket_web_demo.py
 ```
 
-Key locations:
+Key object:
 
-* `main()` starts the web server
-* `do_POST()` receives browser actions
-* `TicketWorkflowOrchestrator` owns workflow state
-* `run_skill()` starts one skill script
-* `metadata.json` stores the next skill
+```text
+TicketWorkflowOrchestrator
+```
+
+What to ask Claude/Codex:
+
+```text
+Open scripts/ticket_web_demo.py and explain TicketWorkflowOrchestrator
+to me using the workflow diagram.
+```
 
 ::: notes
-If students ask "show me the orchestrator," open `scripts/ticket_web_demo.py`
-and search for `class TicketWorkflowOrchestrator`.
+Students do not need to read the whole file. They need to know where the
+control layer is and what to ask an assistant to explain.
 :::
 
-## How the web demo starts {.content-slide}
+## The Demo {.section-slide}
+
+## Start the Browser Demo {.content-slide}
+
+From the repo folder:
 
 ```bash
-uv run python scripts/ticket_web_demo.py \
-  --host 127.0.0.1 \
-  --port 8767
+uv run python scripts/ticket_web_demo.py --host 127.0.0.1 --port 8767
 ```
 
-This starts a local HTTP server.
+Then open:
 
 ```text
-main()
-  -> make_handler()
-  -> ThreadingHTTPServer(...)
-  -> server.serve_forever()
+http://127.0.0.1:8767
 ```
 
 ::: notes
-The orchestrator is not automatically running in the background. It starts when
-the web demo server starts.
+If students are not comfortable with terminal commands, they can ask Claude or
+Codex to run the server for them.
 :::
 
-## What happens when a ticket is submitted? {.content-slide}
+## What to Do First {.content-slide}
+
+1. Select an example ticket from the dropdown
+2. Click **Start Step Mode**
+3. Click **Next** one step at a time
+4. Use **Previous** to review earlier states
+5. Watch the flow chart, narrative, and skill input/output panel
+
+::: notes
+The demo is not only about the final customer response. It is about seeing the
+workflow as it runs.
+:::
+
+## What to Watch in the UI {.content-slide}
+
+:::::: columns
+::: {.column width="50%"}
+**Workflow state**
+
+- Flow chart: where we are
+- Next skill: what will run next
+- Step log: complete skill sequence
+:::
+
+::: {.column width="50%"}
+**Business evidence**
+
+- Narrative: plain-English story
+- Skill input / output: data consumed and produced
+- Customer response: what the customer receives
+:::
+::::::
+
+::: notes
+This slide is useful during a live walkthrough. It tells students what to point
+their attention to.
+:::
+
+## Demo Scenario 1: FAQ Resolution {.content-slide}
+
+Example ticket:
 
 ```text
-Browser button
-  -> POST /api/tickets/start
-  -> start_submission()
-  -> TicketWorkflowOrchestrator.start_ticket()
-  -> create_web_ticket()
-  -> metadata.json says next_skill = receive-ticket
+FAQ: customer portal SSO loop
 ```
 
-Nothing has run yet.
-
-The first skill runs only when the user clicks **Next**.
-
-::: notes
-This is important for debugger mode. Starting step mode creates a run and shows
-the first current node, but it intentionally stops before the first skill.
-:::
-
-## What happens when Next is clicked? {.content-slide}
+Expected path:
 
 ```text
-Browser Next button
-  -> POST /api/step
-  -> process_step()
-  -> TicketWorkflowOrchestrator.step()
-  -> read metadata.json
-  -> next_skill = receive-ticket
-  -> run_skill("receive-ticket", ...)
+receive -> classify/prioritize -> check FAQ
+-> draft FAQ response -> send response -> verify feedback -> close
 ```
 
-`run_skill()` starts the **skill's Python script** as a subprocess.
+Business lesson:
+
+> Good automation handles repeatable work quickly and consistently.
 
 ::: notes
-This is the exact mechanism. The orchestrator reads persisted state, decides
-which skill is next, and runs that skill.
+Use this as the first demo because it is clean and easy to understand.
 :::
 
-## How a workflow step is started {.content-slide}
+## Demo Scenario 2: Human Expert Review {.content-slide}
 
-The orchestrator has a mapping:
-
-```python
-SKILL_SCRIPTS = {
-    "receive-ticket": "skills/receive-ticket/scripts/receive_ticket.py",
-    "classify-prioritize-ticket": ".../classify_prioritize_ticket.py",
-    "check-faq-resolution": ".../check_faq_resolution.py",
-}
-```
-
-Then it builds a command line and runs the mapped Python file.
-
-::: notes
-This is why the repo appears to have scripts calling scripts. That is by
-design for the web demo. It is not the same thing as an LLM loading SKILL.md.
-:::
-
-## Example command created by the orchestrator {.content-slide}
-
-```bash
-python skills/receive-ticket/scripts/receive_ticket.py \
-  --ticket-id WEB-1234ABCD \
-  --data-dir /tmp/customer-ticket-process-web-demo/wf-web-1234abcd/data \
-  --out-dir /tmp/customer-ticket-process-web-demo/wf-web-1234abcd/working \
-  --workflow-run-id wf-web-1234abcd \
-  --step-id receive-ticket-01-a1b2c3 \
-  --json
-```
-
-The `--json` response is the handoff back to the orchestrator.
-
-::: notes
-The CLI contract is the key teaching object. Every skill accepts the same core
-workflow arguments and emits a JSON envelope.
-:::
-
-## What does a skill return? {.content-slide}
-
-Each skill returns a JSON envelope:
-
-```json
-{
-  "skill_name": "receive-ticket",
-  "status": "ok",
-  "ticket_id": "WEB-1234ABCD",
-  "workflow_run_id": "wf-web-1234abcd",
-  "step_id": "receive-ticket-01-a1b2c3",
-  "next_action": "classify-prioritize-ticket"
-}
-```
-
-The orchestrator reads `next_action`.
-
-::: notes
-The orchestrator does not decide that triage is next by using a prompt. It reads
-the deterministic envelope returned by the skill.
-:::
-
-## The routing loop {.content-slide}
-
-```mermaid
-flowchart LR
-  A[metadata.json] --> B[next_skill]
-  B --> C[run_skill]
-  C --> D[skill script]
-  D --> E[working CSV artifacts]
-  D --> F[JSON envelope]
-  F --> G[next_action]
-  G --> H[update metadata.json]
-  H --> A
-```
-
-::: notes
-This loop is the engine. The skill writes data and returns next_action; the
-orchestrator stores that next action as next_skill for the next click.
-:::
-
-## Is this a "regular skill" invocation? {.content-slide}
-
-No.
-
-The web demo uses the **executable script inside each skill folder**:
+Example ticket:
 
 ```text
-skills/receive-ticket/
-  SKILL.md                  loaded by an LLM agent
-  scripts/receive_ticket.py run by the web orchestrator
+Human expert: billing API 502
 ```
 
-So in the web demo, `SKILL.md` is a contract and teaching artifact.
-
-::: notes
-This is the honest answer. The browser demo is not an LLM agent. It does not
-have a skill loader. It uses the same folder layout, but it directly executes
-the script file.
-:::
-
-## Then what is a skill in this repo? {.content-slide}
-
-For an LLM agent:
+Expected path:
 
 ```text
-SKILL.md is active instructions
+receive -> classify/prioritize -> check FAQ
+-> escalate -> specialist investigates -> draft specialist response
+-> send response -> verify feedback -> close
 ```
 
-For the browser demo:
+Business lesson:
+
+> AI can route and summarize expert work, but some answers still need human approval.
+
+::: notes
+This is the scenario the user specifically asked for. It also demonstrates how
+a new FAQ candidate can be proposed after expert approval.
+:::
+
+## Demo Scenario 3: Rejected Answer {.content-slide}
+
+Example ticket:
 
 ```text
-SKILL.md is not loaded
-scripts/*.py is executed
+Reopen: FAQ rejected, then specialist
 ```
 
-That means the repo uses **skill packages**, but the web demo uses their
-deterministic executable entry points.
-
-::: notes
-If this distinction feels uncomfortable, that is useful. It means we should not
-claim the web app is invoking skills in exactly the same way Codex or Claude
-would.
-:::
-
-## What is `audit-ticket-process`? {.content-slide}
-
-`audit-ticket-process` is a skill.
-
-It answers:
-
-* What has happened on this ticket?
-* What state is the ticket in?
-* What is the next valid action?
-
-It does **not** run the whole web workflow.
-
-::: notes
-This is a useful skill, but it is not the web-demo orchestrator. It is closer to
-a state inspector or diagnostic tool.
-:::
-
-## Why have an audit skill at all? {.content-slide}
-
-Because diagnostics are useful.
-
-`audit-ticket-process` can be run at any point:
-
-```bash
-uv run python skills/audit-ticket-process/scripts/audit_ticket_process.py \
-  --ticket-id TKT-00042
-```
-
-It reports state, timeline, and recommended next action.
-
-::: notes
-The audit skill can help a person or an agent understand where a ticket is. But
-the web demo uses `metadata.json` plus the orchestrator's own routing state.
-:::
-
-## The real web-demo flow {.content-slide}
-
-```mermaid
-sequenceDiagram
-  participant B as Browser
-  participant O as TicketWorkflowOrchestrator
-  participant S as Skill script
-  participant W as working CSVs
-
-  B->>O: POST /api/step
-  O->>O: read metadata.json
-  O->>S: subprocess run next skill
-  S->>W: append outputs
-  S-->>O: JSON envelope with next_action
-  O->>O: update metadata.json
-  O-->>B: workflow summary
-```
-
-::: notes
-This is a good slide to show when students ask "where is the AI workflow?" The
-workflow is the combination of orchestrator control flow plus skill scripts.
-:::
-
-## Why scripts instead of prompt-only skills? {.content-slide}
-
-For this class demo, deterministic scripts give us:
-
-* repeatable results
-* unit tests
-* visible input/output data
-* debugger-style stepping
-* a regression suite over 20 tickets
-
-Prompt-only skills are useful for instructions.
-Script-backed skills are useful for reliable workflow execution.
-
-::: notes
-This is not anti-AI. It is the right separation: AI can help create, explain,
-and operate the skills, but the teaching demo needs reproducible behavior.
-:::
-
-## The clean mental model {.section-slide}
-
-## Mental model {.content-slide}
+Expected path:
 
 ```text
-Orchestrator = workflow engine
-Skill script = worker
-SKILL.md = instruction manual loaded by an AI agent
-working CSVs = shared state and artifacts
-JSON envelope = handoff between worker and engine
+FAQ response sent
+-> customer rejects
+-> reopen and escalate
+-> specialist answer
+-> customer accepts
 ```
 
-::: notes
-This is the vocabulary I would keep using consistently in class.
-:::
+Business lesson:
 
-## How to demo this live {.content-slide}
-
-1. Start the server
-2. Open `http://127.0.0.1:8767`
-3. Pick an example ticket
-4. Click **Start Step Mode**
-5. Click **Next**
-6. Point to:
-   * current flow node
-   * narrative
-   * skill input/output
-   * next skill
+> Feedback loops need rules, ownership, and a stopping condition.
 
 ::: notes
-Students should see that each click runs one skill and updates the artifacts.
+This scenario makes the loop on the right side of the diagram concrete.
 :::
 
-## One command to show the suite {.content-slide}
+## Demo Scenario 4: Ambiguous Feedback {.content-slide}
+
+Example ticket:
+
+```text
+Feedback: ambiguous customer reply
+```
+
+Expected outcome:
+
+```text
+request_clarification
+```
+
+Business lesson:
+
+> When the signal is unclear, the right workflow action may be to pause.
+
+::: notes
+This is a governance point. Not every uncertain input should be forced into an
+automated decision.
+:::
+
+## Run the Scenario Suite {.content-slide}
+
+The repo includes 20 curated examples.
+
+Run them all:
 
 ```bash
 uv run python skills/summarize-workflow-suite/scripts/summarize_workflow_suite.py
 ```
 
-This runs 20 curated scenarios and writes:
+Open the HTML report:
 
 ```text
 /tmp/customer-ticket-process-suite-report.html
 ```
 
 ::: notes
-This is useful to show that the workflow is not only a one-off demo. The same
-orchestrator can run a scenario suite and summarize what happened.
+Explain this as quality control. A workflow should be tested against many
+scenarios, not just one successful demo.
 :::
 
-## Final distinction {.content-slide}
+## Build Your Own Workflow {.section-slide}
 
-* `scripts/ticket_web_demo.py`
-  * **the orchestrator**
-  * starts skills
-  * owns step mode
+## Step 1: Draw the Process {.content-slide}
 
-* `skills/audit-ticket-process/`
-  * **a diagnostic skill**
-  * inspects state
-  * recommends a next action
+Start the way this deck started:
 
-* `skills/<skill>/scripts/*.py`
-  * **executable code inside each skill package**
-  * do the work
-  * return `next_action`
+- who are the lanes?
+- what work happens in each lane?
+- where are the decisions?
+- where are the handoffs?
+- where can work loop back?
+- where must a human review?
 
 ::: notes
-This is the slide to end on if the goal is to clear up the confusion.
+Students should not start by coding. They should start with the workflow map.
+:::
+
+## Step 2: Identify Candidate Skills {.content-slide}
+
+Look for process boxes that:
+
+- have a clear trigger
+- use identifiable data
+- produce a useful handoff
+- can be evaluated
+- are repeated often enough to matter
+
+Avoid skills that are too broad, such as:
+
+```text
+Resolve the whole ticket
+```
+
+::: notes
+This is a practical heuristic for skill design.
+:::
+
+## Step 3: Define Skill Contracts {.content-slide}
+
+For each skill, write:
+
+```text
+Skill name:
+Input data:
+Output data:
+Decision rules:
+Next action:
+Human review trigger:
+Artifact written:
+```
+
+This is the minimum contract for a useful AI workflow step.
+
+::: notes
+This mirrors what the repo implements with working CSVs and JSON envelopes.
+:::
+
+## Step 4: Define Branches and Stops {.content-slide}
+
+Every workflow needs rules for:
+
+- success path
+- exception path
+- escalation path
+- customer or human feedback
+- ambiguous input
+- repeated failure
+- final close
+
+::: notes
+This is where management policy enters the system. A technical team should not
+invent these policies alone.
+:::
+
+## Step 5: Create Test Scenarios {.content-slide}
+
+Do not test only the happy path.
+
+Create examples for:
+
+- common routine case
+- high-priority case
+- no-match case
+- expert-review case
+- rejected answer
+- ambiguous answer
+- repeated failure
+
+In this repo, examples live in:
+
+```text
+scripts/ticket_scenarios.py
+```
+
+::: notes
+This reinforces the idea of an operational test portfolio.
+:::
+
+## Step 6: Add a Demo Interface {.content-slide}
+
+A good workflow demo should show:
+
+- current state
+- completed steps
+- branch decisions
+- data into and out of each skill
+- final output
+- where human judgment is required
+
+::: notes
+The web app is not just decoration. It is a teaching and debugging interface.
+:::
+
+## What to Ask Claude or Codex {.content-slide}
+
+Useful prompts:
+
+```text
+Explain this repo using slides/ticket-workflow-orchestration.qmd.
+```
+
+```text
+Walk me through the Human expert: billing API 502 scenario.
+For each step, name the skill, input, output, and next action.
+```
+
+```text
+Help me design a similar workflow for [loan approval / HR onboarding / claims].
+Use the skill design canvas from the deck.
+```
+
+::: notes
+This makes the deck usable as an LLM reference artifact.
+:::
+
+## Final Takeaway {.content-slide}
+
+The demo is not just "AI answers support tickets."
+
+It shows how to design an AI workflow:
+
+- map the process
+- split work into skills
+- define data handoffs
+- orchestrate the steps
+- make decisions visible
+- preserve human review
+- test realistic scenarios
+
+::: notes
+End on the management lesson: AI workflow design is process architecture plus
+governance, not only model selection.
 :::

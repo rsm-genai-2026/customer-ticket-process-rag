@@ -20,7 +20,7 @@ uv run python scripts/ticket_web_demo.py --host 127.0.0.1 --port 8767
 
 Then open `http://127.0.0.1:8767`. The step-mode view has Previous/Next controls, 20 example tickets, a prepared narrative with inline dynamic values, branch visualization, and a skill input/output panel that shows the exact fields each skill consumed and produced. See [`WEB_WORKFLOW_DEMO.md`](WEB_WORKFLOW_DEMO.md) for the orchestrator, endpoints, data isolation, branch visualization, example suite, and likely stall points.
 
-For a nontechnical classroom overview, open the rendered MBA slide deck at [`slides/mba-ticket-workflow-demo.html`](slides/mba-ticket-workflow-demo.html). The source is [`slides/mba-ticket-workflow-demo.qmd`](slides/mba-ticket-workflow-demo.qmd), and the LLM companion guide is [`MBA_DEMO_LLM_GUIDE.md`](MBA_DEMO_LLM_GUIDE.md).
+For a nontechnical classroom tutorial, open the rendered MBA slide deck at [`slides/ticket-workflow-orchestration.html`](slides/ticket-workflow-orchestration.html). The source is [`slides/ticket-workflow-orchestration.qmd`](slides/ticket-workflow-orchestration.qmd), and the LLM companion guide is [`MBA_DEMO_LLM_GUIDE.md`](MBA_DEMO_LLM_GUIDE.md).
 
 To run the scenario suite and generate an HTML report:
 
