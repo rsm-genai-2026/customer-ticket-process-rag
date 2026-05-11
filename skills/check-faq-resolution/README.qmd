@@ -38,8 +38,9 @@ Claude reads `SKILL.md`, runs the script, and reports the verdict plus the recom
 uv run python skills/check-faq-resolution/scripts/check_faq_resolution.py --ticket-id TKT-00042
 ```
 
-The script expects either `TRITONAI_API_KEY` or `OPENAI_API_KEY` in `.env`,
-`~/.env`, or the shell. Use `--model` to override the default model.
+The script expects `TRITONAI_API_KEY` in `.env`, `~/.env`, or the shell. It
+calls the model through `utils.connect.ask_json()`, the same helper used by the
+course examples. Use `--model` to override the default model.
 
 The script writes `data/working/faq_decisions.csv` and appends to `data/working/ticket_action_log.csv`.
 

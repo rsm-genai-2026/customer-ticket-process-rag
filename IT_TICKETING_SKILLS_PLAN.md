@@ -71,7 +71,7 @@ The skill-creation workflow is responsible for creating a concise, triggerable `
 frontmatter and instructions. The script-backed workflow below is still required because these skills must
 perform repeatable data operations, not just provide prose instructions.
 
-Each skill should follow the existing `skills/example/` pattern:
+Each skill should follow the ticketing skill pattern used in `skills/check-faq-resolution/`:
 
 ```text
 skills/<skill-name>/

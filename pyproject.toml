@@ -24,6 +24,7 @@ dev = [
 
 [tool.pytest.ini_options]
 pythonpath = ["."]
+testpaths = ["tests"]
 markers = [
     "integration: tests that make real network calls to the TritonAI API (skipped by default)",
 ]

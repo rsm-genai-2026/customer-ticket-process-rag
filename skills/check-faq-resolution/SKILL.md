@@ -14,12 +14,12 @@ Step 3 of the AI-assisted ticketing workflow. The ticket has just been triaged; 
 | `--ticket-id` | yes | The ticket to check. |
 | `--data-dir` | no (default `data`) | Source data dir. |
 | `--out-dir` | no (default `data/working`) | Where `faq_decisions.csv` is appended. |
-| `--model` | no | LLM model to use. Defaults to `FAQ_RESOLUTION_MODEL` or `gpt-4.1-mini`. |
+| `--model` | no | LLM model to use. Defaults to `FAQ_RESOLUTION_MODEL` or the repo default in `utils.connect`. |
 
 Required upstream data:
 
 - A triage decision in `data/working/triage_decisions.csv` for this ticket. In live mode this is required. Use `--mode demo` only when intentionally narrating seeded historical examples.
-- An API key in `.env`, `~/.env`, or the shell: `TRITONAI_API_KEY` for the classroom gateway, or `OPENAI_API_KEY` for a standard OpenAI account.
+- An API key in `.env`, `~/.env`, or the shell: `TRITONAI_API_KEY` for the classroom gateway.
 
 ## How to use this skill
 
@@ -48,6 +48,8 @@ The model receives a compact JSON prompt with:
 - Every active FAQ entry with its id, category, system, symptoms, solution steps, and required customer information.
 
 The model must return JSON with `faq_match_found`, `faq_id`, `confidence`, `required_customer_info_available`, `reason`, `ticket_evidence`, and `faq_evidence`.
+
+The script calls the model through `utils.connect.ask_json()` so students see the same LLM pattern used elsewhere in the repo.
 
 For production hardening ideas, see `IMPROVEMENT_IDEAS.md`. The main skill stays intentionally direct so students can understand the workflow before adding retrieval, calibration, redaction, or fallback logic.
 

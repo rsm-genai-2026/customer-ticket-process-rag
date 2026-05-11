@@ -136,10 +136,10 @@ If anything fails, follow the one-line fix Claude prints.
 
 **Deliverable 2 — build at least four skills (due May 7). At least two must include analytics** (charts, forecasting, statistics, etc.).
 
-1. Open [`skills/example/`](skills/example/) — it's a complete working skill you'll copy the layout from (`SKILL.md`, `scripts/`, `install.sh`, `README.qmd`, plus tests under `tests/skills/`). Ask:
-   > _"Explain how `skills/example` works."_
+1. Open [`skills/check-faq-resolution/`](skills/check-faq-resolution/) — it is a compact working skill with `SKILL.md`, `README.qmd`, `install.sh`, a script, and tests. Ask:
+   > _"Explain how `skills/check-faq-resolution` works."_
 2. For each of your four skills, pick one task from your Milestone 01 workflow and ask:
-   > _"Help me build a skill that does `<task>`. Use `skills/example/` as the template."_
+   > _"Help me build a skill that does `<task>`. Use `skills/check-faq-resolution/` as a simple template."_
 3. Review the draft with `/review`, then run the tests with `/run-tests`.
 4. Once a skill is finished, install it so Claude can use it on the next session:
 
@@ -162,7 +162,7 @@ If the push is rejected (e.g., a teammate pushed first), just say _"my push fail
 ### Where to find working examples in this repo
 
 - [`data/examples/`](data/examples/) — three tutorial Quarto (`.qmd`) files showing data simulation end-to-end with `numpy` + `polars`.
-- [`skills/example/`](skills/example/) — a complete sample skill. Mirror its layout for every skill you build.
+- [`skills/check-faq-resolution/`](skills/check-faq-resolution/) — a compact sample skill that shows the expected layout.
 - [`CLAUDE.md`](CLAUDE.md) — rules Claude already follows automatically: use `uv` for packages, use the approved data stack, and add tests for functions. You don't have to read it, but it explains why Claude makes certain choices.
 
 ## Content

@@ -18,6 +18,7 @@ works on a clean ``data/working/`` (no ``processed/`` fallback needed).
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import sys
 import uuid
@@ -28,6 +29,29 @@ import pytest
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 DATA_DIR = _REPO_ROOT / "data"
+
+FAQ_MATCH_JSON = json.dumps(
+    {
+        "faq_match_found": True,
+        "faq_id": "FAQ-001",
+        "confidence": 0.91,
+        "required_customer_info_available": True,
+        "reason": "Offline test fixture selected the FAQ branch.",
+        "ticket_evidence": "ticket id bucket",
+        "faq_evidence": "FAQ-001",
+    }
+)
+FAQ_NO_MATCH_JSON = json.dumps(
+    {
+        "faq_match_found": False,
+        "faq_id": "",
+        "confidence": 0.21,
+        "required_customer_info_available": False,
+        "reason": "Offline test fixture selected the specialist branch.",
+        "ticket_evidence": "ticket id bucket",
+        "faq_evidence": "",
+    }
+)
 
 SCRIPT_BY_SKILL = {
     "receive-ticket": "skills/receive-ticket/scripts/receive_ticket.py",
@@ -75,7 +99,14 @@ def _run(
     ]
     if extra:
         cmd.extend(extra)
-    result = subprocess.run(cmd, capture_output=True, text=True)
+    env = None
+    if skill == "check-faq-resolution":
+        ticket_number = int(ticket_id.rsplit("-", 1)[1])
+        env = {
+            **os.environ,
+            "FAQ_RESOLUTION_MOCK_JSON": FAQ_MATCH_JSON if ticket_number % 2 == 0 else FAQ_NO_MATCH_JSON,
+        }
+    result = subprocess.run(cmd, capture_output=True, text=True, env=env)
     assert result.returncode in (0, 2, 3), f"skill {skill} crashed unexpectedly:\n{result.stderr}"
     if not result.stdout.strip():
         raise AssertionError(f"skill {skill} produced no JSON output:\n{result.stderr}")

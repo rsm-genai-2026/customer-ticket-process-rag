@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib.util
+import json
 import sys
 from pathlib import Path
 
@@ -12,8 +13,33 @@ suite = importlib.util.module_from_spec(_spec)
 sys.modules[_spec.name] = suite
 _spec.loader.exec_module(suite)
 
+FAQ_MATCH_JSON = json.dumps(
+    {
+        "faq_match_found": True,
+        "faq_id": "FAQ-001",
+        "confidence": 0.91,
+        "required_customer_info_available": True,
+        "reason": "Offline test fixture selected the FAQ branch.",
+        "ticket_evidence": "test scenario",
+        "faq_evidence": "FAQ-001",
+    }
+)
+FAQ_NO_MATCH_JSON = json.dumps(
+    {
+        "faq_match_found": False,
+        "faq_id": "",
+        "confidence": 0.21,
+        "required_customer_info_available": False,
+        "reason": "Offline test fixture selected the specialist branch.",
+        "ticket_evidence": "test scenario",
+        "faq_evidence": "",
+    }
+)
 
-def test_suite_report_skill_runs_human_expert_scenario(tmp_path: Path) -> None:
+
+def test_suite_report_skill_runs_human_expert_scenario(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("FAQ_RESOLUTION_MOCK_JSON", FAQ_NO_MATCH_JSON)
+
     summary = suite.run_suite(
         work_root=tmp_path / "runs",
         scenario_id="human_expert_billing_api_502",
@@ -28,7 +54,9 @@ def test_suite_report_skill_runs_human_expert_scenario(tmp_path: Path) -> None:
     assert "Candidate FAQ after expert approval" in row["faq_candidate_note"]
 
 
-def test_suite_report_writes_html(tmp_path: Path) -> None:
+def test_suite_report_writes_html(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("FAQ_RESOLUTION_MOCK_JSON", FAQ_MATCH_JSON)
+
     summary = suite.run_suite(work_root=tmp_path / "runs", limit=2)
     report = suite.write_report(summary, tmp_path / "report.html")
 

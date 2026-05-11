@@ -28,7 +28,7 @@ Every function added or modified in this project must have one or more tests. Th
 
 ### Where tests live
 
-- `tests/` at the repo root. Mirror the source layout (e.g., `tests/skills/test_example.py` tests code under `skills/example/`).
+- `tests/` at the repo root. Mirror the source layout (e.g., `tests/skills/test_check_faq_resolution.py` tests code under `skills/check-faq-resolution/`).
 - Test files must be named `test_*.py` and test functions `test_*` so `pytest` discovers them.
 
 ### What a test must cover

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import csv
 import importlib.util
+import json
 import sys
 from pathlib import Path
 
@@ -12,6 +13,18 @@ assert _spec and _spec.loader
 ticket_web_demo = importlib.util.module_from_spec(_spec)
 sys.modules[_spec.name] = ticket_web_demo
 _spec.loader.exec_module(ticket_web_demo)
+
+FAQ_MATCH_JSON = json.dumps(
+    {
+        "faq_match_found": True,
+        "faq_id": "FAQ-001",
+        "confidence": 0.91,
+        "required_customer_info_available": True,
+        "reason": "Offline test fixture selected the FAQ branch.",
+        "ticket_evidence": "test ticket",
+        "faq_evidence": "FAQ-001",
+    }
+)
 
 
 def test_normalize_submission_applies_defaults() -> None:
@@ -101,7 +114,9 @@ def test_render_index_includes_example_ticket_dropdown() -> None:
     assert "human_expert_billing_api_502" in html
 
 
-def test_process_submission_generates_customer_response(tmp_path: Path) -> None:
+def test_process_submission_generates_customer_response(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("FAQ_RESOLUTION_MOCK_JSON", FAQ_MATCH_JSON)
+
     result = ticket_web_demo.process_submission(
         {
             "requester_name": "Avery Chen",
@@ -174,7 +189,9 @@ def test_step_mode_runs_one_skill_at_a_time(tmp_path: Path) -> None:
     assert first_step["skillIO"][0]["skill"] == "receive-ticket"
 
 
-def test_process_feedback_updates_flow_to_closed(tmp_path: Path) -> None:
+def test_process_feedback_updates_flow_to_closed(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("FAQ_RESOLUTION_MOCK_JSON", FAQ_MATCH_JSON)
+
     result = ticket_web_demo.process_submission(
         {
             "requester_name": "Avery Chen",

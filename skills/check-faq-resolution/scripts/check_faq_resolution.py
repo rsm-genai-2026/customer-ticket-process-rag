@@ -20,10 +20,11 @@ import json
 import os
 import sys
 from pathlib import Path
+from typing import Any
 
 import polars as pl
 from dotenv import load_dotenv
-from openai import OpenAI, OpenAIError
+from openai import OpenAIError
 
 _REPO_ROOT = Path(__file__).resolve().parents[3]
 if str(_REPO_ROOT) not in sys.path:
@@ -50,10 +51,12 @@ from skills.ticketing_common.ticketing_common import (  # noqa: E402
     replace_step_row,
     require_ticket,
 )
+from utils.connect import DEFAULT_MODEL as DEFAULT_LLM_MODEL  # noqa: E402
+from utils.connect import ask_json  # noqa: E402
 
 SKILL_NAME = "check-faq-resolution"
 FAQ_DECISIONS_TABLE = "faq_decisions"
-DEFAULT_MODEL = os.environ.get("FAQ_RESOLUTION_MODEL", "gpt-4.1-mini")
+DEFAULT_MODEL = os.environ.get("FAQ_RESOLUTION_MODEL", DEFAULT_LLM_MODEL)
 DRAFT_CONFIDENCE_THRESHOLD = 0.70
 
 
@@ -168,45 +171,26 @@ def _load_env() -> None:
     load_dotenv(Path.home() / ".env")
 
 
-def make_llm_client() -> OpenAI:
-    """Create an OpenAI-compatible client.
-
-    The classroom environment commonly uses ``TRITONAI_API_KEY``. Standard
-    OpenAI accounts can use ``OPENAI_API_KEY`` instead.
-    """
-
-    _load_env()
-    triton_key = os.environ.get("TRITONAI_API_KEY", "").strip()
-    if triton_key:
-        return OpenAI(api_key=triton_key, base_url="https://tritonai-api.ucsd.edu/v1")
-
-    openai_key = os.environ.get("OPENAI_API_KEY", "").strip()
-    if openai_key:
-        return OpenAI(api_key=openai_key)
-
-    raise RuntimeError("No TRITONAI_API_KEY or OPENAI_API_KEY found in environment, .env, or ~/.env.")
-
-
-def call_llm_for_faq_decision(context: dict, *, model: str = DEFAULT_MODEL, client: OpenAI | None = None) -> dict:
+def call_llm_for_faq_decision(context: dict, *, model: str = DEFAULT_MODEL, client: Any | None = None) -> dict:
     """Ask the LLM for the FAQ decision and return its raw JSON object."""
 
     mock_json = os.environ.get("FAQ_RESOLUTION_MOCK_JSON", "").strip()
     if mock_json:
         return json.loads(mock_json)
 
+    _load_env()
     prompt = build_llm_prompt(context)
-    client = client or make_llm_client()
-    response = client.chat.completions.create(
+    result = ask_json(
+        prompt,
         model=model,
-        messages=[
-            {"role": "system", "content": _system_prompt()},
-            {"role": "user", "content": prompt},
-        ],
+        system=_system_prompt(),
         temperature=0,
         max_tokens=900,
-        response_format={"type": "json_object"},
+        client=client,
     )
-    return json.loads(response.choices[0].message.content or "{}")
+    if not isinstance(result, dict):
+        raise TypeError("LLM did not return a JSON object.")
+    return result
 
 
 def _as_bool(value: object, *, default: bool = False) -> bool:
@@ -273,7 +257,7 @@ def normalize_llm_decision(raw: dict, valid_faq_ids: set[str]) -> dict:
     }
 
 
-def build_faq_decision_row(context: dict, *, model: str = DEFAULT_MODEL, client: OpenAI | None = None) -> dict:
+def build_faq_decision_row(context: dict, *, model: str = DEFAULT_MODEL, client: Any | None = None) -> dict:
     """Ask the LLM and build a row for ``faq_decisions.csv``."""
 
     raw = call_llm_for_faq_decision(context, model=model, client=client)
@@ -423,7 +407,7 @@ def main(argv: list[str] | None = None) -> int:
             message=str(exc),
             as_json=args.as_json,
         )
-    except (RuntimeError, json.JSONDecodeError, OpenAIError) as exc:
+    except (RuntimeError, ValueError, TypeError, json.JSONDecodeError, OpenAIError) as exc:
         return _emit_error(
             status_code=4,
             skill_name=SKILL_NAME,
