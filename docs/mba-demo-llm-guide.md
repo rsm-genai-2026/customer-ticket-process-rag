@@ -28,7 +28,7 @@ For a student-friendly overview, read:
 To run the browser demo:
 
 ```bash
-uv run python scripts/ticket_web_demo.py --host 127.0.0.1 --port 8767
+uv run python scripts/orchestrator.py --host 127.0.0.1 --port 8767
 ```
 
 Then open:
@@ -41,8 +41,8 @@ http://127.0.0.1:8767
 
 | File or folder | Why it matters |
 | --- | --- |
-| `scripts/ticket_web_demo.py` | The local web app and deterministic orchestrator. |
-| `scripts/ticket_scenarios.py` | The 20 example tickets used by the dropdown and scenario suite. |
+| `scripts/orchestrator.py` | The local web app and deterministic orchestrator. |
+| `data/examples/ticket_scenarios.py` | The 20 example tickets used by the dropdown and scenario suite. |
 | `skills/<skill>/SKILL.md` | Agent-loaded contract for the **two LLM skills**. |
 | `skills/<skill>/scripts/*.py` | The LLM-calling executables (FAQ, specialist). |
 | `automations/<name>/README.md` | What each deterministic automation does. |
@@ -57,16 +57,38 @@ http://127.0.0.1:8767
 
 **Skill** (Anthropic sense)
 : A folder under `skills/` with a `SKILL.md` that an LLM agent loads at
-runtime to decide *when* to invoke it. The script inside calls an LLM. Two
-qualify in this repo: `check-faq-resolution` and `investigate-specialist-solution`.
+runtime to decide *when* to invoke it. LLM judgement is involved every
+time. See *Runtime modes* below for who actually makes the LLM call.
 
 **Automation**
 : A deterministic Python script under `automations/<name>/`. No
 `SKILL.md`, no LLM call. Just rules, lookups, and templates. Driven by the
 orchestrator the same way a skill is.
 
+## Runtime Modes for Skills
+
+A skill runs in two different runtimes, and "who calls the LLM" is
+different in each:
+
+| Runtime | Who calls the LLM? | Practical use |
+| --- | --- | --- |
+| Inside an agent (Claude Code, Codex) | The agent itself could supply the LLM judgement — *or* it can just run the script, which makes its own LLM call. Both are valid Anthropic-style. | A student asks Claude Code "investigate TKT-…"; the agent finds the skill via `SKILL.md` and invokes it. |
+| Terminal / orchestrator / CI | **The script** — there is no agent in the loop, so the script must call the LLM directly (via `utils.connect.ask_json()`). | The web demo, `pytest`, or `uv run python skills/.../scripts/...`. |
+
+This repo's two skills (`check-faq-resolution` and
+`investigate-specialist-solution`) **always have the script call the LLM**,
+in both modes. That choice keeps the code path identical across runtimes —
+the same logic runs from terminal, web demo, tests (with mocked LLM via
+`FAQ_RESOLUTION_MOCK_JSON` / `SPECIALIST_INVESTIGATION_MOCK_JSON`), and
+from inside an agent.
+
+If you wanted a skill that *only* worked inside an agent — i.e. the agent
+supplies the LLM judgement and the script is purely a deterministic
+recorder — that's also a valid skill design. It just won't run from the
+web demo or pytest the way these two do.
+
 **Orchestrator**
-: The workflow engine in `scripts/ticket_web_demo.py`. It decides which step
+: The workflow engine in `scripts/orchestrator.py`. It decides which step
 to run next based on the previous step's explicit `next_action`.
 
 **Working data**
@@ -133,7 +155,7 @@ Use these examples from the dropdown:
 - `Feedback: ambiguous customer reply` for a clarification stall
 - `Edge: vague request false-positive FAQ` for a discussion about broad matching
 
-The source is `scripts/ticket_scenarios.py`.
+The source is `data/examples/ticket_scenarios.py`.
 
 ## Scenario Suite
 

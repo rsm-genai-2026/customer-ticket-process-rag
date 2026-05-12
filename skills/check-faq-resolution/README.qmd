@@ -15,15 +15,17 @@ decision, and the active FAQ table, then asks for a structured JSON decision.
 skills/check-faq-resolution/
 ├── SKILL.md
 ├── README.qmd
-├── install.sh
 └── scripts/
     └── check_faq_resolution.py
 ```
 
 ## Install
 
+The single repo-root `install.sh` registers every skill at once (auto-discovers
+any folder under `skills/` that has a `SKILL.md`):
+
 ```bash
-bash skills/check-faq-resolution/install.sh
+bash install.sh
 ```
 
 ## Usage through Claude

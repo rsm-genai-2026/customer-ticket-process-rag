@@ -13,9 +13,9 @@ Everything in here is synthetic. No real customers, tickets, or employees.
 ## Start here
 
 ```bash
-uv sync                                                      # install deps
-cp .env.example .env && $EDITOR .env                         # add TRITONAI_API_KEY
-uv run python scripts/ticket_web_demo.py --port 8767         # run the demo
+uv sync                                                   # install deps
+cp .env.example .env && $EDITOR .env                      # add TRITONAI_API_KEY
+uv run python scripts/orchestrator.py --port 8767         # run the demo
 ```
 
 Then open `http://127.0.0.1:8767`, pick an example ticket from the dropdown,
@@ -98,12 +98,19 @@ A skill folder under `skills/` looks like:
 skills/check-faq-resolution/
 ├── SKILL.md                          # agent-loaded contract: when to invoke
 ├── README.md                         # human-readable docs
-├── install.sh                        # symlinks the skill into .claude/skills/
 └── scripts/check_faq_resolution.py   # the executable (calls an LLM inside)
 ```
 
+All skills are registered with Claude Code at once by running the
+repo-root `install.sh`, which auto-discovers every folder under `skills/`
+that has a `SKILL.md` and symlinks it into `.claude/skills/<name>/`:
+
+```bash
+bash install.sh
+```
+
 An automation folder under `automations/` is simpler — there is no agent
-contract, so no `SKILL.md`:
+contract, so no `SKILL.md` and no install step:
 
 ```text
 automations/receive-ticket/
@@ -176,7 +183,7 @@ call into the shared helpers.
 
 ## The orchestrator
 
-The orchestrator is in `scripts/ticket_web_demo.py`. It is intentionally
+The orchestrator is in `scripts/orchestrator.py`. It is intentionally
 boring code, not a skill:
 
 1. Creates an isolated run folder under
@@ -226,7 +233,7 @@ the trail.
 
 ### Scenario suite
 
-The repo ships 20 curated example tickets in `scripts/ticket_scenarios.py`,
+The repo ships 20 curated example tickets in `data/examples/ticket_scenarios.py`,
 covering FAQ resolution, specialist escalation, rejection-then-rework,
 ambiguous feedback, and the loop-prevention edge case. Run them all:
 
@@ -253,8 +260,8 @@ data/
 Regenerate everything (deterministic for a given seed):
 
 ```bash
-uv run python scripts/generate_human_ticket_data.py --n-tickets 250 --seed 49502 --out-dir data
-uv run python scripts/validate_human_ticket_data.py --data-dir data
+uv run python data/generate_human_ticket_data.py --n-tickets 250 --seed 49502 --out-dir data
+uv run python data/validate_human_ticket_data.py --data-dir data
 ```
 
 The validator runs structural checks and exits non-zero on any failure. See

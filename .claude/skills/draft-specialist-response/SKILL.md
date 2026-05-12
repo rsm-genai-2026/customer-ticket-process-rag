@@ -1,1 +1,0 @@
-../../../skills/draft-specialist-response/SKILL.md

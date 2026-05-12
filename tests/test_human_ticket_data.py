@@ -12,8 +12,8 @@ import polars as pl
 import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-GENERATOR = REPO_ROOT / "scripts" / "generate_human_ticket_data.py"
-VALIDATOR = REPO_ROOT / "scripts" / "validate_human_ticket_data.py"
+GENERATOR = REPO_ROOT / "data" / "generate_human_ticket_data.py"
+VALIDATOR = REPO_ROOT / "data" / "validate_human_ticket_data.py"
 
 
 @pytest.fixture(scope="module")

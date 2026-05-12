@@ -43,7 +43,9 @@ from lib.ticketing_common import (  # noqa: E402
 
 SKILL_NAME = "draft-specialist-response"
 DRAFTS_TABLE = "customer_response_drafts"
-NEXT_ACTION = "send-customer-response"
+# The specialist branch now goes through a human-review gate before
+# sending. See automations/review-specialist-draft/.
+NEXT_ACTION = "review-specialist-draft"
 
 
 def load_specialist_response_context(
@@ -293,8 +295,7 @@ def main(argv: list[str] | None = None) -> int:
         f"  review required?   : {review_required}\n"
         f"  follow-up request  : {row['follow_up_request']}\n"
         f"\n--- draft ---\n{row['sent_text']}\n--- end draft ---\n"
-        f"\nNext valid action: {NEXT_ACTION}, then verify-feedback-close-or-reopen "
-        f"with the customer's reply."
+        f"\nNext valid action: {NEXT_ACTION} (supervisor reviews the draft before send)."
     )
 
     append_action_log(

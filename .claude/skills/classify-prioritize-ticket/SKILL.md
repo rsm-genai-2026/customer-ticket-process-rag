@@ -1,1 +1,0 @@
-../../../skills/classify-prioritize-ticket/SKILL.md

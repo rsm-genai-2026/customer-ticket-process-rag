@@ -18,8 +18,8 @@ _REPO_ROOT = Path(__file__).resolve().parents[3]
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
-from scripts.ticket_scenarios import EXAMPLE_TICKETS, scenario_by_id  # noqa: E402
-from scripts.ticket_web_demo import TicketWorkflowOrchestrator  # noqa: E402
+from data.examples.ticket_scenarios import EXAMPLE_TICKETS, scenario_by_id  # noqa: E402
+from scripts.orchestrator import TicketWorkflowOrchestrator  # noqa: E402
 
 DEFAULT_WORK_ROOT = Path("/tmp/customer-ticket-process-suite")
 DEFAULT_REPORT = Path("/tmp/customer-ticket-process-suite-report.html")
@@ -66,6 +66,34 @@ def _faq_candidate_note(scenario: dict, result: dict) -> str:
     return f"Specialist path completed: {root_cause}"
 
 
+def _auto_approve_hitl_gates(orchestrator: TicketWorkflowOrchestrator, workflow_run_id: str, current: dict) -> dict:
+    """Drive past supervisor-review gates for sweep/test runs.
+
+    The web demo pauses on ``review-specialist-draft`` and
+    ``approve-faq-promotion`` because a real supervisor must click. The
+    suite report is a synthetic sweep, not an interactive demo, so it
+    auto-approves both gates without edits to keep the end-to-end
+    summary running.
+    """
+
+    seen_gates: set[str] = set()
+    while True:
+        next_step = current.get("orchestrator", {}).get("nextStep", "")
+        if next_step in seen_gates:
+            # Defensive: never approve the same gate twice in a row.
+            return current
+        if next_step == "review-specialist-draft":
+            seen_gates.add(next_step)
+            current = orchestrator.review_specialist_draft(workflow_run_id, decision="approve")
+            seen_gates.discard(next_step)
+        elif next_step == "approve-faq-promotion":
+            seen_gates.add(next_step)
+            current = orchestrator.approve_faq_promotion(workflow_run_id, decision="approve")
+            seen_gates.discard(next_step)
+        else:
+            return current
+
+
 def run_scenario(scenario: dict, *, work_root: Path) -> dict:
     """Run one scenario through the orchestrator and return a report row."""
 
@@ -73,11 +101,13 @@ def run_scenario(scenario: dict, *, work_root: Path) -> dict:
     orchestrator = TicketWorkflowOrchestrator(work_root=work_root)
     first_response = orchestrator.run_until_response(scenario["payload"])
     workflow_run_id = first_response["workflowRunId"]
+    first_response = _auto_approve_hitl_gates(orchestrator, workflow_run_id, first_response)
     current = first_response
     feedback_actions: list[str] = []
 
     for feedback_text in scenario.get("feedback_sequence", []):
         current = orchestrator.process_feedback(workflow_run_id, feedback_text)
+        current = _auto_approve_hitl_gates(orchestrator, workflow_run_id, current)
         feedback_actions.append(current.get("feedback", {}).get("nextAction", ""))
 
     expected_branch = scenario.get("expected_initial_branch", "")
@@ -229,7 +259,7 @@ def render_html_report(summary: dict) -> str:
 </head>
 <body>
   <h1>Ticket Workflow Suite Report</h1>
-  <p>Generated from the curated examples in <code>scripts/ticket_scenarios.py</code>.</p>
+  <p>Generated from the curated examples in <code>data/examples/ticket_scenarios.py</code>.</p>
   <div class="summary">
     <div class="metric"><span>Scenarios</span><strong>{summary["scenario_count"]}</strong></div>
     <div class="metric"><span>Passed</span><strong>{summary["passed_count"]}</strong></div>

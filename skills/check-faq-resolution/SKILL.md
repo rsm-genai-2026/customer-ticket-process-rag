@@ -7,6 +7,15 @@ description: Decide whether a ticket can be resolved using an existing FAQ entry
 
 Step 3 of the AI-assisted ticketing workflow. The ticket has just been triaged; now the skill asks an LLM whether the FAQ knowledge base contains a direct resolution. The script in `scripts/check_faq_resolution.py` sends the ticket, triage decision, and active FAQ entries to the model and requires a JSON answer.
 
+## Runtime modes
+
+The same script runs in two settings:
+
+- **Terminal / orchestrator / CI**: there is no agent in the loop. The script calls the LLM itself via `utils.connect.ask_json()` (against TritonAI) so the workflow can run end-to-end without an agent.
+- **Inside an agent (Claude Code, Codex)**: the agent loads this `SKILL.md`, decides the skill applies, and runs the same script as a subprocess. The script still makes the LLM call itself — keeping the code path identical across both runtimes is intentional, so the same tests and the same web demo exercise the same logic.
+
+For offline tests, set `FAQ_RESOLUTION_MOCK_JSON` to a JSON string and the script will return that verbatim instead of calling the model.
+
 ## What the script needs
 
 | Input | Required | What it is |
@@ -61,3 +70,14 @@ Run the script, then say something like:
 - Match: yes — `FAQ-001`, confidence 0.91.
 - Required customer info available: true.
 - Next: draft an FAQ-based response with `draft-faq-response`.
+
+## Alternatively, via MCP
+
+If the optional MCP exhibit is wired into your client (see `mcp_exhibit/README.md`),
+the same decision is available without invoking the script directly:
+
+> Call the `check_faq_resolution` MCP tool with `ticket_id="TKT-00042"`.
+
+The tool wraps this exact script in `--mode demo` and returns the same JSON
+envelope. The orchestrator path stays canonical; MCP is only there as an
+alternative front door for an LLM client (e.g. Claude Desktop).

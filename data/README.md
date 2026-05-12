@@ -12,13 +12,13 @@ data/
 Regenerate everything (run from the repo root):
 
 ```bash
-uv run python scripts/generate_human_ticket_data.py --n-tickets 250 --seed 49502 --out-dir data
+uv run python data/generate_human_ticket_data.py --n-tickets 250 --seed 49502 --out-dir data
 ```
 
 Validate everything:
 
 ```bash
-uv run python scripts/validate_human_ticket_data.py --data-dir data
+uv run python data/validate_human_ticket_data.py --data-dir data
 ```
 
 > All data is synthetic. No real customers, employees, or systems.

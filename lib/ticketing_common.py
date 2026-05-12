@@ -201,7 +201,7 @@ def read_csv(data_dir: Path, rel: str) -> pl.DataFrame:
     if not path.exists():
         raise FileNotFoundError(
             f"required data file is missing: {path}. "
-            f"Run `uv run python scripts/generate_human_ticket_data.py` to regenerate."
+            f"Run `uv run python data/generate_human_ticket_data.py` to regenerate."
         )
     return pl.read_csv(path)
 

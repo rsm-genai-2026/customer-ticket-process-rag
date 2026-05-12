@@ -84,11 +84,15 @@ If the upstream `missing_information_flag` is true, the confidence is capped
 at `0.60` regardless of what the model returned — so a ticket with missing
 reproduction details always lands in human review.
 
-## Testing offline
+## Runtime modes
 
-Set `SPECIALIST_INVESTIGATION_MOCK_JSON` to a JSON string and the script will
-return it verbatim instead of calling an LLM. The full test suite uses this
-to exercise the skill without a network round-trip.
+The same script runs in two settings:
+
+- **Terminal / orchestrator / CI**: there is no agent in the loop. The script calls the LLM itself via `utils.connect.ask_json()` (against TritonAI) so the workflow can run end-to-end without an agent.
+- **Inside an agent (Claude Code, Codex)**: the agent loads this `SKILL.md`, decides the skill applies, and runs the same script as a subprocess. The script still makes the LLM call itself — keeping the code path identical across both runtimes is intentional, so the same tests and the same web demo exercise the same logic.
+
+For offline tests, set `SPECIALIST_INVESTIGATION_MOCK_JSON` to a JSON string
+and the script will return that verbatim instead of calling the model.
 
 ## Example
 
@@ -103,3 +107,14 @@ Run the script, then report something like:
   Reply if the issue persists."
 - Confidence: 0.78 (or capped to 0.60 if missing info was flagged).
 - Next: `draft-specialist-response`.
+
+## Alternatively, via MCP
+
+If the optional MCP exhibit is wired into your client (see `mcp_exhibit/README.md`),
+the same investigation is available without invoking the script directly:
+
+> Call the `investigate_specialist_solution` MCP tool with `ticket_id="TKT-00042"`.
+
+The tool wraps this exact script in `--mode demo` and returns the same JSON
+envelope. The orchestrator path stays canonical; MCP is only there as an
+alternative front door for an LLM client (e.g. Claude Desktop).

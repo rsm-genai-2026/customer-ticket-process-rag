@@ -14,6 +14,7 @@ dependencies = [
     "ipython>=8.0",
     "requests>=2.32",
     "pyarrow>=17",
+    "mcp>=1.27.1",
 ]
 
 [dependency-groups]

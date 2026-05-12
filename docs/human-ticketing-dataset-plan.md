@@ -102,7 +102,7 @@ Implementation notes:
 
 ### 1. Build the Data Generator
 
-Create `scripts/generate_human_ticket_data.py`.
+Create `data/generate_human_ticket_data.py`.
 
 The script should:
 
@@ -121,7 +121,7 @@ The script should:
 Example command:
 
 ```bash
-python scripts/generate_human_ticket_data.py --n-tickets 250 --seed 49502
+python data/generate_human_ticket_data.py --n-tickets 250 --seed 49502
 ```
 
 ### 2. Define Reference Dictionaries
@@ -535,7 +535,7 @@ Generation logic:
 
 ## Data Quality Constraints
 
-Implement validation checks in `scripts/validate_human_ticket_data.py`.
+Implement validation checks in `data/validate_human_ticket_data.py`.
 
 Required checks:
 
@@ -570,7 +570,7 @@ The validation script should exit with a nonzero status if checks fail.
 Example command:
 
 ```bash
-python scripts/validate_human_ticket_data.py --data-dir data
+python data/validate_human_ticket_data.py --data-dir data
 ```
 
 ## README Requirements
@@ -656,9 +656,9 @@ Specialist solution examples:
 
 Claude Code implementation is complete when:
 
-1. `python scripts/generate_human_ticket_data.py --n-tickets 250 --seed 49502` runs successfully.
+1. `python data/generate_human_ticket_data.py --n-tickets 250 --seed 49502` runs successfully.
 2. All files listed in the deliverables are created.
-3. `python scripts/validate_human_ticket_data.py --data-dir data` passes.
+3. `python data/validate_human_ticket_data.py --data-dir data` passes.
 4. `pytest tests/test_human_ticket_data.py` passes.
 5. `README.md` and `data/README.md` explain the datasets clearly.
 6. The generated data visibly represents the **human** workflow, including human IT triage, FAQ lookup, specialist escalation, customer messaging, acceptance/rejection, and closure.

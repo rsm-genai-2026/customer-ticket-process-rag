@@ -1,7 +1,7 @@
 # summarize-workflow-suite
 
 A meta-automation that runs the 20 curated example scenarios from
-`scripts/ticket_scenarios.py` through the workflow orchestrator and writes an
+`data/examples/ticket_scenarios.py` through the workflow orchestrator and writes an
 HTML report. Useful as a regression check and as a teaching artifact ("show me
 how the workflow performs across a portfolio of cases").
 

@@ -1,1 +1,0 @@
-../../../skills/draft-faq-response/SKILL.md

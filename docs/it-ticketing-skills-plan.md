@@ -8,11 +8,11 @@ This plan is for Claude Code to implement skills that automate the IT ticketing 
 The data is good to go. It has already been regenerated after the workflow-detail fields were added.
 
 All files under `data/raw/`, `data/processed/`, and `data/dictionaries/` must be treated as generated
-artifacts from `scripts/generate_human_ticket_data.py`. Do not manually edit those CSV files. If the data
+artifacts from `data/generate_human_ticket_data.py`. Do not manually edit those CSV files. If the data
 needs to change, update the generator, update the validator/tests, and regenerate with:
 
 ```bash
-uv run python scripts/generate_human_ticket_data.py --n-tickets 250 --seed 49502 --out-dir data
+uv run python data/generate_human_ticket_data.py --n-tickets 250 --seed 49502 --out-dir data
 ```
 
 The manually authored/maintained files are the generator, validator, tests, documentation, examples, and
@@ -21,7 +21,7 @@ skill source files. The generated CSVs are outputs, not source of truth.
 Current validation command:
 
 ```bash
-uv run python scripts/validate_human_ticket_data.py --data-dir data
+uv run python data/validate_human_ticket_data.py --data-dir data
 ```
 
 Expected result:
@@ -33,7 +33,7 @@ Validation summary: 62 passed, 0 failed.
 Do not regenerate data unless one of these is true:
 
 - The workflow PDF changes.
-- The required schema in `scripts/validate_human_ticket_data.py` changes.
+- The required schema in `data/validate_human_ticket_data.py` changes.
 - A skill needs a missing field that cannot be derived reliably from the existing CSVs.
 
 Use only standard Python libraries, `numpy`, and `polars`. Do not add dataframe, plotting, or analytics libraries beyond this stack.
@@ -77,13 +77,16 @@ Each skill should follow the ticketing skill pattern used in `skills/check-faq-r
 skills/<skill-name>/
 ├── SKILL.md
 ├── README.qmd
-├── install.sh
 └── scripts/
     └── <skill_name>.py
 
 tests/skills/
 └── test_<skill_name>.py
 ```
+
+A single `install.sh` at the repo root auto-discovers every folder under
+`skills/` with a `SKILL.md` and symlinks it into `.claude/skills/`. Skill
+authors do not write their own install script.
 
 Implementation rules:
 
@@ -157,14 +160,14 @@ Minimum commands after each skill:
 
 ```bash
 uv run pytest tests/skills/test_<skill_name>.py
-uv run python scripts/validate_human_ticket_data.py --data-dir data
+uv run python data/validate_human_ticket_data.py --data-dir data
 ```
 
 Minimum commands before declaring the full skills implementation complete:
 
 ```bash
 uv run pytest
-uv run python scripts/validate_human_ticket_data.py --data-dir data
+uv run python data/validate_human_ticket_data.py --data-dir data
 rg -n "<disallowed dataframe library name>" .
 ```
 
@@ -831,12 +834,12 @@ uv run python skills/audit-ticket-process/scripts/audit_ticket_process.py --tick
 
 The skills implementation is complete when:
 
-- Each skill has `SKILL.md`, `README.qmd`, `install.sh`, script, and tests.
+- Each skill has `SKILL.md`, `README.qmd`, script, and tests. (The repo-root `install.sh` registers all of them at once.)
 - All scripts run from the repo root with `uv run python`.
 - No script overwrites source data.
 - `data/working/` is created automatically when needed.
 - Every workflow step can be executed through one of the skills.
 - `audit-ticket-process` can identify the next valid action.
 - `uv run pytest` passes.
-- `uv run python scripts/validate_human_ticket_data.py --data-dir data` still passes.
+- `uv run python data/validate_human_ticket_data.py --data-dir data` still passes.
 - Repository search for disallowed dataframe-library references returns no matches.

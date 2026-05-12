@@ -56,6 +56,12 @@ NEXT_ACTION_BY_DECISION = {
     "request_clarification": "request_clarification",
 }
 
+# When the customer accepts a specialist solution we route through the
+# FAQ-promotion gate instead of straight to audit. FAQ-branch closes
+# stay on the audit path because the answer already came from an
+# existing FAQ entry.
+SPECIALIST_BRANCH_CLOSE_NEXT_ACTION = "draft-faq-candidate"
+
 POSITIVE_PHRASES = [
     "fixed",
     "fixed it",
@@ -355,6 +361,8 @@ def main(argv: list[str] | None = None) -> int:
     )
 
     next_action_for_orchestrator = NEXT_ACTION_BY_DECISION.get(row["next_action"], "audit-ticket-process")
+    if row["next_action"] == "close_ticket" and context["draft"].get("message_source") == "specialist_solution":
+        next_action_for_orchestrator = SPECIALIST_BRANCH_CLOSE_NEXT_ACTION
     next_hint_text = {
         "close_ticket": "Run audit-ticket-process to confirm the closed state.",
         "reopen_and_escalate": "Run escalate-to-specialist for re-investigation.",

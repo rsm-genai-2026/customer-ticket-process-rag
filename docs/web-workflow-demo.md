@@ -8,7 +8,7 @@ This repo includes a local web demo for the customer-ticket workflow. It lets a 
 Run it from the repo root:
 
 ```bash
-uv run python scripts/ticket_web_demo.py --host 127.0.0.1 --port 8767
+uv run python scripts/orchestrator.py --host 127.0.0.1 --port 8767
 ```
 
 Open:
@@ -19,7 +19,7 @@ http://127.0.0.1:8767
 
 ## Where the Orchestrator Is
 
-The orchestrator is `TicketWorkflowOrchestrator` in `scripts/ticket_web_demo.py`.
+The orchestrator is `TicketWorkflowOrchestrator` in `scripts/orchestrator.py`.
 
 It is deliberately small. The skills remain the source of truth for decisions. The orchestrator does four things:
 
@@ -39,13 +39,12 @@ The repo splits the ten workflow steps into two folders:
   agent (Claude Code, Codex) loads at runtime to decide when to invoke the
   skill, plus an executable script the agent runs.
 - **`automations/`** — the seven deterministic steps. Each has just a
-  `README.md` (no `SKILL.md`, no `install.sh`) plus an executable script.
-  The orchestrator runs them directly; there is nothing for an LLM agent
-  to decide.
+  `README.md` (no `SKILL.md`) plus an executable script. The orchestrator
+  runs them directly; there is nothing for an LLM agent to decide.
 
 The browser demo is not an LLM agent: it does not load any `SKILL.md` at
 runtime. It runs the scripts from both folders as subprocesses based on
-the lookup table `STEP_SCRIPTS` in `scripts/ticket_web_demo.py`. Two
+the lookup table `STEP_SCRIPTS` in `scripts/orchestrator.py`. Two
 of those subprocess calls — `check-faq-resolution` and
 `investigate-specialist-solution` — go on to make a real LLM call.
 
@@ -121,11 +120,11 @@ changed without re-running it. When the viewer is already on the newest snapshot
 
 The `/api/step` response includes:
 
-- `orchestrator.nextSkill`
-- `orchestrator.nextSkillLabel`
+- `orchestrator.nextStep`
+- `orchestrator.nextStepLabel`
 - `orchestrator.lastStep.summary`
 - `narrative`
-- `skillIO`
+- `stepIO`
 - `flow.nodes`
 - `flow.branches`
 - `steps`
@@ -135,7 +134,7 @@ This is what drives the debugger-style panel in the UI.
 ## Example Tickets
 
 The ticket form has an **Example Ticket** dropdown backed by
-`scripts/ticket_scenarios.py`. Selecting one example fills the form and resets
+`data/examples/ticket_scenarios.py`. Selecting one example fills the form and resets
 the workflow view. The catalog has 20 examples covering:
 
 - direct FAQ resolution
@@ -154,7 +153,7 @@ inline code in RMarkdown. The browser renders code-style parts as small
 monospace chips, for example `check-faq-resolution`, the matched `faq_id`, or
 the next skill name.
 
-The `skillIO` payload shows the explicit data contract for each completed skill:
+The `stepIO` payload shows the explicit data contract for each completed skill:
 
 - the skill name and label
 - the important input fields read by that skill
@@ -209,7 +208,7 @@ The workflow is most likely to stall when:
 
 - a skill's required upstream CSV row is missing, such as FAQ check before
   triage
-- a skill returns a `next_action` that is not registered in `SKILL_SCRIPTS`
+- a skill returns a `next_action` that is not registered in `STEP_SCRIPTS`
 - the workflow reaches `verify-feedback-close-or-reopen` and no customer
   feedback text is available
 - feedback is ambiguous, which routes to `request_clarification`

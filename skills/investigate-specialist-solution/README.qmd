@@ -14,15 +14,17 @@ escalated ticket.
 skills/investigate-specialist-solution/
 ├── SKILL.md
 ├── README.qmd
-├── install.sh
 └── scripts/
     └── investigate_specialist_solution.py
 ```
 
 ## Install
 
+The single repo-root `install.sh` registers every skill at once (auto-discovers
+any folder under `skills/` that has a `SKILL.md`):
+
 ```bash
-bash skills/investigate-specialist-solution/install.sh
+bash install.sh
 ```
 
 ## Usage through Claude

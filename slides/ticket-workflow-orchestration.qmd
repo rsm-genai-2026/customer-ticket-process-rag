@@ -15,9 +15,9 @@ execute:
 ```{python}
 #| tags: [parameters]
 title = "Building an AI Ticket Workflow"
-subtitle = "Skills first, then orchestration and the demo"
+subtitle = "Skills, Automations, MCP, Orchestration, and a Demo"
 author = "Professor Vincent R. Nijs"
-program = "Rady MBA / MSBA"
+program = "Rady School of Management, UC San Diego"
 repo = "customer-ticket-process"
 ```
 
@@ -53,7 +53,7 @@ make the business process visible and testable.
 
 ## The Process We Are Automating {.content-slide}
 
-![](assets/customer-ticket-process-genai-page-2.png){fig-alt="Swimlane diagram for customer support ticket resolution" width="100%"}
+![](assets/customer-ticket-process-genai-page-2.png){fig-alt="Swimlane diagram for customer support ticket resolution" .width-full}
 
 ::: notes
 This is the anchor diagram for the whole deck. It has three lanes: User, GenAI
@@ -64,11 +64,11 @@ Assistant, and IT specialist. The repo turns this picture into a working demo.
 
 The diagram shows:
 
-- **lanes**: who owns each action
-- **boxes**: work to be done
-- **diamonds**: decisions or branch points
-- **arrows**: handoffs from one step to the next
-- **loops**: what happens when the first answer is rejected
+- **lanes**: Who owns each action
+- **boxes**: Work to be done
+- **diamonds**: Decisions or branch points
+- **arrows**: Handoffs from one step to the next
+- **loops**: What happens when the first answer is rejected
 
 Which steps can AI handle, which steps need human review, and how do we keep the handoffs visible?
 
@@ -79,25 +79,17 @@ code. Start with roles, work, decisions, and handoffs.
 
 ## The Three Lanes {.content-slide}
 
-:::::: columns
-::: {.column width="32%"}
 **User**
 
 Submits the ticket and later accepts or rejects the answer.
-:::
 
-::: {.column width="36%"}
 **GenAI Assistant**
 
 Receives, classifies, checks FAQ, drafts, sends, and closes routine work.
-:::
 
-::: {.column width="32%"}
 **IT Specialist**
 
 Handles cases where the issue needs expert diagnosis or approval.
-:::
-::::::
 
 ::: notes
 The workflow is not "AI does everything." It is an AI-assisted process with
@@ -113,33 +105,57 @@ slide in this deck.
 
 **Skill** (Anthropic definition)
 
-: A folder with `SKILL.md` that an LLM agent loads to decide *when* to
-invoke it. The script inside **calls an LLM** to do the work.
+A folder with `SKILL.md` that an LLM agent loads to decide *when* to
+invoke it. **LLM judgement happens on every run** — either the agent
+itself supplies it, or the script inside calls an LLM directly.
 
 **Automation**
 
-: A deterministic script that runs without an LLM. Rule-based code,
-table lookups, templates. The orchestrator runs it; no agent needed.
+A deterministic script that runs without an LLM. Rule-based code,
+table lookups, templates. The orchestrator runs it and no agent is needed.
 
 ::: notes
 Both produce the same kind of JSON envelope so the orchestrator can drive
 them identically. The difference is purely about where AI judgement lives.
 :::
 
-## Where Does the AI Actually Live? {.content-slide}
+## A Skill Has Two Runtime Modes {.content-slide}
+
+The same skill folder runs in two settings:
+
+| Runtime | Who provides the LLM? | What the script does |
+| --- | --- | --- |
+| Inside an agent (Claude Code, Codex) | The agent itself | Could be deterministic — agent reads `SKILL.md`, supplies the judgement, the script just records the result |
+| Terminal / orchestrator / CI | (no agent in the loop) | **Script must call the LLM itself** (e.g. via `utils.connect.ask_json()`) |
+
+This repo's two skills take the second approach in both modes — they
+always call the LLM themselves. That means the **same code path** runs
+from terminal, the web demo, the test suite (mocked), and from an LLM
+agent. One set of code, one set of tests.
+
+::: notes
+The classroom takeaway: a skill is "an agent-invocable procedure", not
+"a script that always contains an LLM call." Two valid design choices
+for where the LLM judgement happens. We picked the path that keeps the
+demo testable offline.
+:::
+
+## Where Does AI Live? {.content-slide}
 
 This repo has ten workflow steps. **Only two are skills:**
 
 `skills/check-faq-resolution/`
 
-: An LLM decides whether the FAQ knowledge base resolves the ticket.
+An LLM decides whether the FAQ knowledge base resolves the ticket.
 
 `skills/investigate-specialist-solution/`
 
-: An LLM acts as the assigned specialist and produces a diagnosis plus
+An LLM acts as the assigned specialist and produces a diagnosis plus
 customer-safe action.
 
-The other eight live under `automations/` — receive, classify, escalate,
+## Where Does AI NOT Live? {.content-slide}
+
+The other steps live under `automations/` — receive, classify, escalate,
 draft FAQ response, draft specialist response, send, verify feedback,
 audit. All deterministic.
 
@@ -147,9 +163,9 @@ That is on purpose:
 
 - AI earns its keep on **genuine judgement** — the FAQ-or-not call, the
   specialist diagnosis. Both are easy to verify when wrong.
-- Deterministic steps are trivially testable and give an auditable rationale
+- Deterministic steps are easily testable and give an auditable rationale
   instead of "the model said so."
-- "AI-assisted workflow" ≠ "every step is an LLM call."
+- "AI-assisted workflow" ≠ "Every step is an LLM call."
 
 ::: notes
 This is the management lesson: GenAI adoption should target the
@@ -164,20 +180,20 @@ skills/                         # only LLM-based steps
 ├── check-faq-resolution/
 │   ├── SKILL.md                  # agent contract
 │   ├── README.md
-│   ├── install.sh                # links into .claude/skills/
 │   └── scripts/
 └── investigate-specialist-solution/
     ├── SKILL.md
     ├── README.md
-    ├── install.sh
     └── scripts/
 
 automations/                    # deterministic steps
 ├── receive-ticket/
-│   ├── README.md                 # no SKILL.md, no install.sh
+│   ├── README.md                 # no SKILL.md
 │   └── scripts/
 ├── classify-prioritize-ticket/
 ├── …
+
+install.sh                      # one root script registers all skills
 ```
 
 The folder is the signal: if it has `SKILL.md`, an LLM agent can load it.
@@ -186,6 +202,8 @@ If it doesn't, the step is plain Python and nothing more.
 ::: notes
 The split makes the AI surface area legible to a non-technical reviewer.
 You can answer "where is AI used?" by listing the folders under `skills/`.
+A single `bash install.sh` at the repo root symlinks every skill into
+`.claude/skills/` — auto-discovered from `skills/*/SKILL.md`.
 :::
 
 ## Why Not One Big AI Prompt? {.content-slide}
@@ -381,9 +399,10 @@ A **skill** folder has the agent contract:
 skills/check-faq-resolution/
   SKILL.md                       # when to invoke (agent reads this)
   README.md
-  install.sh
   scripts/check_faq_resolution.py   # calls an LLM
 ```
+
+All skills are registered with one `bash install.sh` at the repo root.
 
 An **automation** folder is simpler — no agent contract:
 
@@ -451,18 +470,14 @@ Process governance ≈ the envelope. Anything you want oversight on goes here.
 
 ## What Is the Orchestrator? {.content-slide}
 
-The orchestrator is the workflow manager.
+The orchestrator is the workflow manager. It does not classify, draft, or solve tickets. It does:
 
-It does not classify, draft, or solve tickets.
-
-It does:
-
-- remember which skill is next
-- run one skill at a time
-- pass the right ticket and run IDs
-- read the skill's `next_action`
-- pause when customer or human input is needed
-- update the web page
+- Remember which skill is next
+- Run one skill at a time
+- Pass the right ticket and run IDs
+- Read the skill's `next_action`
+- Pause when customer or human input is needed
+- Update the web page
 
 ::: notes
 This is the answer to the earlier confusion: the orchestrator is not a domain
@@ -475,11 +490,11 @@ The orchestrator is code because control flow must be predictable.
 
 It should be:
 
-- boring
-- explicit
-- testable
-- repeatable
-- easy to debug
+- BORING
+- Explicit
+- Testable
+- Repeatable
+- Easy to debug
 
 The skills can contain business logic. The orchestrator should not improvise
 the route.
@@ -491,17 +506,14 @@ controller. The skills are the specialized work teams.
 
 ## The Mental Model {.content-slide}
 
-```text
-Orchestrator = workflow engine
-Skill = focused work unit
-Working CSVs = shared case file
-JSON envelope = handoff note
-Web page = control room dashboard
-```
+* Orchestrator: workflow engine
+* Skill: Focused work unit
+* Working CSVs: Shared case file
+* JSON envelope: Handoff note
+* Web page: Control room dashboard
 
 ::: notes
-Use this vocabulary consistently. It helps students distinguish process design,
-execution, data, and user interface.
+Use this vocabulary consistently. It helps students distinguish process design, execution, data, and user interface.
 :::
 
 ## How Skills Talk to the Orchestrator {.content-slide}
@@ -526,8 +538,8 @@ and what should happen next.
 
 ## Orchestration Loop {.content-slide}
 
-```mermaid
-flowchart LR
+```{mermaid}
+flowchart TD
   A[Current state] --> B[Run next skill]
   B --> C[Skill writes output]
   C --> D[Skill returns next_action]
@@ -546,7 +558,7 @@ This is the engine behind the step-by-step demo.
 In this repo:
 
 ```text
-scripts/ticket_web_demo.py
+scripts/orchestrator.py
 ```
 
 Key object:
@@ -558,7 +570,7 @@ TicketWorkflowOrchestrator
 What to ask Claude/Codex:
 
 ```text
-Open scripts/ticket_web_demo.py and explain TicketWorkflowOrchestrator
+Open scripts/orchestrator.py and explain TicketWorkflowOrchestrator
 to me using the workflow diagram.
 ```
 
@@ -574,7 +586,7 @@ control layer is and what to ask an assistant to explain.
 From the repo folder:
 
 ```bash
-uv run python scripts/ticket_web_demo.py --host 127.0.0.1 --port 8767
+uv run python scripts/orchestrator.py --host 127.0.0.1 --port 8767
 ```
 
 Then open:
@@ -835,7 +847,7 @@ Create examples for:
 In this repo, examples live in:
 
 ```text
-scripts/ticket_scenarios.py
+data/examples/ticket_scenarios.py
 ```
 
 ::: notes

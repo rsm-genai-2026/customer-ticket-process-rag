@@ -51,11 +51,24 @@ SPECIALIST_SOLUTION_JSON = json.dumps(
         "reason": "Offline test fixture for the specialist branch.",
     }
 )
+FAQ_CANDIDATE_JSON = json.dumps(
+    {
+        "category": "billing_account",
+        "system_name": "Billing System",
+        "issue_pattern": "billing_api_502_after_invoice_post",
+        "symptoms": ["502 from billing API", "Invoice post fails", "Retry succeeds intermittently"],
+        "solution_steps": ["Retry the request once", "If still failing, contact billing on-call"],
+        "required_customer_info": ["Invoice id", "Timestamp"],
+        "confidence": 0.78,
+        "reasoning": "Offline test fixture for FAQ candidate.",
+    }
+)
 
 
 def test_suite_report_skill_runs_human_expert_scenario(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("FAQ_RESOLUTION_MOCK_JSON", FAQ_NO_MATCH_JSON)
     monkeypatch.setenv("SPECIALIST_INVESTIGATION_MOCK_JSON", SPECIALIST_SOLUTION_JSON)
+    monkeypatch.setenv("FAQ_CANDIDATE_MOCK_JSON", FAQ_CANDIDATE_JSON)
 
     summary = suite.run_suite(
         work_root=tmp_path / "runs",

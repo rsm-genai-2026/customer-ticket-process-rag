@@ -1,1 +1,0 @@
-../../../skills/escalate-to-specialist/SKILL.md
