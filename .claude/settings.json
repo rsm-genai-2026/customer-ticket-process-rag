@@ -74,7 +74,7 @@
       {
         "_comment": "Log every student prompt into .claude/usage-log/ for instructor review. File contents and tool results are never logged.",
         "hooks": [
-          { "type": "command", "command": "bash .claude/hooks/usage-log.sh" }
+          { "type": "command", "command": "bash $CLAUDE_PROJECT_DIR/.claude/hooks/usage-log.sh" }
         ]
       }
     ],
@@ -83,15 +83,15 @@
         "_comment": "Log every tool call (tool name + short summary only; never the tool's input contents or its output).",
         "matcher": ".*",
         "hooks": [
-          { "type": "command", "command": "bash .claude/hooks/usage-log.sh" }
+          { "type": "command", "command": "bash $CLAUDE_PROJECT_DIR/.claude/hooks/usage-log.sh" }
         ]
       },
       {
         "_comment": "Before every `git commit`: auto-stage the usage log so it ships with the commit, then scan staged files for secret-like patterns (API keys, private keys, .env files).",
         "matcher": "Bash",
         "hooks": [
-          { "type": "command", "command": "bash .claude/hooks/auto-stage-log.sh", "if": "Bash(git commit:*)" },
-          { "type": "command", "command": "bash .claude/hooks/secret-scan.sh", "if": "Bash(git commit:*)" }
+          { "type": "command", "command": "bash $CLAUDE_PROJECT_DIR/.claude/hooks/auto-stage-log.sh", "if": "Bash(git commit:*)" },
+          { "type": "command", "command": "bash $CLAUDE_PROJECT_DIR/.claude/hooks/secret-scan.sh", "if": "Bash(git commit:*)" }
         ]
       }
     ],
@@ -100,16 +100,16 @@
         "_comment": "Record a timestamp whenever pytest runs (any of the three usual invocations). The stale-tests Stop hook compares this timestamp against Python file mtimes.",
         "matcher": "Bash",
         "hooks": [
-          { "type": "command", "command": "bash .claude/hooks/save-test-time.sh", "if": "Bash(pytest:*)" },
-          { "type": "command", "command": "bash .claude/hooks/save-test-time.sh", "if": "Bash(uv run pytest:*)" },
-          { "type": "command", "command": "bash .claude/hooks/save-test-time.sh", "if": "Bash(source .venv/bin/activate && uv run pytest:*)" }
+          { "type": "command", "command": "bash $CLAUDE_PROJECT_DIR/.claude/hooks/save-test-time.sh", "if": "Bash(pytest:*)" },
+          { "type": "command", "command": "bash $CLAUDE_PROJECT_DIR/.claude/hooks/save-test-time.sh", "if": "Bash(uv run pytest:*)" },
+          { "type": "command", "command": "bash $CLAUDE_PROJECT_DIR/.claude/hooks/save-test-time.sh", "if": "Bash(source .venv/bin/activate && uv run pytest:*)" }
         ]
       },
       {
         "_comment": "Auto-format Python files with `ruff format` after Claude writes or edits them (invoked via uvx so it works before ruff has been added as a dev dep).",
         "matcher": "Write|Edit",
         "hooks": [
-          { "type": "command", "command": "bash .claude/hooks/ruff-format.sh" }
+          { "type": "command", "command": "bash $CLAUDE_PROJECT_DIR/.claude/hooks/ruff-format.sh" }
         ]
       }
     ],
@@ -117,13 +117,13 @@
       {
         "_comment": "Soft reminder on Stop if Python source files under src/, skills/, tests/, lib/, or utils/ have changed since the last pytest run. Does not block.",
         "hooks": [
-          { "type": "command", "command": "bash .claude/hooks/check-stale-tests.sh" }
+          { "type": "command", "command": "bash $CLAUDE_PROJECT_DIR/.claude/hooks/check-stale-tests.sh" }
         ]
       },
       {
         "_comment": "Surface `ruff check` findings on Stop as a reminder (fix with `uv run ruff check --fix`). No-op when there are no Python sources yet.",
         "hooks": [
-          { "type": "command", "command": "bash .claude/hooks/ruff-check.sh" }
+          { "type": "command", "command": "bash $CLAUDE_PROJECT_DIR/.claude/hooks/ruff-check.sh" }
         ]
       }
     ]

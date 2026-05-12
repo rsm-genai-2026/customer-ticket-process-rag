@@ -15,7 +15,7 @@ execute:
 ```{python}
 #| tags: [parameters]
 title = "Building an AI Ticket Workflow"
-subtitle = "Skills, Automations, MCP, Orchestration, and a Demo"
+subtitle = "Skills, Automations, Human-in-the-Loop, MCP, and a Demo"
 author = "Professor Vincent R. Nijs"
 program = "Rady School of Management, UC San Diego"
 repo = "customer-ticket-process"
@@ -39,12 +39,14 @@ how to think about skills, then introduces the orchestrator and the web demo.
 By the end, you should be able to explain:
 
 1. How to read the support-ticket workflow diagram
-2. What an AI skill is
+2. What an AI skill is, and how it differs from a deterministic automation
 3. How to turn process steps into skills
 4. Why skills need clear inputs and outputs
 5. What an orchestrator does
-6. How the browser demo lets you inspect the workflow
-7. Where human review still matters
+6. **Where human-in-the-loop pauses belong, and how they look in code**
+7. **How the same skills can be invoked via MCP, not just the web demo**
+8. How the browser demo lets you inspect the workflow
+9. How a one-off fix becomes a reusable FAQ entry
 
 ::: notes
 Frame this as workflow design, not programming. The technical details exist to
@@ -142,7 +144,7 @@ demo testable offline.
 
 ## Where Does AI Live? {.content-slide}
 
-This repo has ten workflow steps. **Only two are skills:**
+This repo has twelve workflow steps. **Only three are skills:**
 
 `skills/check-faq-resolution/`
 
@@ -153,24 +155,36 @@ An LLM decides whether the FAQ knowledge base resolves the ticket.
 An LLM acts as the assigned specialist and produces a diagnosis plus
 customer-safe action.
 
+`skills/draft-faq-candidate/`
+
+After a specialist's solution is accepted by the customer, an LLM
+drafts a candidate FAQ entry so the next similar ticket can match it.
+A supervisor approves or skips before it lands in the knowledge base.
+
 ## Where Does AI NOT Live? {.content-slide}
 
-The other steps live under `automations/` — receive, classify, escalate,
-draft FAQ response, draft specialist response, send, verify feedback,
-audit. All deterministic.
+The other nine steps live under `automations/` — receive, classify,
+escalate, draft FAQ response, draft specialist response,
+**review-specialist-draft** (HITL gate), send, verify feedback,
+**approve-faq-promotion** (HITL gate), audit. All deterministic.
 
 That is on purpose:
 
 - AI earns its keep on **genuine judgement** — the FAQ-or-not call, the
-  specialist diagnosis. Both are easy to verify when wrong.
+  specialist diagnosis, the FAQ-candidate draft. Each is easy to verify
+  when wrong.
 - Deterministic steps are easily testable and give an auditable rationale
   instead of "the model said so."
+- HITL gates are also deterministic Python — they record a human
+  decision and patch the next step's input. The supervisor is the
+  judgement, not the script.
 - "AI-assisted workflow" ≠ "Every step is an LLM call."
 
 ::: notes
-This is the management lesson: GenAI adoption should target the
-judgement-heavy steps, not the whole process. Wrapping a classification
-rule in an LLM costs money, adds latency, and removes the audit trail.
+The two HITL automations (review-specialist-draft, approve-faq-promotion)
+are deliberately not skills: there's no LLM judgement inside the script;
+the human is the judgement. The orchestrator simply pauses on those
+steps until the supervisor submits a decision through the web UI.
 :::
 
 ## Why Two Folders, Not One? {.content-slide}
@@ -181,18 +195,28 @@ skills/                         # only LLM-based steps
 │   ├── SKILL.md                  # agent contract
 │   ├── README.md
 │   └── scripts/
-└── investigate-specialist-solution/
+├── investigate-specialist-solution/
+│   ├── SKILL.md
+│   ├── README.md
+│   └── scripts/
+└── draft-faq-candidate/
     ├── SKILL.md
     ├── README.md
     └── scripts/
 
 automations/                    # deterministic steps
-├── receive-ticket/
-│   ├── README.md                 # no SKILL.md
-│   └── scripts/
+├── receive-ticket/                 # no SKILL.md, no LLM
 ├── classify-prioritize-ticket/
-├── …
+├── draft-faq-response/
+├── escalate-to-specialist/
+├── draft-specialist-response/
+├── review-specialist-draft/        # HITL pause
+├── send-customer-response/
+├── verify-feedback-close-or-reopen/
+├── approve-faq-promotion/          # HITL pause
+└── audit-ticket-process/
 
+mcp_exhibit/                    # optional: same skills via MCP
 install.sh                      # one root script registers all skills
 ```
 
@@ -203,7 +227,8 @@ If it doesn't, the step is plain Python and nothing more.
 The split makes the AI surface area legible to a non-technical reviewer.
 You can answer "where is AI used?" by listing the folders under `skills/`.
 A single `bash install.sh` at the repo root symlinks every skill into
-`.claude/skills/` — auto-discovered from `skills/*/SKILL.md`.
+`.claude/skills/` — auto-discovered from `skills/*/SKILL.md`. The
+`mcp_exhibit/` folder is a separate teaching example covered later.
 :::
 
 ## Why Not One Big AI Prompt? {.content-slide}
@@ -246,13 +271,15 @@ procurement, loan approval, etc.
 ::: {.column width="50%"}
 **Automations** (deterministic)
 
-- Receives ticket → `automations/receive-ticket`
+- Receive ticket → `automations/receive-ticket`
 - Classify + priority → `automations/classify-prioritize-ticket`
 - Draft FAQ reply → `automations/draft-faq-response`
 - Escalate → `automations/escalate-to-specialist`
 - Draft specialist reply → `automations/draft-specialist-response`
+- **Review draft (HITL)** → `automations/review-specialist-draft`
 - Send → `automations/send-customer-response`
 - Verify feedback → `automations/verify-feedback-close-or-reopen`
+- **Approve FAQ promotion (HITL)** → `automations/approve-faq-promotion`
 - Audit → `automations/audit-ticket-process`
 :::
 
@@ -261,12 +288,15 @@ procurement, loan approval, etc.
 
 - FAQ resolution? → `skills/check-faq-resolution`
 - Specialist diagnosis → `skills/investigate-specialist-solution`
+- FAQ candidate draft → `skills/draft-faq-candidate`
 :::
 ::::::
 
 ::: notes
-Reading the two columns answers "where does AI live?" without opening any
-code. Eight steps are rule-based; two ask a model to make a judgement.
+Twelve steps total: nine deterministic automations (two of which are HITL
+pause points) plus three LLM-based skills. The HITL automations
+demonstrate that "pause for a human" is just another deterministic step
+with the same envelope contract.
 :::
 
 ## Example Automation: Classify and Prioritize {.content-slide}
@@ -362,16 +392,189 @@ After the response is sent, the customer replies. **Rule-based, no LLM.**
 
 The feedback automation decides:
 
-- accepted (positive phrases) -> close the ticket
-- rejected (negative phrases), first time -> reopen and escalate
-- ambiguous -> ask for clarification
-- rejected twice -> close unresolved (loop-prevention guard)
+- accepted (positive phrases)
+  - **FAQ branch** → audit & close
+  - **Specialist branch** → route to `draft-faq-candidate` (institutional
+    learning: turn the one-off fix into a reusable FAQ entry)
+- rejected (negative phrases), first time → reopen and escalate
+- ambiguous → ask for clarification
+- rejected twice → close unresolved (loop-prevention guard)
 
 ::: notes
 This is where loops enter the process. Loops need explicit rules or they
-can run forever. A future iteration could replace the keyword matcher
-with an LLM sentiment classifier; that would move this folder under
-`skills/` and gain a `SKILL.md`.
+can run forever. The "accepted on specialist branch → FAQ candidate"
+routing is the bridge between solving one ticket and improving the
+knowledge base — a key institutional-learning loop.
+:::
+
+## Human-in-the-Loop Gates {.section-slide}
+
+## Two Pause Points on the Specialist Branch {.content-slide}
+
+The workflow inserts **two human-review pauses** on the specialist
+branch. Both are deterministic automations, not skills — there is no
+LLM judgment inside the script. The orchestrator simply stops on those
+steps and waits for the supervisor's decision from the web UI.
+
+| Gate | When | Supervisor action |
+| --- | --- | --- |
+| `review-specialist-draft` | After `draft-specialist-response`, before `send-customer-response` | Edit + Approve, or Reject (re-investigate, bounded to one retry) |
+| `approve-faq-promotion` | After the customer accepts the specialist solution | Edit + Approve & Add to FAQ, or Skip |
+
+The FAQ branch has neither gate. Its answer comes from a curated FAQ
+entry that's already been reviewed — no second review needed.
+
+::: notes
+Why only the specialist branch: novel solutions need supervision; reuse
+of an existing FAQ entry doesn't. Mirrors how a real IT team would handle
+both flows.
+:::
+
+## Pause 1: Review the Specialist Draft {.content-slide}
+
+The LLM drafted the customer-facing reply. Before it's sent, a
+supervisor can:
+
+- **Approve & Send** — optionally edit the text (the original LLM draft
+  is preserved in `draft_text` for audit; the edited copy goes into
+  `sent_text`).
+- **Reject** — orchestrator re-runs `investigate-specialist-solution`
+  with the reviewer's notes, redrafts, and pauses again. A second reject
+  is forced through as an approve so the loop is bounded.
+
+Decision is recorded in `data/working/specialist_draft_reviews.csv`
+with the original text, edited text, decision, retry count, and
+reviewer notes.
+
+::: notes
+Bounded retry is the loop-prevention guard. The supervisor can always
+edit-and-approve to ship a custom answer; reject is the "send it back"
+button, used at most once per ticket.
+:::
+
+## Gate 1 — Before vs After {.content-slide}
+
+:::::: columns
+::: {.column width="48%"}
+**Before — no review**
+
+```{mermaid}
+%%| fig-width: 3.2
+%%| fig-height: 3.8
+%%{init: {'theme':'default', 'themeVariables': {'fontSize':'12px'}, 'flowchart': {'nodeSpacing': 12, 'rankSpacing': 20, 'useMaxWidth': true, 'htmlLabels': true}}}%%
+flowchart LR
+  I["investigate<br/>(LLM)"] --> D["draft specialist<br/>response"]
+  D --> S[send response]
+  S --> V{verify feedback}
+
+  classDef skill fill:#eefbf8,stroke:#0f766e
+  class I skill
+```
+:::
+
+::: {.column width="48%"}
+**After — supervisor reviews**
+
+```{mermaid}
+%%| fig-width: 3.2
+%%| fig-height: 3.8
+%%{init: {'theme':'default', 'themeVariables': {'fontSize':'12px'}, 'flowchart': {'nodeSpacing': 12, 'rankSpacing': 20, 'useMaxWidth': true, 'htmlLabels': true}}}%%
+flowchart LR
+  I["investigate<br/>(LLM)"] --> D["draft specialist<br/>response"]
+  D --> R{{"review draft<br/>(HITL)"}}
+  R -->|approve /<br/>edit| S[send response]
+  R -->|reject<br/>once| I
+  S --> V{verify feedback}
+
+  classDef skill fill:#eefbf8,stroke:#0f766e
+  classDef hitl fill:#fff5e0,stroke:#a85400
+  class I skill
+  class R hitl
+```
+:::
+::::::
+
+One new node, one bounded back-edge. Cost: one supervisor click per
+specialist ticket. Benefit: no customer-facing text ships without a
+human glance.
+
+::: notes
+The "after" picture is the smallest possible change to the flow. The
+LLM still drafts; the supervisor decides whether it goes out.
+:::
+
+## Pause 2: Approve the FAQ Promotion {.content-slide}
+
+Triggered only when a specialist solution was accepted by the customer.
+A new LLM skill, `draft-faq-candidate`, pre-fills a candidate FAQ entry
+from the ticket + specialist solution: category, system, issue pattern,
+symptoms, solution steps, required customer info.
+
+The supervisor sees the pre-filled form and either:
+
+- **Approve & Add to FAQ** — optionally edit any field. The orchestrator
+  appends a row to the per-run `data/raw/faq_knowledge_base.csv` with
+  `owner=workflow_promotion`. Future tickets in the same run can match
+  against it.
+- **Skip** — the decision is logged but the FAQ KB is untouched.
+
+This is the institutional-learning loop: one supervised approval turns
+a one-off specialist fix into a reusable knowledge-base entry.
+
+::: notes
+Pedagogy: the LLM does the tedious pre-fill work; the human does the
+"should we publish this?" judgment. Same pattern as a real KB-curation
+workflow.
+:::
+
+## Gate 2 — Before vs After {.content-slide}
+
+:::::: columns
+::: {.column width="48%"}
+**Before — close and forget**
+
+```{mermaid}
+%%| fig-width: 3.2
+%%| fig-height: 3.8
+%%{init: {'theme':'default', 'themeVariables': {'fontSize':'12px'}, 'flowchart': {'nodeSpacing': 12, 'rankSpacing': 22, 'useMaxWidth': true, 'htmlLabels': true}}}%%
+flowchart LR
+  V{"verify feedback<br/>(specialist accept)"} --> A["audit /<br/>close"]
+  KB[("FAQ KB<br/>unchanged")]
+  A -.-> KB
+
+  style KB stroke-dasharray: 4 4,opacity:0.5
+```
+:::
+
+::: {.column width="48%"}
+**After — promote to FAQ**
+
+```{mermaid}
+%%| fig-width: 3.2
+%%| fig-height: 3.8
+%%{init: {'theme':'default', 'themeVariables': {'fontSize':'12px'}, 'flowchart': {'nodeSpacing': 12, 'rankSpacing': 22, 'useMaxWidth': true, 'htmlLabels': true}}}%%
+flowchart LR
+  V{"verify feedback<br/>(specialist accept)"} --> DC["FAQ candidate<br/>(LLM)"]
+  DC --> AP{{"promote?<br/>(HITL)"}}
+  AP -->|approve /<br/>edit| KB[("FAQ KB<br/>+1 entry")]
+  AP -->|skip| A["audit /<br/>close"]
+  KB --> A
+
+  classDef skill fill:#eefbf8,stroke:#0f766e
+  classDef hitl fill:#fff5e0,stroke:#a85400
+  class DC skill
+  class AP hitl
+```
+:::
+::::::
+
+A one-off specialist fix becomes a reusable FAQ entry — only when the
+supervisor agrees it generalizes. Skipping is a first-class option.
+
+::: notes
+The "before" diagram shows the FAQ KB existing but disconnected from
+the workflow output. The "after" diagram closes the loop: an accepted
+specialist solution is the cheapest moment to capture knowledge.
 :::
 
 ## A Skill Must Leave Evidence {.content-slide}
@@ -539,7 +742,10 @@ and what should happen next.
 ## Orchestration Loop {.content-slide}
 
 ```{mermaid}
-flowchart TD
+%%| fig-width: 6.5
+%%| fig-height: 3.2
+%%{init: {'theme':'default', 'themeVariables': {'fontSize':'6px'}, 'flowchart': {'nodeSpacing': 12, 'rankSpacing': 10}}}%%
+flowchart LR
   A[Current state] --> B[Run next skill]
   B --> C[Skill writes output]
   C --> D[Skill returns next_action]
@@ -550,7 +756,9 @@ flowchart TD
 ```
 
 ::: notes
-This is the engine behind the step-by-step demo.
+The font + spacing tuning in the %%{init}%% block keeps the diagram
+inside the slide without scaling tricks. Same recipe works for any
+mermaid block that wants more breathing room.
 :::
 
 ## Where the Orchestrator Lives {.content-slide}
@@ -669,21 +877,27 @@ Example ticket:
 Human expert: billing API 502
 ```
 
-Expected path:
+Expected path (HITL gates are **bold**):
 
 ```text
 receive -> classify/prioritize -> check FAQ
 -> escalate -> specialist investigates -> draft specialist response
--> send response -> verify feedback -> close
+-> **review-specialist-draft (supervisor approves)**
+-> send response -> verify feedback (customer accepts)
+-> draft-faq-candidate -> **approve-faq-promotion (supervisor approves)**
+-> audit / close
 ```
 
 Business lesson:
 
-> AI can route and summarize expert work, but some answers still need human approval.
+> AI can route and summarize expert work, but some answers still need
+> human approval — and a good supervised solution becomes the next
+> FAQ entry, not a one-off fix.
 
 ::: notes
-This is the scenario the user specifically asked for. It also demonstrates how
-a new FAQ candidate can be proposed after expert approval.
+The supervisor sees two pause panels in this scenario: the draft review
+(Approve & Send / Reject) and the FAQ promotion (Approve & Add to FAQ /
+Skip). Both write decision rows to `data/working/` for audit.
 :::
 
 ## Demo Scenario 3: Rejected Answer {.content-slide}
@@ -735,6 +949,35 @@ This is a governance point. Not every uncertain input should be forced into an
 automated decision.
 :::
 
+## Demo Scenario 5: FAQ Promotion in Action {.content-slide}
+
+Pick any specialist-branch scenario (e.g. `Human expert: billing API 502`),
+walk through to the customer-accept reply, then watch the
+**Supervisor review — promote to FAQ?** panel appear with the LLM's
+pre-filled candidate.
+
+Try both choices:
+
+- **Approve & Add to FAQ** — the new entry lands in the per-run
+  `data/raw/faq_knowledge_base.csv` with `owner=workflow_promotion`.
+  The original `data/raw/` in the repo is **untouched** because the
+  orchestrator copies baseline data into `/tmp` per run.
+- **Skip** — the decision is logged in
+  `data/working/faq_promotion_decisions.csv` and the KB is unchanged.
+
+Business lesson:
+
+> Institutional learning is a workflow concern, not an after-the-fact
+> chore. The right time to capture a fix as reusable knowledge is right
+> after it's confirmed to work.
+
+::: notes
+The per-run /tmp isolation is the key teaching point: students can
+freely approve FAQ promotions without polluting the shared dataset.
+Each run starts with the original FAQ KB and accumulates its own
+additions.
+:::
+
 ## Run the Scenario Suite {.content-slide}
 
 The repo includes 20 curated examples.
@@ -754,6 +997,109 @@ Open the HTML report:
 ::: notes
 Explain this as quality control. A workflow should be tested against many
 scenarios, not just one successful demo.
+:::
+
+## A Second Front Door: MCP {.section-slide}
+
+## What Is MCP? {.content-slide}
+
+**Model Context Protocol** — a JSON-RPC protocol an LLM client (Claude
+Desktop, Claude Code, Codex) speaks to a long-running server. The
+server exposes three things:
+
+- **Tools** — function calls the client can invoke
+- **Resources** — read-only context the client can pull in
+- **Prompts** — reusable prompt templates surfaced as menu items
+
+MCP earns its keep when ≥2 clients need the same capability and you
+don't want to glue paths and credentials into each one.
+
+::: notes
+Same idea as a small internal API, but with auto-discovery and a
+standard handshake so any compliant LLM client can use it without
+custom wiring per client.
+:::
+
+## What the Exhibit Exposes {.content-slide}
+
+`mcp_exhibit/server.py` is an **optional teaching exhibit** — not part
+of the orchestrator. It wraps two existing skills so an LLM client can
+invoke them without going through the web demo.
+
+**Tools** (wrap the existing skill scripts):
+
+- `check_faq_resolution(ticket_id)`
+- `investigate_specialist_solution(ticket_id)`
+
+**Resources** (read-only views of the repo's data):
+
+- `tickets://raw`, `tickets://{ticket_id}`
+- `faq://kb`
+- `dictionaries://{name}`
+- `working://{filename}`
+
+The orchestrator stays the canonical path. MCP is the second front
+door, so the same skill is callable from the web demo *and* from Claude
+Desktop without duplicating logic.
+
+::: notes
+The MCP wrappers run the underlying skill scripts as subprocesses, so
+both front doors hit the same code path and the same tests. No
+duplication.
+:::
+
+## Wiring It to Claude Desktop {.content-slide}
+
+Add this to `claude_desktop_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "customer-ticket-process-exhibit": {
+      "command": "uv",
+      "args": [
+        "--directory", "/abs/path/to/customer-ticket-process",
+        "run", "python", "-m", "mcp_exhibit.server"
+      ]
+    }
+  }
+}
+```
+
+For Claude Code, drop a project-level `.mcp.json` with the same shape
+and run `/mcp` to verify.
+
+The point: **the same skills are callable from any MCP client**, with
+no path or credential glue beyond the one-time config entry.
+
+::: notes
+This is the management argument for MCP: every new consumer of your
+skills doesn't need a custom integration. They speak one protocol; the
+server is the single place that knows where data lives and how to invoke
+each skill.
+:::
+
+## When MCP Is (and Isn't) Worth It {.content-slide}
+
+**Worth it when:**
+
+- Multiple LLM clients need the same capability (Desktop + Codex + a
+  scheduled job)
+- A third party needs to invoke your skills without custom integration
+- You want to centralize "where the data lives" instead of threading
+  `--data-dir` through every caller
+
+**Not worth it when:**
+
+- One consumer, one process, runs locally (the orchestrator's case —
+  putting MCP in front would just add a process)
+- The workflow has its own deterministic control flow that an LLM agent
+  shouldn't be encouraged to second-guess
+
+::: notes
+That's why this repo's orchestrator is NOT an MCP server. The exhibit
+exposes the two judgment-heavy skills as MCP tools so you can call
+them from any client; the orchestrator stays a plain CLI demo.
 :::
 
 ## Build Your Own Workflow {.section-slide}
@@ -879,12 +1225,19 @@ Explain this repo using slides/ticket-workflow-orchestration.qmd.
 
 ```text
 Walk me through the Human expert: billing API 502 scenario.
-For each step, name the skill, input, output, and next action.
+For each step, name the skill, input, output, next action, and any
+HITL pause point.
 ```
 
 ```text
 Help me design a similar workflow for [loan approval / HR onboarding / claims].
-Use the skill design canvas from the deck.
+Use the skill design canvas from the deck and decide which steps need
+HITL gates.
+```
+
+```text
+Open mcp_exhibit/server.py and explain which skills it exposes as MCP
+tools, and why the orchestrator itself is not an MCP server.
 ```
 
 ::: notes
@@ -898,12 +1251,17 @@ The demo is not just "AI answers support tickets."
 It shows how to design an AI workflow:
 
 - map the process
-- split work into skills
-- define data handoffs
-- orchestrate the steps
-- make decisions visible
-- preserve human review
-- test realistic scenarios
+- split work into skills (LLM) and automations (deterministic)
+- define data handoffs (JSON envelope, working CSVs)
+- orchestrate the steps with predictable control flow
+- make decisions visible (audit trail every step)
+- **preserve human review at the right pause points** (specialist
+  draft, FAQ promotion)
+- **close the institutional-learning loop** (accepted fix → FAQ candidate
+  → reviewed FAQ entry)
+- expose skills via **multiple front doors** (web demo, MCP) without
+  duplicating logic
+- test realistic scenarios end-to-end
 
 ::: notes
 End on the management lesson: AI workflow design is process architecture plus
