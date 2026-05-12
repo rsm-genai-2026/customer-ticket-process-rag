@@ -184,7 +184,6 @@ def call_llm_for_faq_decision(context: dict, *, model: str = DEFAULT_MODEL, clie
         model=model,
         system=_system_prompt(),
         temperature=0,
-        max_tokens=900,
         client=client,
     )
     if not isinstance(result, dict):

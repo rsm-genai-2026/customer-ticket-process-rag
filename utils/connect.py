@@ -42,7 +42,7 @@ EXPENSIVE_MODELS: list[str] = [
 # your personal ChatGPT/Codex subscription via OAuth (no API key needed).
 OAUTH_MODELS: list[str] = ["oauth-gpt"]
 
-DEFAULT_MODEL = "api-llama-4-scout"
+DEFAULT_MODEL = "api-gemma-4-26b"
 DEFAULT_SYSTEM = "You are a helpful assistant. Be concise."
 
 
@@ -58,9 +58,7 @@ def get_client(api_key: str | None = None) -> OpenAI:
     """
     key = api_key or os.environ.get("TRITONAI_API_KEY", "")
     if not key:
-        raise ValueError(
-            "TRITONAI_API_KEY is not set. Copy .env.example to .env and fill in your key."
-        )
+        raise ValueError("TRITONAI_API_KEY is not set. Copy .env.example to .env and fill in your key.")
     return OpenAI(api_key=key, base_url=BASE_URL)
 
 
@@ -185,10 +183,7 @@ def ask_json(
     schema_hint = ""
     if schema is not None:
         try:
-            schema_hint = (
-                "\n\nReturn ONLY a JSON object that matches this schema:\n"
-                f"{schema.model_json_schema()}"
-            )
+            schema_hint = f"\n\nReturn ONLY a JSON object that matches this schema:\n{schema.model_json_schema()}"
         except AttributeError:
             schema_hint = ""
 
@@ -204,10 +199,7 @@ def ask_json(
                 last = dict(json_prompt[-1])
                 last["content"] = str(last.get("content", "")) + schema_hint
                 json_prompt[-1] = last
-        json_system = (
-            (system or DEFAULT_SYSTEM)
-            + "\nReturn ONLY a valid JSON object. No prose, no code fences."
-        )
+        json_system = (system or DEFAULT_SYSTEM) + "\nReturn ONLY a valid JSON object. No prose, no code fences."
         text = _ask_via_oauth(
             json_prompt,
             system=json_system,
@@ -228,12 +220,15 @@ def ask_json(
                 last["content"] = str(last.get("content", "")) + schema_hint
                 messages[-1] = last
 
+        # Disable thinking, therwise reasoning models burn the
+        # whole budget on chain-of-thought before emitting JSON.
         resp = (client or get_client()).chat.completions.create(
             model=model,
             messages=messages,
             temperature=temperature,
             max_tokens=max_tokens,
             response_format={"type": "json_object"},
+            extra_body={"chat_template_kwargs": {"enable_thinking": False}},
         )
         text = resp.choices[0].message.content or "{}"
         if verbose:
@@ -296,15 +291,15 @@ def _display_markdown(x: str) -> None:
 # Student code shouldn't need to know any of this — they just set
 # ``MODEL = "oauth-gpt"`` in ``ask(...)``.
 
-OAUTH_BACKEND_MODEL = "gpt-5.4"   # actual model asked of the Codex endpoint
+OAUTH_BACKEND_MODEL = "gpt-5.4"  # actual model asked of the Codex endpoint
 
 
 def _ask_via_oauth(
     prompt: str | list[dict[str, str]],
     *,
     system: str = DEFAULT_SYSTEM,
-    temperature: float = 0.4,     # accepted for API symmetry; see note below
-    max_tokens: int = 4000,       # unused — OAuth endpoint has no explicit cap
+    temperature: float = 0.4,  # accepted for API symmetry; see note below
+    max_tokens: int = 4000,  # unused — OAuth endpoint has no explicit cap
 ) -> str:
     """Send ``prompt`` through the OpenAI Codex OAuth route and return text.
 

@@ -228,7 +228,6 @@ def call_llm_for_specialist_solution(
         model=model,
         system=_system_prompt(),
         temperature=0,
-        max_tokens=900,
         client=client,
     )
     if not isinstance(result, dict):

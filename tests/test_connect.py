@@ -107,6 +107,13 @@ def test_ask_json_returns_parsed_dict() -> None:
     assert kwargs["response_format"] == {"type": "json_object"}
 
 
+def test_ask_json_disables_thinking_via_chat_template_kwargs() -> None:
+    client = _fake_client('{"x": 1}')
+    connect.ask_json("give me json", client=client)
+    kwargs = client.chat.completions.create.call_args.kwargs
+    assert kwargs["extra_body"] == {"chat_template_kwargs": {"enable_thinking": False}}
+
+
 def test_ask_json_with_pydantic_schema() -> None:
     from pydantic import BaseModel
 
