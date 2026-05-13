@@ -341,32 +341,33 @@
       background: #f2f0ec;
       border-style: dashed;
     }
-    /* Step kind: tinted left edge + small dot, never overrides the state colour.
+    /* Step kind: full coloured outline, never overrides the state fill.
        llm    = an LLM does the judgement (purple).
-       human  = the workflow waits for a human (amber).
-       auto   = deterministic code, no marker. */
-    .step[data-kind="llm"] {
-      border-left: 3px solid #7c3aed;
+       human  = the workflow waits for a human (red).
+       auto   = deterministic code, default border. */
+    .step[data-kind="llm"],
+    .step[data-kind="llm"][data-state="completed"],
+    .step[data-kind="llm"][data-state="pending"],
+    .step[data-kind="llm"][data-state="skipped"] {
+      border-color: #7c3aed;
+      border-width: 2px;
     }
-    .step[data-kind="llm"]::before {
-      /* override the connector line for the kind dot — keep both */
+    .step[data-kind="llm"][data-state="current"] {
+      border-color: #7c3aed;
+      border-width: 2px;
+      box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.20);
     }
-    .step[data-kind="llm"] > .kind-dot {
-      background: #7c3aed;
+    .step[data-kind="human"],
+    .step[data-kind="human"][data-state="completed"],
+    .step[data-kind="human"][data-state="pending"],
+    .step[data-kind="human"][data-state="skipped"] {
+      border-color: #c0392b;
+      border-width: 2px;
     }
-    .step[data-kind="human"] {
-      border-left: 3px solid var(--warn);
-    }
-    .step[data-kind="human"] > .kind-dot {
-      background: var(--warn);
-    }
-    .kind-dot {
-      display: inline-block;
-      width: 6px;
-      height: 6px;
-      border-radius: 50%;
-      margin-right: 4px;
-      flex-shrink: 0;
+    .step[data-kind="human"][data-state="current"] {
+      border-color: #c0392b;
+      border-width: 2px;
+      box-shadow: 0 0 0 3px rgba(192, 57, 43, 0.20);
     }
     /* Legend under the stepper */
     .stepper-legend {
@@ -382,15 +383,16 @@
       align-items: center;
       gap: 6px;
     }
-    .stepper-legend .legend-dot {
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
+    .stepper-legend .legend-swatch {
+      width: 14px;
+      height: 14px;
+      border-radius: 999px;
+      border: 2px solid #cbd5ce;
+      background: #fff;
       display: inline-block;
     }
-    .stepper-legend .legend-dot[data-kind="llm"]   { background: #7c3aed; }
-    .stepper-legend .legend-dot[data-kind="human"] { background: var(--warn); }
-    .stepper-legend .legend-dot[data-kind="auto"]  { background: #b9c1bd; }
+    .stepper-legend .legend-swatch[data-kind="llm"]   { border-color: #7c3aed; }
+    .stepper-legend .legend-swatch[data-kind="human"] { border-color: #c0392b; }
     .stepper-fork-caption {
       grid-column: 1 / -1;
       margin-top: 8px;
@@ -865,9 +867,9 @@ but the CSV export leaves out several accounts.</textarea>
         <div class="section-label">Workflow</div>
         <div class="stepper" id="stepper"></div>
         <div class="stepper-legend">
-          <span><span class="legend-dot" data-kind="llm"></span> LLM judgement</span>
-          <span><span class="legend-dot" data-kind="human"></span> Waits for a human</span>
-          <span><span class="legend-dot" data-kind="auto"></span> Deterministic</span>
+          <span><span class="legend-swatch" data-kind="llm"></span> LLM judgement</span>
+          <span><span class="legend-swatch" data-kind="human"></span> Waits for a human</span>
+          <span><span class="legend-swatch" data-kind="auto"></span> Deterministic</span>
         </div>
         <div class="section-label">Customer response</div>
         <div class="response" id="response-text">
@@ -1310,14 +1312,7 @@ Submit a ticket to run the skill workflow and generate the customer response.</d
       li.dataset.id = node.id;
       const kind = STEP_KIND[node.id] || "auto";
       li.dataset.kind = kind;
-      if (kind !== "auto") {
-        const dot = document.createElement("span");
-        dot.className = "kind-dot";
-        dot.title = kind === "llm" ? "LLM judgement" : "Waits for a human";
-        li.append(dot);
-      }
-      const text = document.createTextNode(shortLabel(node.label || node.id));
-      li.append(text);
+      li.textContent = shortLabel(node.label || node.id);
       const detailParts = [];
       if (node.detail) detailParts.push(node.detail);
       if (kind === "llm") detailParts.push("LLM judgement step");
