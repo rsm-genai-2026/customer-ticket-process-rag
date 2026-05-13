@@ -29,6 +29,8 @@ _REPO_ROOT = Path(__file__).resolve().parents[3]
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
+from utils.connect import DEFAULT_MODEL as DEFAULT_LLM_MODEL  # noqa: E402
+from utils.connect import ask_json  # noqa: E402
 from utils.ticketing_common import (  # noqa: E402
     MODE_DEMO,
     STATUS_OK,
@@ -50,8 +52,6 @@ from utils.ticketing_common import (  # noqa: E402
     replace_step_row,
     require_ticket,
 )
-from utils.connect import DEFAULT_MODEL as DEFAULT_LLM_MODEL  # noqa: E402
-from utils.connect import ask_json  # noqa: E402
 
 SKILL_NAME = "check-faq-resolution"
 FAQ_DECISIONS_TABLE = "faq_decisions"
