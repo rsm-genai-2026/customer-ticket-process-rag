@@ -15,18 +15,22 @@ Everything in here is synthetic. No real customers, tickets, or employees.
 ```bash
 uv sync                                                   # install deps
 cp .env.example .env && $EDITOR .env                      # add TRITONAI_API_KEY
+source .venv/bin/activate
 uv run python scripts/orchestrator.py --port 8767         # run the demo
 ```
+
+
 
 Then open `http://127.0.0.1:8767`, pick an example ticket from the dropdown,
 click **Start Step Mode**, and walk forward one skill at a time. Each panel
 shows what data went in, what data came out, and which skill runs next.
 
-For a non-technical tour, open the rendered deck:
-[`slides/ticket-workflow-orchestration.html`](slides/ticket-workflow-orchestration.html).
+> Trouble shooting: If you can an "Address already in use" error, use the two steps below
 
-That's it. Everything below explains why the pieces are shaped the way they
-are.
+```bash
+kill $(lsof -ti :8767)
+uv run python scripts/orchestrator.py --port 8767         # run the demo
+```
 
 ---
 
