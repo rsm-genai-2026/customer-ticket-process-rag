@@ -40,3 +40,7 @@ __pycache__/
 # extra
 docs/
 slides/
+AGENTS.md
+.codex/
+.agents/
+slides/
