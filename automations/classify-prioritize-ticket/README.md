@@ -19,7 +19,7 @@ auditable rationales — no model needed.
 | `--data-dir` | no | `data` | Source data directory |
 | `--out-dir` | no | `data/working` | Where `triage_decisions.csv` and the action log are appended |
 
-Plus the standard skill-CLI flags from `lib.ticketing_common.make_skill_parser`.
+Plus the standard skill-CLI flags from `utils.ticketing_common.make_skill_parser`.
 
 ## Reads
 

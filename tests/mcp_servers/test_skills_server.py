@@ -72,7 +72,7 @@ def test_run_skill_invokes_subprocess_with_expected_argv():
 
     assert result == envelope
     argv = run_mock.call_args.args[0]
-    # The contract documented in lib/ticketing_common.make_skill_parser:
+    # The contract documented in utils/ticketing_common.make_skill_parser:
     assert "--json" in argv
     assert ["--ticket-id", "TKT-00042"] == argv[argv.index("--ticket-id") : argv.index("--ticket-id") + 2]
     assert ["--mode", "demo"] == argv[argv.index("--mode") : argv.index("--mode") + 2]

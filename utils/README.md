@@ -1,3 +1,20 @@
+# utils
+
+Shared Python helpers used across the repo:
+
+- `connect.py` — the LLM wrapper (`ask`, `ask_json`, `list_models`, model
+  short-lists). Every skill that calls an LLM goes through this. See
+  `CLAUDE.md` for the conventions.
+- `oauth_gpt.py` — OAuth/ChatGPT path used when `MODEL = "oauth-gpt"`.
+  Students rarely call it directly; `connect.ask` routes through it
+  automatically. Details below.
+- `ticketing_common.py` — shared infrastructure for the ticket workflow
+  (CLI parser, JSON envelope, working-CSV writers with file locking,
+  audit log). Imported by every script under `skills/` and
+  `automations/`. Tests live in `tests/utils/test_ticketing_common.py`.
+
+---
+
 # oauth_gpt
 
 Small dependency-free Python helper for calling GPT through the OpenAI Codex OAuth route. It first reuses existing local OAuth credentials when available, stores refreshable credentials locally, and refreshes expired tokens automatically.

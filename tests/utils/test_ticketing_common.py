@@ -1,4 +1,4 @@
-"""Tests for lib/ticketing_common.py — the shared infrastructure module.
+"""Tests for utils/ticketing_common.py — the shared infrastructure module.
 
 Imported by every skill *and* every automation in this repo, so it is not
 specific to either. Each public function gets a happy path plus at least
@@ -18,7 +18,7 @@ from pathlib import Path
 import polars as pl
 import pytest
 
-from lib import ticketing_common
+from utils import ticketing_common
 
 
 def test_now_iso_is_parseable_and_utc() -> None:
@@ -31,7 +31,7 @@ def test_now_iso_is_parseable_and_utc() -> None:
 def test_repo_root_points_to_repo() -> None:
     root = ticketing_common.repo_root()
     assert (root / "pyproject.toml").exists()
-    assert (root / "lib" / "ticketing_common.py").exists()
+    assert (root / "utils" / "ticketing_common.py").exists()
 
 
 def test_read_csv_happy(tmp_path: Path) -> None:

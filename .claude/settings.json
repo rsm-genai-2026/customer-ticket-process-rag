@@ -115,7 +115,7 @@
     ],
     "Stop": [
       {
-        "_comment": "Soft reminder on Stop if Python source files under src/, skills/, tests/, lib/, or utils/ have changed since the last pytest run. Does not block.",
+        "_comment": "Soft reminder on Stop if Python source files under skills/, automations/, tests/, or utils/ have changed since the last pytest run. Does not block.",
         "hooks": [
           { "type": "command", "command": "bash $CLAUDE_PROJECT_DIR/.claude/hooks/check-stale-tests.sh" }
         ]

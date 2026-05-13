@@ -35,7 +35,7 @@ _REPO_ROOT = Path(__file__).resolve().parents[3]
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
-from lib.ticketing_common import (  # noqa: E402
+from utils.ticketing_common import (  # noqa: E402
     STATUS_OK,
     append_action_log,
     append_csv_row,

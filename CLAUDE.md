@@ -57,7 +57,7 @@ When adding or modifying a function:
 2. Run the test suite before reporting the task complete.
 3. If tests fail, fix the code or the test rather than declaring done.
 
-A `.claude/hooks/check-stale-tests.sh` Stop hook will surface a reminder if Python files under `src/`, `skills/`, `tests/`, or `lib/` changed since the last pytest run. It does not block, but treat the reminder as a prompt to run `uv run pytest`.
+A `.claude/hooks/check-stale-tests.sh` Stop hook will surface a reminder if Python files under `skills/`, `automations/`, `tests/`, or `utils/` changed since the last pytest run. It does not block, but treat the reminder as a prompt to run `uv run pytest`.
 
 ## Calling an LLM
 
@@ -114,19 +114,28 @@ These project-local commands are available in Claude Code (type `/<name>`):
 ## Project structure reminder
 
 ```text
-milestone02/
+customer-ticket-process/
 ├── CLAUDE.md              # this file
-├── README.md              # deliverables and deadlines
+├── README.md              # workflow overview + how to run it
 ├── pyproject.toml         # uv project + dep list
+├── install.sh             # symlink skills/ into .claude/skills/
 ├── .env.example           # copy to .env and fill TRITONAI_API_KEY
+├── .mcp.json              # MCP server registration (data + skills)
 ├── .claude/
 │   ├── settings.json      # permissions + hooks (committed)
 │   ├── commands/          # project-local slash commands
 │   ├── hooks/             # project-scoped hook scripts (committed)
 │   └── usage-log/         # instructor-reviewed usage logs
-├── utils/                 # shared helpers — import via `from utils.connect import ask`
+├── utils/                 # shared helpers: connect.ask, ticketing_common, oauth_gpt
+├── skills/                # LLM-based steps (each has SKILL.md + scripts/)
+├── automations/           # deterministic steps (each has README.md + scripts/)
+├── mcp_servers/           # MCP data and skills servers
+├── scripts/               # orchestrator.py + orchestrator_ui.html
 ├── data/
-│   └── examples/          # tutorial .qmd files using the approved data stack
-├── skills/                # per-skill code
-└── tests/                 # pytest test suite
+│   ├── raw/               # source-of-truth CSVs
+│   ├── processed/         # synthetic historical tables
+│   ├── dictionaries/      # reference enumerations
+│   ├── working/           # written by skills/automations at runtime
+│   └── examples/          # tutorial .qmd files
+└── tests/                 # pytest test suite (mirrors source layout)
 ```

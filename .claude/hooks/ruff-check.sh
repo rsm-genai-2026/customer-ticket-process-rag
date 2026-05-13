@@ -10,7 +10,7 @@ PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 PROJECT_ROOT="$(dirname "$PROJECT_DIR")"
 
 SEARCH_DIRS=()
-for d in src skills tests lib utils; do
+for d in skills automations tests utils; do
   [ -d "$PROJECT_ROOT/$d" ] && SEARCH_DIRS+=("$PROJECT_ROOT/$d")
 done
 [ ${#SEARCH_DIRS[@]} -eq 0 ] && exit 0

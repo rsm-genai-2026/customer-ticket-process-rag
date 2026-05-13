@@ -134,7 +134,7 @@ def repo_root() -> Path:
     """Return the repository root.
 
     Resolved from this file's location so callers don't depend on the
-    current working directory. ``lib/ticketing_common.py`` is one parent
+    current working directory. ``utils/ticketing_common.py`` is one parent
     below the repo root.
     """
 

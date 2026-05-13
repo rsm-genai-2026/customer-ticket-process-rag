@@ -18,7 +18,7 @@ naming reflects that.
 | `--data-dir` | no | `data` | Directory containing `raw/`, `processed/`, `dictionaries/` |
 | `--out-dir` | no | `data/working` | Where the action log is appended |
 
-Plus the standard skill-CLI flags from `lib.ticketing_common.make_skill_parser`
+Plus the standard skill-CLI flags from `utils.ticketing_common.make_skill_parser`
 (`--workflow-run-id`, `--step-id`, `--mode`, `--idempotency-mode`, `--json`).
 
 ## Run it

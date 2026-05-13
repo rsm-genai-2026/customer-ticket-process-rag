@@ -130,7 +130,7 @@ Every script — skill or automation — takes the same standard flags:
 | `--json` | emit a JSON envelope instead of a human-readable summary |
 
 The standard argument list is built by `make_skill_parser()` in
-`lib/ticketing_common.py`. Step-specific flags (e.g. `--feedback-text` on
+`utils/ticketing_common.py`. Step-specific flags (e.g. `--feedback-text` on
 `verify-feedback-close-or-reopen`, `--model` on the two LLM skills) are
 added on top.
 
@@ -161,7 +161,7 @@ audit trail is written to `data/working/ticket_action_log.csv`.
 ### Shared helpers
 
 The plumbing every script would otherwise duplicate lives in one place,
-`lib/ticketing_common.py`, and is imported by both skills and automations:
+`utils/ticketing_common.py`, and is imported by both skills and automations:
 
 - `make_skill_parser()` — the standard CLI surface above.
 - `make_envelope()` / `emit_envelope()` — build and print the JSON contract.
@@ -277,13 +277,13 @@ for the original generation design.
 uv run pytest                       # full suite (~30s, 238 tests)
 uv run pytest tests/skills          # the two LLM skills + end-to-end
 uv run pytest tests/automations     # the seven deterministic steps
-uv run pytest tests/lib             # shared infra in lib/ticketing_common.py
+uv run pytest tests/utils             # shared infra in utils/ticketing_common.py
 uv run pytest -k faq_resolution     # one pattern
 ```
 
 Test layout mirrors the source layout:
 
-- `tests/lib/test_ticketing_common.py` — the shared CLI parser, envelope,
+- `tests/utils/test_ticketing_common.py` — the shared CLI parser, envelope,
   error helper, CSV writers, idempotency, action log.
 - `tests/skills/test_check_faq_resolution.py` — the FAQ skill (mocked LLM
   via `FAQ_RESOLUTION_MOCK_JSON`).

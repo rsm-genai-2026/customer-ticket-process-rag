@@ -633,7 +633,7 @@ orchestrator can drive any of them:
 - `--idempotency-mode {skip,replace}` — re-running the same step is safe
 - `--json` — emit the envelope instead of a text summary
 
-The shared parser lives in `lib/ticketing_common.py`. New steps inherit
+The shared parser lives in `utils/ticketing_common.py`. New steps inherit
 the contract; they do not redesign it.
 
 ::: notes
