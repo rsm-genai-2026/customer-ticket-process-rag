@@ -1232,11 +1232,11 @@ Submit a ticket to run the skill workflow and generate the customer response.</d
     function shortLabel(label) {
       if (!label) return "-";
       return label
-        .replace(/^Draft\\s+/i, "Draft ")
-        .replace(/^Classify \\+ priority$$/i, "Classify")
+        .replace(/^Draft\s+/i, "Draft ")
+        .replace(/^Classify \+ priority$$/i, "Classify")
         .replace(/Customer feedback/i, "Feedback")
         .replace(/Specialist investigates/i, "Investigate")
-        .replace(/^Close \\/ reopen$$/i, "Close");
+        .replace(/^Close \/ reopen$$/i, "Close");
     }
 
     function makeStep(node) {
