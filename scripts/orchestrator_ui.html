@@ -341,6 +341,56 @@
       background: #f2f0ec;
       border-style: dashed;
     }
+    /* Step kind: tinted left edge + small dot, never overrides the state colour.
+       llm    = an LLM does the judgement (purple).
+       human  = the workflow waits for a human (amber).
+       auto   = deterministic code, no marker. */
+    .step[data-kind="llm"] {
+      border-left: 3px solid #7c3aed;
+    }
+    .step[data-kind="llm"]::before {
+      /* override the connector line for the kind dot — keep both */
+    }
+    .step[data-kind="llm"] > .kind-dot {
+      background: #7c3aed;
+    }
+    .step[data-kind="human"] {
+      border-left: 3px solid var(--warn);
+    }
+    .step[data-kind="human"] > .kind-dot {
+      background: var(--warn);
+    }
+    .kind-dot {
+      display: inline-block;
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      margin-right: 4px;
+      flex-shrink: 0;
+    }
+    /* Legend under the stepper */
+    .stepper-legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 14px;
+      margin-top: 10px;
+      font-size: 11px;
+      color: var(--muted);
+    }
+    .stepper-legend > span {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .stepper-legend .legend-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      display: inline-block;
+    }
+    .stepper-legend .legend-dot[data-kind="llm"]   { background: #7c3aed; }
+    .stepper-legend .legend-dot[data-kind="human"] { background: var(--warn); }
+    .stepper-legend .legend-dot[data-kind="auto"]  { background: #b9c1bd; }
     .stepper-fork-caption {
       grid-column: 1 / -1;
       margin-top: 8px;
@@ -814,6 +864,11 @@ but the CSV export leaves out several accounts.</textarea>
         </div>
         <div class="section-label">Workflow</div>
         <div class="stepper" id="stepper"></div>
+        <div class="stepper-legend">
+          <span><span class="legend-dot" data-kind="llm"></span> LLM judgement</span>
+          <span><span class="legend-dot" data-kind="human"></span> Waits for a human</span>
+          <span><span class="legend-dot" data-kind="auto"></span> Deterministic</span>
+        </div>
         <div class="section-label">Customer response</div>
         <div class="response" id="response-text">
 Submit a ticket to run the skill workflow and generate the customer response.</div>
@@ -1239,13 +1294,35 @@ Submit a ticket to run the skill workflow and generate the customer response.</d
         .replace(/^Close \/ reopen$$/i, "Close");
     }
 
+    // Which stepper boxes use an LLM vs. wait for a human vs. just run code.
+    // Anything not listed here renders as a plain (deterministic) step.
+    const STEP_KIND = {
+      submit: "human",         // ticket submitted by the user
+      faq: "llm",              // check-faq-resolution skill
+      investigate: "llm",      // investigate-specialist-solution skill
+      feedback: "human"        // verify-feedback waits for the customer reply
+    };
+
     function makeStep(node) {
       const li = document.createElement("li");
       li.className = "step";
       li.dataset.state = node.state || "pending";
       li.dataset.id = node.id;
-      li.textContent = shortLabel(node.label || node.id);
-      if (node.detail) li.title = node.detail;
+      const kind = STEP_KIND[node.id] || "auto";
+      li.dataset.kind = kind;
+      if (kind !== "auto") {
+        const dot = document.createElement("span");
+        dot.className = "kind-dot";
+        dot.title = kind === "llm" ? "LLM judgement" : "Waits for a human";
+        li.append(dot);
+      }
+      const text = document.createTextNode(shortLabel(node.label || node.id));
+      li.append(text);
+      const detailParts = [];
+      if (node.detail) detailParts.push(node.detail);
+      if (kind === "llm") detailParts.push("LLM judgement step");
+      else if (kind === "human") detailParts.push("Waits for a human");
+      if (detailParts.length) li.title = detailParts.join(" — ");
       return li;
     }
 
