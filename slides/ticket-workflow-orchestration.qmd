@@ -1,6 +1,6 @@
 ---
 title: "Building an AI Ticket Workflow"
-subtitle: "A tutorial: skills first, then orchestration and the demo"
+subtitle: "Skills, Automations, Human-in-the-Loop, MCP, and a Demo"
 format:
   revealjs:
     slide-number: true
@@ -44,7 +44,7 @@ By the end, you should be able to explain:
 4. Why skills need clear inputs and outputs
 5. What an orchestrator does
 6. **Where human-in-the-loop pauses belong, and how they look in code**
-7. **How the same skills can be invoked via MCP, not just the web demo**
+7. **How the same skills and data can be invoked via MCP — and what changes when "the data moves" from a local file to a shared remote source**
 8. How the browser demo lets you inspect the workflow
 9. How a one-off fix becomes a reusable FAQ entry
 
@@ -216,8 +216,8 @@ automations/                    # deterministic steps
 ├── approve-faq-promotion/          # HITL pause
 └── audit-ticket-process/
 
-mcp_exhibit/                    # optional: same skills via MCP
-install.sh                      # one root script registers all skills
+mcp_servers/            # optional: two MCP servers (skills + data)
+install.sh              # one root script registers all skills
 ```
 
 The folder is the signal: if it has `SKILL.md`, an LLM agent can load it.
@@ -228,7 +228,7 @@ The split makes the AI surface area legible to a non-technical reviewer.
 You can answer "where is AI used?" by listing the folders under `skills/`.
 A single `bash install.sh` at the repo root symlinks every skill into
 `.claude/skills/` — auto-discovered from `skills/*/SKILL.md`. The
-`mcp_exhibit/` folder is a separate teaching example covered later.
+`mcp_servers/` folder is a separate teaching example covered later.
 :::
 
 ## Why Not One Big AI Prompt? {.content-slide}
@@ -1022,84 +1022,195 @@ custom wiring per client.
 
 ## What the Exhibit Exposes {.content-slide}
 
-`mcp_exhibit/server.py` is an **optional teaching exhibit** — not part
-of the orchestrator. It wraps two existing skills so an LLM client can
-invoke them without going through the web demo.
+`mcp_servers/` is an **optional teaching exhibit** — not part of the
+orchestrator. It is split deliberately into **two MCP servers** so the
+concerns stay separate:
 
-**Tools** (wrap the existing skill scripts):
+**Skills server** (`mcp_servers.skills_server`) — does work
 
-- `check_faq_resolution(ticket_id)`
-- `investigate_specialist_solution(ticket_id)`
+- `check_faq_resolution(ticket_id)` — wraps `skills/check-faq-resolution`
+- `investigate_specialist_solution(ticket_id)` — wraps `skills/investigate-specialist-solution`
 
-**Resources** (read-only views of the repo's data):
+**Data server** (`mcp_servers.data_server`) — serves data via URIs
 
 - `tickets://raw`, `tickets://{ticket_id}`
-- `faq://kb`
-- `dictionaries://{name}`
-- `working://{filename}`
+- `faq://kb`  *(local CSV by default; Postgres when `FAQ_KB_URI` is set)*
+- `dictionaries://{name}`, `working://{filename}`
 
-The orchestrator stays the canonical path. MCP is the second front
-door, so the same skill is callable from the web demo *and* from Claude
-Desktop without duplicating logic.
+The orchestrator stays the canonical path. MCP is a second front door —
+same skill scripts, same data files, exposed under a different protocol.
 
 ::: notes
-The MCP wrappers run the underlying skill scripts as subprocesses, so
-both front doors hit the same code path and the same tests. No
-duplication.
+Both servers are tiny — each is a FastMCP instance with a few handlers.
+The split is for clarity: a server that **does work** is a different
+thing from a server that **provides data**. Students can run one or both.
 :::
 
-## Wiring It to Claude Desktop {.content-slide}
+## Wiring Both Servers to a Client {.content-slide}
 
-Add this to `claude_desktop_config.json`:
+`.mcp.json` at the repo root (Claude Code reads this automatically;
+Claude Desktop takes the same shape under `mcpServers`):
 
 ```json
 {
   "mcpServers": {
-    "customer-ticket-process-exhibit": {
+    "customer-ticket-data": {
       "command": "uv",
-      "args": [
-        "--directory", "/abs/path/to/customer-ticket-process",
-        "run", "python", "-m", "mcp_exhibit.server"
-      ]
+      "args": ["run", "python", "-m", "mcp_servers.data_server"]
+    },
+    "customer-ticket-skills": {
+      "command": "uv",
+      "args": ["run", "python", "-m", "mcp_servers.skills_server"]
     }
   }
 }
 ```
 
-For Claude Code, drop a project-level `.mcp.json` with the same shape
-and run `/mcp` to verify.
-
-The point: **the same skills are callable from any MCP client**, with
-no path or credential glue beyond the one-time config entry.
+Run `/mcp` inside Claude Code to verify. Run only one entry if you only
+need one server.
 
 ::: notes
 This is the management argument for MCP: every new consumer of your
-skills doesn't need a custom integration. They speak one protocol; the
-server is the single place that knows where data lives and how to invoke
-each skill.
+skills (or your data) doesn't need a custom integration. They speak one
+protocol; each server is the single place that knows where its piece
+lives.
+:::
+
+## One Env Var Flips Data Local→Remote {.content-slide}
+
+```python
+def _load_faq_kb(data_dir: Path) -> pl.DataFrame:
+    uri = os.environ.get("FAQ_KB_URI", "").strip()
+    if uri:
+        return pl.read_database_uri(
+            "SELECT * FROM faq_knowledge_base", uri
+        )
+    return read_csv(data_dir, "raw/faq_knowledge_base.csv")
+```
+
+Same helper lives in two places (the data server's `faq://kb` resource
+and `skills/check-faq-resolution`). Set `FAQ_KB_URI` to a Postgres
+URI and the FAQ knowledge base comes from a shared database;
+unset it and the local CSV wins.
+
+::: notes
+Six lines of new code, one env var. The teaching point: the *shape* of
+the data path is identical — caller still gets a polars DataFrame. The
+*source* moved. Show students this side-by-side; it's the smallest
+demonstration of the local→remote pattern they'll see.
+:::
+
+## MCP Pros and Cons — A Matrix {.content-slide}
+
+Two axes worth separating: **what** is served (skills vs data) and
+**where** it lives (local vs remote / shared).
+
+|                   | **Skills (LLM judgement)** | **Data (CSVs, tables)** |
+| --- | --- | --- |
+| **Local server**  | Each user has their own prompt + LLM key; rapid iteration; nothing to deploy | Each user has their own copy of the data; drift between students is possible |
+| **Remote server** | One canonical prompt for everyone; central rate-limit + audit; need auth + uptime | One source of truth; updates propagate; need DB/HTTP infra + credentials |
+
+Trade in plain English:
+
+- **Local + local** — fastest to iterate, hardest to keep consistent.
+- **Remote + remote** — most consistent, most operational overhead.
+- **Local skills + remote data** *(this repo's example)* — students can
+  hack on prompts freely, but everyone sees the same FAQ table the
+  instant the instructor updates it.
+
+::: notes
+The repo intentionally demonstrates the mixed case. Skills stay local
+so students can change prompts and rerun without coordinating with
+anyone. Only the FAQ knowledge base — the piece you actually want
+*shared* — moves to Postgres. That's the practical pattern: move the
+piece that needs to be authoritative, leave the piece you want to
+experiment with alone.
+:::
+
+## Pros & Cons — Across Clients {.content-slide}
+
+"Across clients" means: Claude Desktop, Claude Code, a scheduled agent,
+and a custom Python client — all on the same machine, all wanting the
+same capability.
+
+**With local stdio MCP servers** (this repo's default)
+
+- Each client launches its own subprocess; no port, no auth.
+- Pro: zero setup; the protocol is the contract.
+- Con: each client gets its own process, its own temp `out-dir`, its
+  own LLM cache — no shared state.
+
+**With remote HTTP MCP servers**
+
+- All clients talk to one running process.
+- Pro: one prompt revision, one rate-limit budget, one audit log.
+- Con: needs HTTP transport, auth, and someone running the box.
+
+The repo ships the local stdio version because it's the simplest to
+teach. Switching to HTTP is one FastMCP flag plus a deployment story.
+
+::: notes
+The orchestrator and the MCP servers both run as plain Python
+subprocesses today — the simplest pattern that lets students see what
+"different clients, one capability" means. The leap from this to a
+shared HTTP MCP server is small.
+:::
+
+## Pros & Cons — Across Users {.content-slide}
+
+"Across users" means the whole class, not just one student's laptop.
+
+**Local everything** (one student, one laptop)
+
+- Pro: nothing to deploy, no credentials to manage, fast iteration.
+- Con: every student has their own copy of the FAQ KB. The instructor
+  pushing a new FAQ row reaches no one until each student regenerates
+  data.
+
+**Remote data, local skills + clients** *(this repo's example pattern)*
+
+- Pro: instructor updates one row in Postgres — every student sees it
+  on their next ticket. Students still own their prompts and their LLM
+  keys.
+- Con: needs a database the class can reach (and credentials).
+- Trade: small DB hosting cost in exchange for "the FAQ KB is real,
+  shared, and changes during the term."
+
+**Remote everything**
+
+- Pro: one canonical workflow, one auditable system, one upgrade.
+- Con: a single bug locks the whole class out. Students lose the
+  ability to experiment with prompts without permission. Cost and
+  latency add up.
+
+::: notes
+The classroom pattern that usually works best: move the *facts* (data)
+to a shared remote source, leave the *judgement* (prompts, LLM calls)
+local. That's exactly what `FAQ_KB_URI` switches on in this repo.
 :::
 
 ## When MCP Is (and Isn't) Worth It {.content-slide}
 
 **Worth it when:**
 
-- Multiple LLM clients need the same capability (Desktop + Codex + a
-  scheduled job)
-- A third party needs to invoke your skills without custom integration
-- You want to centralize "where the data lives" instead of threading
-  `--data-dir` through every caller
+- ≥2 LLM clients need the same capability (Desktop + Codex + a
+  scheduled job) — MCP saves you N custom integrations.
+- A third party needs to invoke your skills without custom glue.
+- "Where the data lives" should be a server's problem, not threaded
+  through every caller's CLI.
 
 **Not worth it when:**
 
-- One consumer, one process, runs locally (the orchestrator's case —
-  putting MCP in front would just add a process)
-- The workflow has its own deterministic control flow that an LLM agent
-  shouldn't be encouraged to second-guess
+- One consumer, one process, runs locally — the orchestrator's case.
+  Putting MCP in front would just add a process.
+- The workflow has its own deterministic control flow that an LLM
+  agent shouldn't be encouraged to second-guess.
 
 ::: notes
 That's why this repo's orchestrator is NOT an MCP server. The exhibit
-exposes the two judgment-heavy skills as MCP tools so you can call
-them from any client; the orchestrator stays a plain CLI demo.
+exposes the two judgement-heavy skills as MCP tools and the data files
+as MCP resources, so the same skills and data are callable from any
+client; the orchestrator stays a plain CLI demo.
 :::
 
 ## Build Your Own Workflow {.section-slide}
@@ -1236,8 +1347,9 @@ HITL gates.
 ```
 
 ```text
-Open mcp_exhibit/server.py and explain which skills it exposes as MCP
-tools, and why the orchestrator itself is not an MCP server.
+Open mcp_servers/skills_server.py and mcp_servers/data_server.py and
+explain what each one exposes, what FAQ_KB_URI switches on, and why
+the orchestrator itself is not an MCP server.
 ```
 
 ::: notes

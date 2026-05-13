@@ -110,7 +110,7 @@ Run the script, then report something like:
 
 ## Alternatively, via MCP
 
-If the optional MCP exhibit is wired into your client (see `mcp_exhibit/README.md`),
+If the optional MCP skills server is wired into your client (see `mcp_servers/README.md`),
 the same investigation is available without invoking the script directly:
 
 > Call the `investigate_specialist_solution` MCP tool with `ticket_id="TKT-00042"`.

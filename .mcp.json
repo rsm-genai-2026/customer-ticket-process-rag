@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "customer-ticket-data": {
+      "command": "uv",
+      "args": ["run", "python", "-m", "mcp_servers.data_server"]
+    },
+    "customer-ticket-skills": {
+      "command": "uv",
+      "args": ["run", "python", "-m", "mcp_servers.skills_server"]
+    }
+  }
+}

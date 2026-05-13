@@ -33,7 +33,7 @@ are.
 ## The shape of the workflow
 
 The repo implements an eleven-step customer-support process from the source
-PDF (`customer-ticket-process-genai.pdf`):
+PDF (`customer-ticket-process.pdf`):
 
 1. User submits a ticket.
 2. IT team receives the ticket.

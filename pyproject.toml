@@ -15,6 +15,7 @@ dependencies = [
     "requests>=2.32",
     "pyarrow>=17",
     "mcp>=1.27.1",
+    "connectorx>=0.4",
 ]
 
 [dependency-groups]

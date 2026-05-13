@@ -59,6 +59,26 @@ DEFAULT_MODEL = os.environ.get("FAQ_RESOLUTION_MODEL", DEFAULT_LLM_MODEL)
 DRAFT_CONFIDENCE_THRESHOLD = 0.70
 
 
+def _load_faq_kb(data_dir: Path) -> pl.DataFrame:
+    """Return the FAQ knowledge base, local CSV by default.
+
+    When ``FAQ_KB_URI`` is set in the environment (or in a ``.env`` file
+    next to this repo or in ``~/.env``), the function reads from that
+    URI instead — e.g. a Postgres database the course already shares.
+    The URI is anything ``polars.read_database_uri`` accepts.
+
+    This is the only place in the skill that knows where the FAQ data
+    lives. Everything downstream still gets the same polars DataFrame.
+    """
+
+    load_dotenv(_REPO_ROOT / ".env")
+    load_dotenv(Path.home() / ".env")
+    uri = os.environ.get("FAQ_KB_URI", "").strip()
+    if uri:
+        return pl.read_database_uri("SELECT * FROM faq_knowledge_base", uri)
+    return read_csv(data_dir, "raw/faq_knowledge_base.csv")
+
+
 def load_faq_context(
     data_dir: Path,
     out_dir: Path,
@@ -70,7 +90,7 @@ def load_faq_context(
     """Load the ticket, active FAQs, and upstream triage decision."""
 
     ticket = require_ticket(data_dir, ticket_id)
-    faqs = read_csv(data_dir, "raw/faq_knowledge_base.csv").filter(pl.col("active_flag"))
+    faqs = _load_faq_kb(data_dir).filter(pl.col("active_flag"))
 
     triage = latest_working_row(out_dir, "triage_decisions", ticket_id, workflow_run_id=workflow_run_id)
     triage_source = "working/triage_decisions.csv"
