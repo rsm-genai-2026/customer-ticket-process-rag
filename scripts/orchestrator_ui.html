@@ -1,0 +1,1579 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Ticket Workflow Demo</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f6f7f4;
+      --surface: #ffffff;
+      --surface-2: #eef4f0;
+      --text: #17201b;
+      --muted: #5b665f;
+      --line: #d8dfd8;
+      --accent: #0f766e;
+      --accent-dark: #0b514c;
+      --warn: #a85400;
+      --error: #a23a3a;
+      --shadow: 0 12px 28px rgba(23, 32, 27, 0.09);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      text-rendering: optimizeLegibility;
+    }
+    header {
+      border-bottom: 1px solid var(--line);
+      background: var(--surface);
+    }
+    .topbar {
+      max-width: 1180px;
+      margin: 0 auto;
+      padding: 18px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+    h1, h2 {
+      text-wrap: balance;
+    }
+    h1 {
+      margin: 0;
+      font-size: 20px;
+      letter-spacing: 0;
+    }
+    .status-pill {
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 6px 10px;
+      color: var(--muted);
+      background: var(--surface-2);
+      font-size: 13px;
+      white-space: nowrap;
+    }
+    main {
+      max-width: 1180px;
+      margin: 0 auto;
+      padding: 22px 20px 40px;
+      display: grid;
+      grid-template-columns: minmax(340px, 460px) minmax(0, 1fr);
+      gap: 18px;
+      align-items: start;
+    }
+    main.run-active {
+      max-width: 920px;
+      grid-template-columns: minmax(0, 1fr);
+    }
+    main.run-active #form-section { display: none; }
+    main:not(.run-active) #chip-section { display: none; }
+    .ticket-chip {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 10px 14px;
+      padding: 12px 14px;
+    }
+    .chip-main {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      min-width: 0;
+      flex: 1 1 200px;
+    }
+    .chip-subject {
+      font-weight: 650;
+      font-size: 14px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .chip-meta {
+      color: var(--muted);
+      font-size: 12px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-variant-numeric: tabular-nums;
+    }
+    .chip-badges {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+    .chip-badge {
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 3px 9px;
+      font-size: 12px;
+      background: var(--surface-2);
+      color: var(--text);
+      white-space: nowrap;
+    }
+    .chip-badge[data-tone="warn"] {
+      background: #fff1e0;
+      border-color: #f1c995;
+      color: #7d3e00;
+    }
+    .chip-badge[data-tone="accent"] {
+      background: #e6f4f1;
+      border-color: #9fcfc8;
+      color: var(--accent-dark);
+    }
+    .ghost-button {
+      background: transparent;
+      color: var(--accent-dark);
+      border: 1px solid var(--line);
+      font-weight: 600;
+      padding: 7px 12px;
+      min-height: 34px;
+    }
+    .ghost-button:hover {
+      background: var(--surface-2);
+    }
+    section {
+      background: var(--surface);
+      border: 1px solid rgba(216, 223, 216, 0.55);
+      border-radius: 14px;
+      box-shadow: 0 1px 0 rgba(0, 0, 0, 0.02), 0 8px 22px rgba(23, 32, 27, 0.05);
+    }
+    .panel-header {
+      padding: 16px 16px 12px;
+      border-bottom: 1px solid var(--line);
+    }
+    .panel-header h2 {
+      margin: 0;
+      font-size: 16px;
+      letter-spacing: 0;
+    }
+    form, .results-body {
+      padding: 16px;
+    }
+    label {
+      display: block;
+      font-size: 13px;
+      font-weight: 650;
+      margin: 0 0 6px;
+    }
+    input, select, textarea {
+      width: 100%;
+      border: 1px solid #c9d2ca;
+      border-radius: 6px;
+      background: #fff;
+      color: var(--text);
+      font: inherit;
+      font-size: 14px;
+      padding: 9px 10px;
+      min-height: 38px;
+    }
+    textarea {
+      min-height: 92px;
+      resize: vertical;
+      line-height: 1.4;
+    }
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+    .field {
+      margin-bottom: 12px;
+    }
+    button {
+      border: 0;
+      border-radius: 8px;
+      background: var(--accent);
+      color: #fff;
+      font: inherit;
+      font-weight: 700;
+      padding: 10px 14px;
+      min-height: 40px;
+      cursor: pointer;
+      transition: transform 0.15s cubic-bezier(0.2, 0, 0, 1), background 0.15s ease, box-shadow 0.15s ease;
+    }
+    button:hover:not(:disabled) { background: var(--accent-dark); }
+    button:active:not(:disabled) { transform: scale(0.96); }
+    button:disabled {
+      cursor: not-allowed;
+      opacity: 0.55;
+    }
+    .secondary {
+      background: #2f5d50;
+    }
+    .secondary:hover {
+      background: #25483f;
+    }
+    .danger {
+      background: var(--warn);
+    }
+    .danger:hover {
+      background: #7d3e00;
+    }
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+    }
+    .muted {
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.4;
+    }
+    .response {
+      border: 1px solid rgba(216, 223, 216, 0.7);
+      border-radius: 10px;
+      background: #fbfcfb;
+      padding: 14px;
+      white-space: pre-wrap;
+      line-height: 1.5;
+      font-size: 14px;
+      min-height: 180px;
+      text-wrap: pretty;
+    }
+    .stepper {
+      border: 1px solid rgba(216, 223, 216, 0.7);
+      border-radius: 10px;
+      background: #fbfcfb;
+      padding: 14px 14px 12px;
+      margin-bottom: 14px;
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      align-items: center;
+      gap: 6px;
+      overflow-x: auto;
+    }
+    .stepper-trunk {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .stepper-fork {
+      display: grid;
+      grid-template-rows: 1fr 1fr;
+      gap: 6px;
+      padding: 0 6px;
+      position: relative;
+    }
+    .stepper-fork::before,
+    .stepper-fork::after {
+      content: "";
+      position: absolute;
+      top: 50%;
+      width: 8px;
+      border-top: 2px dashed #cbd5ce;
+      transform: translateY(-50%);
+    }
+    .stepper-fork::before { left: -2px; }
+    .stepper-fork::after { right: -2px; }
+    .lane {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      min-height: 34px;
+    }
+    .lane[data-state="skipped"] {
+      opacity: 0.42;
+    }
+    .lane[data-state="skipped"] .step {
+      border-style: dashed;
+    }
+    .step {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 6px 11px;
+      border: 1px solid #cbd5ce;
+      border-radius: 999px;
+      background: #fff;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text);
+      white-space: nowrap;
+      line-height: 1.1;
+      position: relative;
+      transition: transform .15s ease, box-shadow .15s ease;
+    }
+    .step + .step::before {
+      content: "";
+      display: inline-block;
+      width: 8px;
+      border-top: 1px solid #cbd5ce;
+      margin-right: 4px;
+    }
+    .step[data-state="completed"] {
+      background: #e6f4e7;
+      border-color: #5aa16b;
+      color: #234d2c;
+    }
+    .step[data-state="completed"]::after {
+      content: "✓";
+      font-size: 11px;
+      color: #2f7a3a;
+    }
+    .step[data-state="current"] {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #fff;
+      padding: 8px 13px;
+      font-size: 13px;
+      box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.18);
+    }
+    .step[data-state="pending"] {
+      color: #6c766f;
+      background: #f7f8f6;
+    }
+    .step[data-state="skipped"] {
+      color: #8b9089;
+      background: #f2f0ec;
+      border-style: dashed;
+    }
+    .stepper-fork-caption {
+      grid-column: 1 / -1;
+      margin-top: 8px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.4;
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+    .stepper-fork-caption strong {
+      color: var(--text);
+      font-weight: 650;
+    }
+    .current-step {
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: #fff;
+      box-shadow: 0 1px 0 rgba(0, 0, 0, 0.03), 0 10px 24px rgba(23, 32, 27, 0.05);
+      padding: 16px 18px;
+      margin-bottom: 14px;
+      display: grid;
+      gap: 14px;
+    }
+    .cs-row {
+      display: grid;
+      grid-template-columns: 86px 1fr;
+      gap: 14px;
+      align-items: start;
+    }
+    .cs-row.cs-past .cs-skill,
+    .cs-row.cs-past .cs-summary {
+      color: var(--muted);
+    }
+    .cs-row.cs-past .cs-skill {
+      font-weight: 600;
+    }
+    .cs-label {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 22px;
+      padding: 3px 9px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      background: var(--surface-2);
+      color: var(--muted);
+      white-space: nowrap;
+      align-self: start;
+      justify-self: start;
+    }
+    .cs-row.cs-current .cs-label {
+      background: var(--accent);
+      color: #fff;
+    }
+    .cs-skill {
+      font-size: 18px;
+      font-weight: 650;
+      line-height: 1.2;
+      letter-spacing: 0;
+      overflow-wrap: anywhere;
+    }
+    .cs-summary {
+      margin-top: 4px;
+      color: var(--muted);
+      font-size: 13.5px;
+      line-height: 1.45;
+      text-wrap: pretty;
+    }
+    .cs-skill-code {
+      display: inline-block;
+      margin-left: 6px;
+      color: var(--muted);
+      font-size: 12px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-weight: 500;
+      vertical-align: middle;
+    }
+    .cs-divider {
+      border: 0;
+      border-top: 1px dashed var(--line);
+      margin: 0;
+    }
+    .cs-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+    }
+    .section-label {
+      margin: 14px 0 8px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0;
+    }
+    .branch-steps {
+      margin-top: 8px;
+      font-size: 11px;
+      color: var(--muted);
+    }
+    .skill-io {
+      display: grid;
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+    .io-card {
+      border: 1px solid rgba(216, 223, 216, 0.7);
+      border-radius: 10px;
+      background: #fff;
+      overflow: hidden;
+    }
+    .io-card.io-card-empty {
+      padding: 12px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+    .io-card > summary {
+      list-style: none;
+      cursor: pointer;
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      padding: 10px 12px;
+      user-select: none;
+      min-width: 0;
+    }
+    .io-card > summary::-webkit-details-marker { display: none; }
+    .io-card > summary::before {
+      content: "▸";
+      color: var(--muted);
+      font-size: 11px;
+      transition: transform 0.15s ease;
+      display: inline-block;
+      flex: 0 0 auto;
+    }
+    .io-card[open] > summary::before {
+      transform: rotate(90deg);
+    }
+    .io-card[open] > summary {
+      border-bottom: 1px dashed var(--line);
+    }
+    .io-summary-check {
+      color: #2f7a3a;
+      font-weight: 700;
+      flex: 0 0 auto;
+    }
+    .io-summary-skill {
+      font-weight: 650;
+      font-size: 14px;
+      flex: 0 1 auto;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .io-summary-code {
+      color: var(--muted);
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 11.5px;
+      font-variant-numeric: tabular-nums;
+      flex: 0 1 auto;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .io-summary-outcome {
+      color: var(--muted);
+      font-size: 13px;
+      flex: 1 1 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      min-width: 0;
+    }
+    .io-body {
+      padding: 12px;
+    }
+    .run-details {
+      margin-top: 6px;
+      border-top: 1px dashed var(--line);
+      padding-top: 12px;
+    }
+    .run-details > summary {
+      cursor: pointer;
+      list-style: none;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.02em;
+      padding: 4px 0;
+      user-select: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .run-details > summary::-webkit-details-marker { display: none; }
+    .run-details > summary::before {
+      content: "▸";
+      display: inline-block;
+      transition: transform 0.15s ease;
+      font-size: 10px;
+    }
+    .run-details[open] > summary::before {
+      transform: rotate(90deg);
+    }
+    .io-columns {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    .io-list {
+      display: grid;
+      gap: 6px;
+      align-content: start;
+    }
+    .io-list strong {
+      display: block;
+      color: var(--muted);
+      font-size: 12px;
+      text-transform: uppercase;
+    }
+    .io-field {
+      border: 1px solid #e1e6e1;
+      border-radius: 6px;
+      padding: 7px;
+      background: #fbfcfb;
+      min-width: 0;
+    }
+    .io-field span {
+      display: block;
+      color: var(--muted);
+      font-size: 11px;
+      margin-bottom: 3px;
+    }
+    .io-field code {
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 12px;
+    }
+    .timeline {
+      margin: 14px 0 0;
+      padding: 0;
+      list-style: none;
+      display: grid;
+      gap: 8px;
+    }
+    .timeline li {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 9px 10px;
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      font-size: 13px;
+      background: #fff;
+    }
+    .timeline .next {
+      color: var(--muted);
+      text-align: right;
+      overflow-wrap: anywhere;
+    }
+    .feedback {
+      margin-top: 14px;
+      border-top: 1px solid var(--line);
+      padding-top: 14px;
+    }
+    .feedback textarea {
+      min-height: 70px;
+      margin-bottom: 10px;
+    }
+    .review-panel {
+      margin-top: 14px;
+      border-top: 1px solid var(--line);
+      padding-top: 14px;
+    }
+    .review-panel label {
+      display: block;
+      margin-top: 8px;
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0;
+    }
+    .review-panel textarea,
+    .review-panel input[type="text"] {
+      width: 100%;
+      font-family: inherit;
+      font-size: 14px;
+      padding: 8px 10px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: #fff;
+      margin-top: 4px;
+    }
+    .review-panel textarea {
+      min-height: 60px;
+    }
+    .review-panel .hint {
+      color: var(--muted);
+      font-size: 12px;
+      margin-top: 8px;
+    }
+    .review-panel .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-top: 4px;
+    }
+    .review-panel .actions {
+      margin-top: 12px;
+    }
+    .error {
+      border: 1px solid #efb4b4;
+      background: #fff5f5;
+      color: var(--error);
+      border-radius: 8px;
+      padding: 10px;
+      margin-bottom: 12px;
+      font-size: 14px;
+    }
+    .hidden { display: none; }
+    @media (max-width: 900px) {
+      main {
+        grid-template-columns: 1fr;
+      }
+      .io-columns {
+        grid-template-columns: 1fr;
+      }
+    }
+    @media (max-width: 560px) {
+      .topbar {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+      .grid-2 {
+        grid-template-columns: 1fr;
+      }
+      .actions button {
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="topbar">
+      <h1>Ticket Workflow Demo</h1>
+      <div class="status-pill" id="run-status">Ready</div>
+    </div>
+  </header>
+  <main id="main">
+    <section id="form-section">
+      <div class="panel-header"><h2>Submit Ticket</h2></div>
+      <form id="ticket-form">
+        <div class="field">
+          <label for="example-ticket">Example Ticket</label>
+          <select id="example-ticket" name="example-ticket">
+            <option value="">Custom ticket</option>
+            ${example_options}
+          </select>
+          <div class="muted" id="example-description">
+            Pick an example to load a known scenario, then step through it or run all skills.
+          </div>
+        </div>
+        <div class="grid-2">
+          <div class="field">
+            <label for="requester_name">Name</label>
+            <input id="requester_name" name="requester_name" value="Avery Chen" autocomplete="name">
+          </div>
+          <div class="field">
+            <label for="requester_email">Email</label>
+            <input id="requester_email" name="requester_email" value="avery.chen@example.com" autocomplete="email">
+          </div>
+        </div>
+        <div class="grid-2">
+          <div class="field">
+            <label for="company">Company</label>
+            <input id="company" name="company" value="Northstar Retail">
+          </div>
+          <div class="field">
+            <label for="account_tier">Account Tier</label>
+            <select id="account_tier" name="account_tier">${tiers}</select>
+          </div>
+        </div>
+        <div class="field">
+          <label for="subject">Subject</label>
+          <input id="subject" name="subject" value="Dashboard export is missing records" required>
+        </div>
+        <div class="field">
+          <label for="description">Description</label>
+          <textarea id="description" name="description" required>
+The Analytics Dashboard export is missing records for this week's QBR. The on-screen dashboard has the right filters,
+but the CSV export leaves out several accounts.</textarea>
+        </div>
+        <div class="grid-2">
+          <div class="field">
+            <label for="affected_system">Affected System</label>
+            <select id="affected_system" name="affected_system">${systems}</select>
+          </div>
+          <div class="field">
+            <label for="customer_reported_urgency">Urgency</label>
+            <select id="customer_reported_urgency" name="customer_reported_urgency">${urgencies}</select>
+          </div>
+        </div>
+        <div class="field">
+          <label for="business_impact_text">Business Impact</label>
+          <input id="business_impact_text" name="business_impact_text"
+            value="QBR deck is blocked until the export is complete.">
+        </div>
+        <div class="field">
+          <label for="steps_already_tried">Steps Already Tried</label>
+          <input id="steps_already_tried" name="steps_already_tried"
+            value="Refreshed the dashboard and re-ran the export twice.">
+        </div>
+        <div class="actions">
+          <button type="submit" id="submit-button">Start Step Mode</button>
+          <button type="button" class="secondary" id="run-all-button">Run All</button>
+          <span class="muted">The workflow writes to an isolated /tmp demo run.</span>
+        </div>
+      </form>
+    </section>
+    <section id="chip-section">
+      <div class="ticket-chip">
+        <div class="chip-main">
+          <div class="chip-subject" id="chip-subject">-</div>
+          <div class="chip-meta" id="chip-meta">-</div>
+        </div>
+        <div class="chip-badges" id="chip-badges"></div>
+        <button type="button" class="ghost-button" id="edit-ticket-button">Edit ticket</button>
+      </div>
+    </section>
+    <section id="response-section">
+      <div class="panel-header"><h2>Workflow Response</h2></div>
+      <div class="results-body">
+        <div id="error-box" class="error hidden"></div>
+        <div class="current-step" id="current-step-card">
+          <div class="cs-row cs-past hidden" id="cs-past">
+            <span class="cs-label">Just did</span>
+            <div>
+              <div class="cs-skill">
+                <span id="cs-past-skill">-</span>
+                <span class="cs-skill-code" id="cs-past-code"></span>
+              </div>
+              <div class="cs-summary" id="cs-past-summary">-</div>
+            </div>
+          </div>
+          <hr class="cs-divider hidden" id="cs-divider">
+          <div class="cs-row cs-current" id="cs-now">
+            <span class="cs-label">Doing now</span>
+            <div>
+              <div class="cs-skill">
+                <span id="cs-now-skill">Submit a ticket</span>
+                <span class="cs-skill-code" id="cs-now-code"></span>
+              </div>
+              <div class="cs-summary" id="cs-now-summary">
+                Pick an example or fill in the form, then start step mode to walk skill-by-skill.
+              </div>
+            </div>
+          </div>
+          <div class="cs-actions">
+            <button type="button" class="ghost-button" id="previous-button" disabled>← Previous</button>
+            <button type="button" id="step-button" disabled>Next →</button>
+          </div>
+        </div>
+        <div class="section-label">Workflow</div>
+        <div class="stepper" id="stepper"></div>
+        <div class="section-label">Customer response</div>
+        <div class="response" id="response-text">
+Submit a ticket to run the skill workflow and generate the customer response.</div>
+        <div class="feedback hidden" id="feedback-panel">
+          <label for="feedback_text">Customer Feedback</label>
+          <textarea id="feedback_text">Thanks, that fixed it!</textarea>
+          <div class="actions">
+            <button class="secondary" id="fixed-button" type="button">Mark Fixed</button>
+            <button class="danger" id="broken-button" type="button">Still Broken</button>
+          </div>
+        </div>
+        <div class="review-panel hidden" id="draft-review-panel">
+          <div class="section-label" style="margin-top:0">Supervisor review — specialist draft</div>
+          <p class="hint" id="draft-review-status">
+            The LLM drafted the reply below. Edit if needed, then approve to send.
+            Reject sends the ticket back for one more specialist pass.
+          </p>
+          <label for="draft-review-text">Draft (editable)</label>
+          <textarea id="draft-review-text" rows="10"></textarea>
+          <label for="draft-review-notes">Reviewer notes (optional)</label>
+          <input id="draft-review-notes" type="text" placeholder="Why approve / what you fixed / why reject">
+          <div class="actions">
+            <button id="draft-approve-button" type="button">Approve &amp; Send</button>
+            <button class="danger" id="draft-reject-button" type="button">Reject — Re-investigate</button>
+          </div>
+        </div>
+        <div class="review-panel hidden" id="faq-promotion-panel">
+          <div class="section-label" style="margin-top:0">Supervisor review — promote to FAQ?</div>
+          <p class="hint">
+            The customer accepted this specialist solution. The LLM proposed a FAQ
+            entry below so future similar tickets can match against it. Edit any
+            field, then approve to add it to the FAQ knowledge base, or skip.
+          </p>
+          <div class="grid-2">
+            <div>
+              <label for="faq-category">Category</label>
+              <input id="faq-category" type="text">
+            </div>
+            <div>
+              <label for="faq-system">System</label>
+              <input id="faq-system" type="text">
+            </div>
+          </div>
+          <label for="faq-issue-pattern">Issue pattern</label>
+          <input id="faq-issue-pattern" type="text">
+          <label for="faq-symptoms">Symptoms (one per line)</label>
+          <textarea id="faq-symptoms" rows="3"></textarea>
+          <label for="faq-solution-steps">Solution steps (one per line)</label>
+          <textarea id="faq-solution-steps" rows="4"></textarea>
+          <label for="faq-required-info">Required customer info (one per line)</label>
+          <textarea id="faq-required-info" rows="2"></textarea>
+          <p class="hint" id="faq-confidence-hint"></p>
+          <label for="faq-promotion-notes">Reviewer notes (optional)</label>
+          <input id="faq-promotion-notes" type="text" placeholder="Anything worth recording about this promotion decision">
+          <div class="actions">
+            <button id="faq-approve-button" type="button">Approve &amp; Add to FAQ</button>
+            <button class="secondary" id="faq-skip-button" type="button">Skip</button>
+          </div>
+        </div>
+        <div class="section-label">Skill activity</div>
+        <div class="skill-io" id="skill-io"></div>
+        <details class="run-details" id="run-details">
+          <summary>Step log</summary>
+          <ul class="timeline" id="timeline"></ul>
+        </details>
+      </div>
+    </section>
+  </main>
+  <script>
+    const exampleTickets = ${examples_json};
+    const form = document.querySelector("#ticket-form");
+    const exampleSelect = document.querySelector("#example-ticket");
+    const exampleDescription = document.querySelector("#example-description");
+    const submitButton = document.querySelector("#submit-button");
+    const runAllButton = document.querySelector("#run-all-button");
+    const stepButton = document.querySelector("#step-button");
+    const previousButton = document.querySelector("#previous-button");
+    const statusEl = document.querySelector("#run-status");
+    const errorBox = document.querySelector("#error-box");
+    const responseText = document.querySelector("#response-text");
+    const feedbackPanel = document.querySelector("#feedback-panel");
+    const feedbackText = document.querySelector("#feedback_text");
+    const fixedButton = document.querySelector("#fixed-button");
+    const brokenButton = document.querySelector("#broken-button");
+    const draftReviewPanel = document.querySelector("#draft-review-panel");
+    const draftReviewText = document.querySelector("#draft-review-text");
+    const draftReviewNotes = document.querySelector("#draft-review-notes");
+    const draftReviewStatus = document.querySelector("#draft-review-status");
+    const draftApproveButton = document.querySelector("#draft-approve-button");
+    const draftRejectButton = document.querySelector("#draft-reject-button");
+    const faqPromotionPanel = document.querySelector("#faq-promotion-panel");
+    const faqCategoryInput = document.querySelector("#faq-category");
+    const faqSystemInput = document.querySelector("#faq-system");
+    const faqIssuePatternInput = document.querySelector("#faq-issue-pattern");
+    const faqSymptomsInput = document.querySelector("#faq-symptoms");
+    const faqSolutionStepsInput = document.querySelector("#faq-solution-steps");
+    const faqRequiredInfoInput = document.querySelector("#faq-required-info");
+    const faqConfidenceHint = document.querySelector("#faq-confidence-hint");
+    const faqPromotionNotes = document.querySelector("#faq-promotion-notes");
+    const faqApproveButton = document.querySelector("#faq-approve-button");
+    const faqSkipButton = document.querySelector("#faq-skip-button");
+    const stepperEl = document.querySelector("#stepper");
+    const skillIo = document.querySelector("#skill-io");
+    const timeline = document.querySelector("#timeline");
+    const mainEl = document.querySelector("#main");
+    const chipSubject = document.querySelector("#chip-subject");
+    const chipMeta = document.querySelector("#chip-meta");
+    const chipBadges = document.querySelector("#chip-badges");
+    const editTicketButton = document.querySelector("#edit-ticket-button");
+    const csPastRow = document.querySelector("#cs-past");
+    const csDivider = document.querySelector("#cs-divider");
+    const csPastSkill = document.querySelector("#cs-past-skill");
+    const csPastCode = document.querySelector("#cs-past-code");
+    const csPastSummary = document.querySelector("#cs-past-summary");
+    const csNowSkill = document.querySelector("#cs-now-skill");
+    const csNowCode = document.querySelector("#cs-now-code");
+    const csNowSummary = document.querySelector("#cs-now-summary");
+    const csNowRow = document.querySelector("#cs-now");
+    const csNowLabel = csNowRow.querySelector(".cs-label");
+    let activeRunId = "";
+    let activeNextStep = "";
+    let snapshots = [];
+    let snapshotIndex = -1;
+    let lastPayload = null;
+
+    const SKILL_PURPOSE = {
+      "receive-ticket": "Capture this ticket into the working dataset.",
+      "classify-prioritize-ticket": "Assign a category and priority for routing.",
+      "check-faq-resolution": "Ask whether the FAQ knowledge base already resolves this ticket.",
+      "draft-faq-response": "Compose the customer reply from the matched FAQ article.",
+      "escalate-to-specialist": "Route the ticket to the right IT specialist group.",
+      "investigate-specialist-solution": "Have the specialist produce a root cause and a fix.",
+      "draft-specialist-response": "Convert the specialist's solution into a customer-safe reply.",
+      "send-customer-response": "Send the drafted message to the customer.",
+      "verify-feedback-close-or-reopen": "Read the customer's reply and decide to close or reopen.",
+      "audit-ticket-process": "Audit the workflow run for review and metrics."
+    };
+
+    function formPayload() {
+      return Object.fromEntries(new FormData(form).entries());
+    }
+
+    function enterRunActive(payload, data) {
+      mainEl.classList.add("run-active");
+      lastPayload = payload || lastPayload || {};
+      const subject = (lastPayload && lastPayload.subject) || data?.ticketId || "Ticket";
+      const company = (lastPayload && lastPayload.company) || "";
+      const system = (lastPayload && lastPayload.affected_system) || "";
+      const ticketId = data?.ticketId || "";
+      chipSubject.textContent = subject;
+      const metaParts = [];
+      if (ticketId) metaParts.push(ticketId);
+      if (company) metaParts.push(company);
+      if (system) metaParts.push(system);
+      chipMeta.textContent = metaParts.join("  ·  ");
+      refreshChipFromData(data);
+    }
+
+    function exitRunActive() {
+      mainEl.classList.remove("run-active");
+      lastPayload = null;
+      resetWorkflowView();
+    }
+
+    function setBusy(isBusy, label = "Running") {
+      submitButton.disabled = isBusy;
+      runAllButton.disabled = isBusy;
+      previousButton.disabled = isBusy || snapshotIndex <= 0;
+      stepButton.disabled = isBusy || !canMoveNext();
+      fixedButton.disabled = isBusy || isHistoricalSnapshot();
+      brokenButton.disabled = isBusy || isHistoricalSnapshot();
+      draftApproveButton.disabled = isBusy || isHistoricalSnapshot();
+      draftRejectButton.disabled = isBusy || isHistoricalSnapshot();
+      faqApproveButton.disabled = isBusy || isHistoricalSnapshot();
+      faqSkipButton.disabled = isBusy || isHistoricalSnapshot();
+      statusEl.textContent = isBusy ? label : "Ready";
+    }
+
+    function isHistoricalSnapshot() {
+      return snapshotIndex >= 0 && snapshotIndex < snapshots.length - 1;
+    }
+
+    const HITL_GATES = new Set(["review-specialist-draft", "approve-faq-promotion"]);
+
+    function canMoveNext() {
+      if (snapshotIndex >= 0 && snapshotIndex < snapshots.length - 1) return true;
+      if (!activeRunId || !activeNextStep) return false;
+      // HITL gates have dedicated buttons; the generic Next button shouldn't
+      // try to advance them without the supervisor's decision payload.
+      if (HITL_GATES.has(activeNextStep)) return false;
+      return true;
+    }
+
+    function refreshStepperButtons() {
+      previousButton.disabled = snapshotIndex <= 0;
+      stepButton.disabled = !canMoveNext();
+      fixedButton.disabled = isHistoricalSnapshot();
+      brokenButton.disabled = isHistoricalSnapshot();
+      draftApproveButton.disabled = isHistoricalSnapshot();
+      draftRejectButton.disabled = isHistoricalSnapshot();
+      faqApproveButton.disabled = isHistoricalSnapshot();
+      faqSkipButton.disabled = isHistoricalSnapshot();
+    }
+
+    function resetWorkflowView(
+      message = "Submit a ticket to run the skill workflow and generate the customer response."
+    ) {
+      showError("");
+      activeRunId = "";
+      activeNextStep = "";
+      resetSnapshots();
+      setCurrentStep({
+        pastSkill: "",
+        nowSkill: "",
+        nowLabel: "Submit a ticket",
+        nowPurpose: "Pick an example or fill in the form, then start step mode to walk skill-by-skill."
+      });
+      responseText.textContent = message;
+      feedbackPanel.classList.add("hidden");
+      draftReviewPanel.classList.add("hidden");
+      faqPromotionPanel.classList.add("hidden");
+      timeline.innerHTML = "";
+      renderStepper([], []);
+      renderSkillIo();
+      refreshStepperButtons();
+      statusEl.textContent = "Ready";
+    }
+
+    function applyExampleTicket(example) {
+      for (const [field, value] of Object.entries(example.payload || {})) {
+        if (form.elements[field]) {
+          form.elements[field].value = value;
+        }
+      }
+      const expected = example.expected_initial_branch
+        ? `Expected first branch: $${example.expected_initial_branch}.`
+        : "";
+      exampleDescription.textContent = `$${example.scenario || ""} $${expected}`;
+      resetWorkflowView(`Loaded example: $${example.label}. Start step mode or run all skills.`);
+    }
+
+    function showError(message) {
+      errorBox.textContent = message;
+      errorBox.classList.toggle("hidden", !message);
+    }
+
+    function valueOrDash(value) {
+      return value === undefined || value === null || String(value).trim() === "" ? "-" : value;
+    }
+
+    function resetSnapshots() {
+      snapshots = [];
+      snapshotIndex = -1;
+    }
+
+    function storeSnapshot(data) {
+      if (snapshotIndex < snapshots.length - 1) {
+        snapshots = snapshots.slice(0, snapshotIndex + 1);
+      }
+      snapshots.push(data);
+      snapshotIndex = snapshots.length - 1;
+    }
+
+    function showSnapshot(index) {
+      if (index < 0 || index >= snapshots.length) return;
+      snapshotIndex = index;
+      renderResult(snapshots[snapshotIndex], { store: false });
+    }
+
+    function setCurrentStep({ pastSkill, pastLabel, pastSummary, nowSkill, nowLabel, nowPurpose, complete }) {
+      if (pastSkill) {
+        csPastRow.classList.remove("hidden");
+        csDivider.classList.remove("hidden");
+        csPastSkill.textContent = pastLabel || pastSkill;
+        csPastCode.textContent = pastLabel && pastLabel !== pastSkill ? pastSkill : "";
+        csPastSummary.textContent = pastSummary || "—";
+      } else {
+        csPastRow.classList.add("hidden");
+        csDivider.classList.add("hidden");
+      }
+      if (complete) {
+        csNowLabel.textContent = "Done";
+        csNowSkill.textContent = "Workflow complete";
+        csNowCode.textContent = "";
+        csNowSummary.textContent = "Every skill in this run has finished.";
+      } else {
+        csNowLabel.textContent = "Doing now";
+        csNowSkill.textContent = nowLabel || nowSkill || "Submit a ticket";
+        csNowCode.textContent = nowSkill && nowLabel && nowLabel !== nowSkill ? nowSkill : "";
+        csNowSummary.textContent = nowPurpose || SKILL_PURPOSE[nowSkill] || "Ready to run the next skill.";
+      }
+    }
+
+    function refreshChipFromData(data) {
+      if (!lastPayload) return;
+      const tier = lastPayload.account_tier || "";
+      const urgency = lastPayload.customer_reported_urgency || "";
+      const category = data?.triage?.category || "";
+      const priority = data?.triage?.priority || "";
+      chipBadges.innerHTML = "";
+      const addBadge = (text, tone) => {
+        if (!text) return;
+        const b = document.createElement("span");
+        b.className = "chip-badge";
+        if (tone) b.dataset.tone = tone;
+        b.textContent = text;
+        chipBadges.append(b);
+      };
+      if (tier) addBadge(`Tier: $${tier}`);
+      if (urgency) addBadge(`Urgency: $${urgency}`, urgency.toLowerCase() === "high" ? "warn" : "");
+      if (category) addBadge(`Category: $${category}`, "accent");
+      if (priority) addBadge(`Priority: $${priority}`, priority.toLowerCase() === "high" ? "warn" : "accent");
+    }
+
+    function summarizeOutputs(record) {
+      const outs = record.outputs || [];
+      if (!outs.length) return "(no outputs recorded)";
+      const parts = [];
+      for (const o of outs) {
+        if (parts.length >= 2) break;
+        const raw = (o.value === null || o.value === undefined) ? "" : String(o.value);
+        if (!raw.trim()) continue;
+        const trimmed = raw.length > 64 ? raw.slice(0, 61) + "…" : raw;
+        parts.push(`$${o.label}: $${trimmed}`);
+      }
+      return parts.length ? parts.join(" · ") : "ran";
+    }
+
+    function renderSkillIo(records) {
+      skillIo.innerHTML = "";
+      const items = records || [];
+      if (!items.length) {
+        const empty = document.createElement("div");
+        empty.className = "io-card io-card-empty";
+        empty.textContent = "Run a skill to see the exact inputs and outputs recorded for it.";
+        skillIo.append(empty);
+        return;
+      }
+      const lastIndex = items.length - 1;
+      items.forEach((record, i) => {
+        const card = document.createElement("details");
+        card.className = "io-card";
+        if (i === lastIndex) card.open = true;
+        const summary = document.createElement("summary");
+        const check = document.createElement("span");
+        check.className = "io-summary-check";
+        check.textContent = "✓";
+        const skillName = document.createElement("span");
+        skillName.className = "io-summary-skill";
+        skillName.textContent = record.label || record.skill || "skill";
+        const code = document.createElement("span");
+        code.className = "io-summary-code";
+        code.textContent = record.skill && record.label && record.skill !== record.label ? record.skill : "";
+        const outcome = document.createElement("span");
+        outcome.className = "io-summary-outcome";
+        outcome.textContent = "→ " + summarizeOutputs(record);
+        summary.append(check, skillName, code, outcome);
+
+        const body = document.createElement("div");
+        body.className = "io-body";
+        const columns = document.createElement("div");
+        columns.className = "io-columns";
+        columns.append(renderIoList("Inputs", record.inputs || []));
+        columns.append(renderIoList("Outputs", record.outputs || []));
+        body.append(columns);
+        if (record.artifacts?.length) {
+          const artifacts = document.createElement("div");
+          artifacts.className = "branch-steps";
+          artifacts.textContent = "Artifacts: " + record.artifacts.join(", ");
+          body.append(artifacts);
+        }
+
+        card.append(summary, body);
+        skillIo.append(card);
+      });
+    }
+
+    function renderIoList(title, fields) {
+      const list = document.createElement("div");
+      list.className = "io-list";
+      const heading = document.createElement("strong");
+      heading.textContent = title;
+      list.append(heading);
+      for (const field of fields) {
+        const item = document.createElement("div");
+        item.className = "io-field";
+        const label = document.createElement("span");
+        label.textContent = field.label || "-";
+        const value = document.createElement("code");
+        value.textContent = valueOrDash(field.value);
+        item.append(label, value);
+        list.append(item);
+      }
+      return list;
+    }
+
+    const TRUNK_PRE_IDS = ["submit", "receive", "triage", "faq"];
+    const TRUNK_POST_IDS = ["send", "feedback", "close"];
+    const FORK_FAQ_IDS = ["faq_response"];
+    const FORK_SPECIALIST_IDS = ["escalate", "investigate", "specialist_response"];
+
+    const PLACEHOLDER_NODES = [
+      { id: "submit", label: "Submit", state: "current", detail: "Waiting for ticket" },
+      { id: "receive", label: "Receive", state: "pending", detail: "" },
+      { id: "triage", label: "Classify", state: "pending", detail: "" },
+      { id: "faq", label: "FAQ check", state: "pending", detail: "" },
+      { id: "faq_response", label: "Draft FAQ", state: "pending", detail: "" },
+      { id: "escalate", label: "Escalate", state: "pending", detail: "" },
+      { id: "investigate", label: "Investigate", state: "pending", detail: "" },
+      { id: "specialist_response", label: "Draft specialist", state: "pending", detail: "" },
+      { id: "send", label: "Send", state: "pending", detail: "" },
+      { id: "feedback", label: "Feedback", state: "pending", detail: "" },
+      { id: "close", label: "Close", state: "pending", detail: "" }
+    ];
+
+    function shortLabel(label) {
+      if (!label) return "-";
+      return label
+        .replace(/^Draft\\s+/i, "Draft ")
+        .replace(/^Classify \\+ priority$$/i, "Classify")
+        .replace(/Customer feedback/i, "Feedback")
+        .replace(/Specialist investigates/i, "Investigate")
+        .replace(/^Close \\/ reopen$$/i, "Close");
+    }
+
+    function makeStep(node) {
+      const li = document.createElement("li");
+      li.className = "step";
+      li.dataset.state = node.state || "pending";
+      li.dataset.id = node.id;
+      li.textContent = shortLabel(node.label || node.id);
+      if (node.detail) li.title = node.detail;
+      return li;
+    }
+
+    function renderStepper(nodes, branches) {
+      stepperEl.innerHTML = "";
+      const flowNodes = (nodes && nodes.length ? nodes : PLACEHOLDER_NODES);
+      const byId = new Map(flowNodes.map((n) => [n.id, n]));
+      const branchById = new Map((branches || []).map((b) => [b.id, b]));
+
+      const pickRow = (ids) => {
+        const ol = document.createElement("ol");
+        ol.className = "stepper-trunk";
+        for (const id of ids) {
+          const node = byId.get(id);
+          if (!node) continue;
+          ol.append(makeStep(node));
+        }
+        return ol;
+      };
+
+      const pickLane = (ids, label, branchId) => {
+        const ol = document.createElement("ol");
+        ol.className = "lane lane-" + branchId;
+        const branch = branchById.get(branchId);
+        const state = branch?.state || "pending";
+        ol.dataset.state = state;
+        ol.dataset.label = label;
+        for (const id of ids) {
+          const node = byId.get(id);
+          if (!node) continue;
+          ol.append(makeStep(node));
+        }
+        return ol;
+      };
+
+      const fork = document.createElement("div");
+      fork.className = "stepper-fork";
+      fork.append(pickLane(FORK_FAQ_IDS, "FAQ branch", "faq"));
+      fork.append(pickLane(FORK_SPECIALIST_IDS, "Specialist branch", "specialist"));
+
+      stepperEl.append(pickRow(TRUNK_PRE_IDS), fork, pickRow(TRUNK_POST_IDS));
+
+      const activeBranch = (branches || []).find(
+        (b) => b.state === "selected" || b.state === "completed"
+      );
+      if (activeBranch && activeBranch.reason) {
+        const cap = document.createElement("div");
+        cap.className = "stepper-fork-caption";
+        const strong = document.createElement("strong");
+        strong.textContent = `$${activeBranch.label || activeBranch.id}:`;
+        const span = document.createElement("span");
+        span.textContent = activeBranch.reason;
+        cap.append(strong, span);
+        stepperEl.append(cap);
+      }
+    }
+
+    function renderOrchestrator(data) {
+      const state = data.orchestrator || {};
+      activeNextStep = state.nextStep || "";
+      const lastStep = state.lastStep || {};
+      setCurrentStep({
+        pastSkill: lastStep.skill || "",
+        pastLabel: lastStep.label || "",
+        pastSummary: lastStep.summary || "",
+        nowSkill: activeNextStep,
+        nowLabel: state.nextStepLabel || "",
+        nowPurpose: SKILL_PURPOSE[activeNextStep] || "",
+        complete: !activeNextStep && !!lastStep.skill
+      });
+      refreshStepperButtons();
+    }
+
+    function renderResult(data, options = {}) {
+      if (options.store !== false) {
+        storeSnapshot(data);
+      }
+      activeRunId = data.workflowRunId || activeRunId;
+      refreshChipFromData(data);
+      responseText.textContent = data.response?.text || "No customer response was generated.";
+      renderOrchestrator(data);
+      const needsFeedback = activeNextStep === "verify-feedback-close-or-reopen";
+      const needsDraftReview = activeNextStep === "review-specialist-draft";
+      const needsFaqPromotion = activeNextStep === "approve-faq-promotion";
+      feedbackPanel.classList.toggle("hidden", !needsFeedback);
+      draftReviewPanel.classList.toggle("hidden", !needsDraftReview);
+      faqPromotionPanel.classList.toggle("hidden", !needsFaqPromotion);
+      if (needsDraftReview) {
+        const review = data.specialistDraftReview || {};
+        draftReviewText.value = review.draftText || data.response?.text || "";
+        draftReviewNotes.value = "";
+        const retry = Number(review.retryCount) || 0;
+        const maxRejects = 1;
+        const forced = review.forcedApprove ? " (last reject was forced through)" : "";
+        if (retry >= maxRejects) {
+          draftReviewStatus.textContent =
+            `The previous attempt was rejected once$${forced}. Rejecting again will force approve to keep the workflow bounded.`;
+        } else {
+          draftReviewStatus.textContent =
+            "The LLM drafted the reply below. Edit if needed, then approve to send. Reject sends the ticket back for one more specialist pass.";
+        }
+      }
+      if (needsFaqPromotion) {
+        const candidate = data.faqCandidate || {};
+        faqCategoryInput.value = candidate.category || "";
+        faqSystemInput.value = candidate.systemName || "";
+        faqIssuePatternInput.value = candidate.issuePattern || "";
+        faqSymptomsInput.value = pipeJoinToLines(candidate.symptoms);
+        faqSolutionStepsInput.value = pipeJoinToLines(candidate.solutionSteps);
+        faqRequiredInfoInput.value = pipeJoinToLines(candidate.requiredCustomerInfo);
+        faqPromotionNotes.value = "";
+        const conf = candidate.confidence;
+        faqConfidenceHint.textContent = conf
+          ? `LLM confidence: $${conf}. Reasoning: $${candidate.reasoning || "—"}`
+          : "";
+      }
+      renderStepper(data.flow?.nodes, data.flow?.branches);
+      renderSkillIo(data.stepIO);
+      timeline.innerHTML = "";
+      for (const step of data.steps || []) {
+        const li = document.createElement("li");
+        const left = document.createElement("strong");
+        left.textContent = step.label || step.skill || "-";
+        const right = document.createElement("span");
+        right.className = "next";
+        right.textContent = step.summary || step.action || step.status || "";
+        li.append(left, right);
+        timeline.append(li);
+      }
+      if (data.feedback?.nextAction) {
+        const li = document.createElement("li");
+        const left = document.createElement("strong");
+        left.textContent = "feedback";
+        const right = document.createElement("span");
+        right.className = "next";
+        right.textContent = data.feedback.nextAction;
+        li.append(left, right);
+        timeline.append(li);
+      }
+      refreshStepperButtons();
+    }
+
+    renderStepper([], []);
+    renderSkillIo();
+    refreshStepperButtons();
+
+    exampleSelect.addEventListener("change", () => {
+      const selected = exampleTickets.find((example) => example.id === exampleSelect.value);
+      if (!selected) {
+        exampleDescription.textContent =
+          "Pick an example to load a known scenario, then step through it or run all skills.";
+        resetWorkflowView();
+        return;
+      }
+      applyExampleTicket(selected);
+    });
+
+    async function postJson(url, payload) {
+      const res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Request failed");
+      }
+      return data;
+    }
+
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      showError("");
+      activeRunId = "";
+      activeNextStep = "";
+      resetSnapshots();
+      setBusy(true, "Starting step mode");
+      const payload = formPayload();
+      try {
+        const data = await postJson("/api/tickets/start", payload);
+        renderResult(data);
+        enterRunActive(payload, data);
+      } catch (error) {
+        showError(error.message);
+      } finally {
+        setBusy(false);
+      }
+    });
+
+    runAllButton.addEventListener("click", async () => {
+      showError("");
+      activeRunId = "";
+      activeNextStep = "";
+      resetSnapshots();
+      setBusy(true, "Running workflow");
+      const payload = formPayload();
+      try {
+        const data = await postJson("/api/tickets", payload);
+        renderResult(data);
+        enterRunActive(payload, data);
+      } catch (error) {
+        showError(error.message);
+      } finally {
+        setBusy(false);
+      }
+    });
+
+    editTicketButton.addEventListener("click", () => {
+      exitRunActive();
+    });
+
+    stepButton.addEventListener("click", async () => {
+      if (snapshotIndex >= 0 && snapshotIndex < snapshots.length - 1) {
+        showSnapshot(snapshotIndex + 1);
+        return;
+      }
+      if (!activeRunId || !activeNextStep) return;
+      showError("");
+      setBusy(true, "Running next skill");
+      try {
+        const payload = { workflow_run_id: activeRunId };
+        if (activeNextStep === "verify-feedback-close-or-reopen") {
+          payload.feedback_text = feedbackText.value;
+        }
+        const data = await postJson("/api/step", payload);
+        renderResult(data);
+      } catch (error) {
+        showError(error.message);
+      } finally {
+        setBusy(false);
+      }
+    });
+
+    previousButton.addEventListener("click", () => {
+      showSnapshot(snapshotIndex - 1);
+    });
+
+    fixedButton.addEventListener("click", async () => {
+      feedbackText.value = "Thanks, that fixed it!";
+      await sendFeedback();
+    });
+
+    brokenButton.addEventListener("click", async () => {
+      feedbackText.value = "Tried it, still not working.";
+      await sendFeedback();
+    });
+
+    async function sendFeedback() {
+      if (!activeRunId) return;
+      showError("");
+      setBusy(true, "Processing feedback");
+      try {
+        const url = activeNextStep === "verify-feedback-close-or-reopen" ? "/api/step" : "/api/feedback";
+        const data = await postJson(url, {
+          workflow_run_id: activeRunId,
+          feedback_text: feedbackText.value
+        });
+        renderResult(data);
+      } catch (error) {
+        showError(error.message);
+      } finally {
+        setBusy(false);
+      }
+    }
+
+    function pipeJoinToLines(value) {
+      if (!value) return "";
+      return String(value).split("|").map((p) => p.trim()).filter(Boolean).join("\n");
+    }
+
+    function linesToList(value) {
+      return String(value || "")
+        .split("\n")
+        .map((p) => p.trim())
+        .filter(Boolean);
+    }
+
+    draftApproveButton.addEventListener("click", () => sendDraftDecision("approve"));
+    draftRejectButton.addEventListener("click", () => sendDraftDecision("reject"));
+
+    async function sendDraftDecision(decision) {
+      if (!activeRunId) return;
+      showError("");
+      setBusy(true, decision === "approve" ? "Approving draft" : "Rejecting draft");
+      try {
+        const data = await postJson("/api/specialist-draft-review", {
+          workflow_run_id: activeRunId,
+          decision,
+          edited_text: draftReviewText.value,
+          reviewer_notes: draftReviewNotes.value
+        });
+        renderResult(data);
+      } catch (error) {
+        showError(error.message);
+      } finally {
+        setBusy(false);
+      }
+    }
+
+    faqApproveButton.addEventListener("click", () => sendFaqDecision("approve"));
+    faqSkipButton.addEventListener("click", () => sendFaqDecision("skip"));
+
+    async function sendFaqDecision(decision) {
+      if (!activeRunId) return;
+      showError("");
+      setBusy(true, decision === "approve" ? "Adding to FAQ" : "Skipping FAQ promotion");
+      try {
+        const candidate = {
+          category: faqCategoryInput.value,
+          system_name: faqSystemInput.value,
+          issue_pattern: faqIssuePatternInput.value,
+          symptoms: linesToList(faqSymptomsInput.value),
+          solution_steps: linesToList(faqSolutionStepsInput.value),
+          required_customer_info: linesToList(faqRequiredInfoInput.value)
+        };
+        const data = await postJson("/api/faq-promotion", {
+          workflow_run_id: activeRunId,
+          decision,
+          candidate,
+          reviewer_notes: faqPromotionNotes.value
+        });
+        renderResult(data);
+      } catch (error) {
+        showError(error.message);
+      } finally {
+        setBusy(false);
+      }
+    }
+  </script>
+</body>
+</html>

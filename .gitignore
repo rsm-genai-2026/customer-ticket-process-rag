@@ -20,6 +20,8 @@ __pycache__
 # Quarto
 *_files/
 *.html
+# but DO track the orchestrator's source HTML template (rendered at request time)
+!scripts/orchestrator_ui.html
 
 # Others
 Makefile
@@ -34,3 +36,7 @@ justfile
 DEPLOY.md
 config.yaml
 __pycache__/
+
+# extra
+docs/
+slides/
