@@ -209,17 +209,7 @@ def call_llm_for_specialist_solution(
     model: str = DEFAULT_MODEL,
     client: Any | None = None,
 ) -> dict:
-    """Ask the LLM for the specialist solution and return its JSON object.
-
-    For tests and offline demos, set ``SPECIALIST_INVESTIGATION_MOCK_JSON``
-    to a JSON string and this function will return it verbatim without
-    making a network call. Mirrors the pattern used by
-    ``check-faq-resolution``.
-    """
-
-    mock_json = os.environ.get("SPECIALIST_INVESTIGATION_MOCK_JSON", "").strip()
-    if mock_json:
-        return json.loads(mock_json)
+    """Ask the LLM for the specialist solution and return its JSON object."""
 
     _load_env()
     prompt = build_llm_prompt(context)

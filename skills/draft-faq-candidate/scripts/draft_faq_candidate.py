@@ -170,10 +170,6 @@ def _load_env() -> None:
 def call_llm_for_candidate(context: dict, *, model: str = DEFAULT_MODEL, client: Any | None = None) -> dict:
     """Ask the LLM for the FAQ candidate and return its raw JSON object."""
 
-    mock_json = os.environ.get("FAQ_CANDIDATE_MOCK_JSON", "").strip()
-    if mock_json:
-        return json.loads(mock_json)
-
     _load_env()
     prompt = build_llm_prompt(context)
     result = ask_json(

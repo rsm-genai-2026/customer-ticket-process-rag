@@ -13,7 +13,7 @@ incident IDs are fabricated.
 
 ## Why a separate KB
 
-The customer-ticket workflow already uses a *public* FAQ knowledge base
+The customer-ticket workflow already uses a FAQ knowledge base
 at `data/raw/faq_knowledge_base.csv`. The KB here is different: it
 represents the **internal** knowledge an LLM could not have seen during
 training — specific SOPs, vendor SLAs, runbooks of known issues,

@@ -1,46 +1,53 @@
-"""Tests for the chunkers, frontmatter parser, and HyQ generator mock."""
+"""Tests for ``rag.build_index``.
+
+Pure-function tests (frontmatter parser, chunkers, write-index round-trip) run
+locally; everything that calls an LLM or an embedding model hits the real
+TritonAI gateway. No mocks. ``TRITONAI_API_KEY`` must be in ``.env``.
+"""
 
 from __future__ import annotations
 
 import json
-import os
 from pathlib import Path
 
 import numpy as np
-import pytest
 
 from rag import build_index as bi
 
-
 SAMPLE_DOC = """---
 doc_id: KB-099
-title: Sample Policy
-type: policy
+title: Tier-1 Password Reset Standard Operating Procedure
+type: sop
 owner: Example Team
 last_updated: 2026-04-01
 ---
 
-Intro paragraph that lives above the first heading.
+Intro paragraph explaining why identity verification matters.
 
-## First section
+## Identity verification
 
-Body of the first section.
+A Tier-1 analyst must complete one of the following before resetting a
+password: confirm with the user's manager over Slack, perform a video
+callback to the number on file, or trigger a Yubikey challenge.
 
-Another paragraph.
+## Reset procedure
 
-## Second section
-
-Body of the second section.
+Open the IDP admin console, choose Force credential rotation, and record
+the ticket id in the Reason field.
 """
+
+
+# ---------------------------------------------------------------------------
+# Pure helpers (no LLM, no embeddings)
+# ---------------------------------------------------------------------------
 
 
 def test_parse_frontmatter_extracts_keys_and_body() -> None:
     meta, body = bi.parse_frontmatter(SAMPLE_DOC)
     assert meta["doc_id"] == "KB-099"
-    assert meta["title"] == "Sample Policy"
-    assert meta["type"] == "policy"
+    assert meta["type"] == "sop"
     assert "Intro paragraph" in body
-    assert "## First section" in body
+    assert "## Identity verification" in body
 
 
 def test_parse_frontmatter_no_frontmatter_returns_empty_dict() -> None:
@@ -53,9 +60,9 @@ def test_section_chunks_splits_on_h2_and_keeps_intro() -> None:
     _, body = bi.parse_frontmatter(SAMPLE_DOC)
     chunks = bi.section_chunks("KB-099", {"title": "Sample"}, body)
     headings = [c.section_heading for c in chunks]
-    assert headings == ["<intro>", "First section", "Second section"]
+    assert headings == ["<intro>", "Identity verification", "Reset procedure"]
     assert chunks[0].text.startswith("Intro paragraph")
-    assert chunks[1].text.startswith("## First section")
+    assert chunks[1].text.startswith("## Identity verification")
 
 
 def test_section_chunks_doc_with_no_headings() -> None:
@@ -67,91 +74,13 @@ def test_section_chunks_doc_with_no_headings() -> None:
 def test_naive_chunks_produces_overlapping_windows() -> None:
     body = " ".join(f"w{i}" for i in range(1000))
     chunks = bi.naive_chunks("KB-X", {"title": "T"}, body, window=300, overlap=50)
-    # 1000 tokens, step 250 → starts at 0, 250, 500, 750; the 1000-token doc
-    # finishes inside the fifth window starting at 750, so we expect 4 chunks.
     assert len(chunks) == 4
-    first_tokens = chunks[0].text.split()
-    second_tokens = chunks[1].text.split()
-    overlap = set(first_tokens) & set(second_tokens)
+    overlap = set(chunks[0].text.split()) & set(chunks[1].text.split())
     assert len(overlap) == 50
 
 
 def test_naive_chunks_empty_body_returns_empty_list() -> None:
     assert bi.naive_chunks("KB-X", {}, "") == []
-
-
-def test_generate_hyq_uses_env_mock(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv(
-        "HYQ_QUESTIONS_MOCK_JSON",
-        json.dumps({"questions": ["Q1?", "Q2?", "Q3?", "Q4?", "Q5?", "Q6?"]}),
-    )
-    chunk = bi.Chunk(
-        chunk_id="x",
-        doc_id="d",
-        doc_title="t",
-        doc_type="policy",
-        section_heading="s",
-        text="body",
-    )
-    out = bi.generate_hyq(chunk, n=3)
-    assert out == ["Q1?", "Q2?", "Q3?"]
-
-
-def test_build_hyq_index_with_fake_embedder_and_mocked_generator(tmp_path: Path) -> None:
-    kb_dir = tmp_path / "kb"
-    kb_dir.mkdir()
-    (kb_dir / "KB-099.md").write_text(SAMPLE_DOC, encoding="utf-8")
-
-    kb = bi.load_kb(kb_dir)
-    assert len(kb) == 1
-    doc_id, meta, _ = kb[0]
-    assert doc_id == "KB-099"
-    assert meta["type"] == "policy"
-
-    # Force a deterministic question count and matrix.
-    def fake_gen(chunk: bi.Chunk, n: int, *, model: str) -> list[str]:
-        return [f"what is {chunk.section_heading}?" for _ in range(n)]
-
-    def fake_embed(texts: list[str], model: str = "x") -> np.ndarray:
-        # 8-dim unit vectors derived from text length so each row is unique.
-        arr = np.zeros((len(texts), 8), dtype=np.float32)
-        for i, t in enumerate(texts):
-            arr[i, i % 8] = 1.0 + 0.001 * len(t)
-        norms = np.linalg.norm(arr, axis=1, keepdims=True)
-        return arr / norms
-
-    index, matrix = bi.build_hyq_index(
-        kb,
-        questions_per_chunk=2,
-        embedder=fake_embed,
-        generator=fake_gen,
-    )
-    assert index["mode"] == "hyq"
-    # 3 chunks (intro + 2 sections) × 2 questions = 6 rows.
-    assert matrix.shape == (6, 8)
-    assert len(index["chunks"]) == 3
-    assert index["chunks"][0]["embedding_rows"] == [0, 1]
-    assert index["chunks"][1]["embedding_rows"] == [2, 3]
-    assert index["chunks"][2]["embedding_rows"] == [4, 5]
-
-
-def test_build_naive_index_with_fake_embedder(tmp_path: Path) -> None:
-    kb_dir = tmp_path / "kb"
-    kb_dir.mkdir()
-    body_paragraph = " ".join(f"tok{i}" for i in range(700))
-    (kb_dir / "KB-100.md").write_text(
-        f"---\ndoc_id: KB-100\ntitle: Long Doc\ntype: runbook\n---\n\n{body_paragraph}\n",
-        encoding="utf-8",
-    )
-
-    def fake_embed(texts: list[str], model: str = "x") -> np.ndarray:
-        return np.ones((len(texts), 4), dtype=np.float32) / 2.0
-
-    kb = bi.load_kb(kb_dir)
-    index, matrix = bi.build_naive_index(kb, window=300, overlap=50, embedder=fake_embed)
-    assert index["mode"] == "naive"
-    assert matrix.shape[0] == len(index["chunks"])
-    assert all(c["embedding_rows"] == [i] for i, c in enumerate(index["chunks"]))
 
 
 def test_write_index_round_trip(tmp_path: Path) -> None:
@@ -180,3 +109,78 @@ def test_write_index_round_trip(tmp_path: Path) -> None:
     assert on_disk["embeddings_file"] == "naive_embeddings.npy"
     reloaded = np.load(npy_path)
     assert np.array_equal(reloaded, matrix)
+
+
+# ---------------------------------------------------------------------------
+# Live tests — hit the real TritonAI gateway
+# ---------------------------------------------------------------------------
+
+
+def test_generate_hyq_returns_question_list() -> None:
+    """The HyQ generator must produce N plausible questions per chunk."""
+    chunk = bi.Chunk(
+        chunk_id="KB-099#1",
+        doc_id="KB-099",
+        doc_title="Tier-1 Password Reset SOP",
+        doc_type="sop",
+        section_heading="Identity verification",
+        text=(
+            "A Tier-1 analyst must complete one of the following before "
+            "resetting a password: confirm with the user's manager over "
+            "Slack, perform a video callback, or trigger a Yubikey challenge."
+        ),
+    )
+    questions = bi.generate_hyq(chunk, n=4)
+    assert len(questions) == 4
+    assert all(isinstance(q, str) and q.strip() for q in questions)
+    assert all(q.strip().endswith("?") for q in questions)
+    # All four should be distinct.
+    assert len(set(questions)) == 4
+    # At least one question should reference an identity-verification concept.
+    joined = " ".join(q.lower() for q in questions)
+    assert any(term in joined for term in ("verify", "verification", "identity", "reset", "password"))
+
+
+def test_build_hyq_index_end_to_end(tmp_path: Path) -> None:
+    """Build a real HyQ index for one synthetic doc against the live gateway."""
+    kb_dir = tmp_path / "kb"
+    kb_dir.mkdir()
+    (kb_dir / "KB-099.md").write_text(SAMPLE_DOC, encoding="utf-8")
+    kb = bi.load_kb(kb_dir)
+    assert len(kb) == 1
+
+    index, matrix = bi.build_hyq_index(kb, questions_per_chunk=3)
+    assert index["mode"] == "hyq"
+    # SAMPLE_DOC has 3 sections (intro + 2 headings) × 3 questions = 9 rows
+    # at 1024 dims (the gateway's only embedding model).
+    assert len(index["chunks"]) == 3
+    assert matrix.shape == (9, 1024)
+    # Each chunk must claim a contiguous, non-overlapping run of rows.
+    seen: set[int] = set()
+    for c in index["chunks"]:
+        rows = c["embedding_rows"]
+        assert len(rows) == 3
+        assert all(r not in seen for r in rows)
+        seen.update(rows)
+    # Embeddings should be L2-normalised so cosine == dot product downstream.
+    norms = np.linalg.norm(matrix, axis=1)
+    assert np.allclose(norms, 1.0, atol=1e-5)
+
+
+def test_build_naive_index_end_to_end(tmp_path: Path) -> None:
+    """Build a real naive index for one synthetic doc against the live gateway."""
+    kb_dir = tmp_path / "kb"
+    kb_dir.mkdir()
+    body_paragraph = " ".join(f"sentence{i} about VPN tunnels and password resets and the IDP" for i in range(60))
+    (kb_dir / "KB-100.md").write_text(
+        f"---\ndoc_id: KB-100\ntitle: Long Doc\ntype: runbook\n---\n\n{body_paragraph}\n",
+        encoding="utf-8",
+    )
+    kb = bi.load_kb(kb_dir)
+    index, matrix = bi.build_naive_index(kb, window=120, overlap=20)
+    assert index["mode"] == "naive"
+    assert len(index["chunks"]) >= 2
+    assert matrix.shape == (len(index["chunks"]), 1024)
+    assert all(c["embedding_rows"] == [i] for i, c in enumerate(index["chunks"]))
+    norms = np.linalg.norm(matrix, axis=1)
+    assert np.allclose(norms, 1.0, atol=1e-5)

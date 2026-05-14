@@ -67,13 +67,6 @@ def _seed_triage(out_dir: Path, ticket_id: str, category: str) -> None:
     ).write_csv(out_dir / "triage_decisions.csv")
 
 
-def _mock_llm(monkeypatch: pytest.MonkeyPatch, raw: dict) -> None:
-    def fake_call(context: dict, *, model: str = cfr.DEFAULT_MODEL, client=None) -> dict:
-        return raw
-
-    monkeypatch.setattr(cfr, "call_llm_for_faq_decision", fake_call)
-
-
 def test_load_faq_context_uses_working_triage_first(tmp_path: Path) -> None:
     _seed_triage(tmp_path, "TKT-00042", "login_access")
     ctx = cfr.load_faq_context(DATA_DIR, tmp_path, "TKT-00042")
@@ -151,24 +144,25 @@ def test_normalize_llm_decision_rejects_unknown_faq_id() -> None:
     assert "unknown FAQ id" in decision["faq_application_reason"]
 
 
-def test_build_faq_decision_row_calls_llm(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    _mock_llm(monkeypatch, LLM_MATCH)
+def test_build_faq_decision_row_calls_llm(tmp_path: Path) -> None:
+    """Hit the real LLM and assert the row's structural invariants.
+
+    Wording of the LLM's reason/evidence is not asserted (non-deterministic);
+    keys, types, and the recommended_next_step routing are.
+    """
     _seed_triage(tmp_path, "TKT-00042", "login_access")
     ctx = cfr.load_faq_context(DATA_DIR, tmp_path, "TKT-00042")
 
-    row = cfr.build_faq_decision_row(ctx, model="test-model")
+    row = cfr.build_faq_decision_row(ctx, model=cfr.DEFAULT_MODEL)
 
-    assert row["faq_match_found"] is True
-    assert row["faq_id"] == "FAQ-001"
+    assert isinstance(row["faq_match_found"], bool)
     assert row["search_terms"] == "llm_full_faq_review"
     assert "FAQ-001" in row["candidate_faq_ids"]
-    assert "llm_model=test-model" in row["decision_summary"]
+    assert f"llm_model={cfr.DEFAULT_MODEL}" in row["decision_summary"]
+    assert row["recommended_next_step"] in {"draft-faq-response", "escalate-to-specialist"}
 
 
-def test_main_happy_path_writes_faq_decision(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys: pytest.CaptureFixture[str]
-) -> None:
-    _mock_llm(monkeypatch, LLM_MATCH)
+def test_main_happy_path_writes_faq_decision(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     _seed_triage(tmp_path, "TKT-00042", "login_access")
     rc = cfr.main(
         [
@@ -194,10 +188,7 @@ def test_main_happy_path_writes_faq_decision(
     assert "LLM model" in capsys.readouterr().out
 
 
-def test_main_demo_mode_falls_back_to_processed(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys: pytest.CaptureFixture[str]
-) -> None:
-    _mock_llm(monkeypatch, LLM_NO_MATCH)
+def test_main_demo_mode_falls_back_to_processed(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     rc = cfr.main(
         [
             "--ticket-id",
@@ -291,9 +282,8 @@ def test_main_missing_triage_returns_3(tmp_path: Path, capsys: pytest.CaptureFix
 
 
 def test_cli_runs_via_subprocess(tmp_path: Path) -> None:
-    """Smoke test that the script runs end-to-end without making a network call."""
+    """Smoke test the CLI end-to-end against the real LLM."""
 
-    env = {**os.environ, "FAQ_RESOLUTION_MOCK_JSON": json.dumps(LLM_MATCH)}
     result = subprocess.run(
         [
             sys.executable,
@@ -309,14 +299,12 @@ def test_cli_runs_via_subprocess(tmp_path: Path) -> None:
         ],
         capture_output=True,
         text=True,
-        env=env,
     )
     assert result.returncode == 0, result.stderr
     assert (tmp_path / "faq_decisions.csv").exists()
 
 
 def test_cli_emits_json_envelope(tmp_path: Path) -> None:
-    env = {**os.environ, "FAQ_RESOLUTION_MOCK_JSON": json.dumps(LLM_NO_MATCH)}
     result = subprocess.run(
         [
             sys.executable,
@@ -337,11 +325,10 @@ def test_cli_emits_json_envelope(tmp_path: Path) -> None:
         ],
         capture_output=True,
         text=True,
-        env=env,
     )
     assert result.returncode == 0, result.stderr
     env_out = json.loads(result.stdout.strip())
     assert env_out["status"] == "ok"
     assert env_out["skill_name"] == "check-faq-resolution"
     assert env_out["workflow_run_id"] == "wf-cli"
-    assert env_out["next_action"] == "escalate-to-specialist"
+    assert env_out["next_action"] in {"draft-faq-response", "escalate-to-specialist"}

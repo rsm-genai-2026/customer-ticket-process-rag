@@ -1,7 +1,8 @@
 # Customer-ticket process
 
 A reference repo that turns a customer-support workflow into a sequence of
-small, testable **skills** coordinated by a thin **orchestrator**. The intended
+small, testable **steps** — LLM-based **skills** and deterministic
+**automations** — coordinated by a thin **orchestrator**. The intended
 audience is graduate business-school students who want a complete worked
 example of how to put GenAI inside a process — not how to make a single
 chatbot.
@@ -22,8 +23,8 @@ uv run python scripts/orchestrator.py --port 8767         # run the demo
 
 
 Then open `http://127.0.0.1:8767`, pick an example ticket from the dropdown,
-click **Start Step Mode**, and walk forward one skill at a time. Each panel
-shows what data went in, what data came out, and which skill runs next.
+click **Start Step Mode**, and walk forward one step at a time. Each panel
+shows what data went in, what data came out, and which step runs next.
 
 > Trouble shooting: If you can an "Address already in use" error, use the two steps below
 
@@ -36,8 +37,8 @@ uv run python scripts/orchestrator.py --port 8767         # run the demo
 
 ## The shape of the workflow
 
-The repo implements an eleven-step customer-support process from the source
-PDF (`customer-ticket-process.pdf`):
+The repo implements a customer-support process from the source PDF
+(`customer-ticket-process.pdf`). The user-facing narrative is:
 
 1. User submits a ticket.
 2. IT team receives the ticket.
@@ -46,41 +47,58 @@ PDF (`customer-ticket-process.pdf`):
 5. If FAQ matches → IT team drafts an FAQ response, sends it.
 6. If FAQ does not match → IT team escalates to an IT specialist.
 7. Specialist investigates and creates a solution.
-8. IT team drafts a specialist-based customer response.
-9. IT team sends the response.
-10. Customer accepts → close. Customer rejects → reopen and re-escalate once,
-    then close-unresolved on a second rejection.
+8. IT team drafts a specialist-based customer response, a **supervisor**
+   reviews the draft, then it is sent.
+9. Customer accepts → close. Customer rejects → reopen and re-escalate once,
+   then close-unresolved on a second rejection.
+10. If the specialist solution was accepted, the workflow drafts a
+    candidate FAQ entry and a **supervisor** approves or skips before it
+    lands in the knowledge base.
 
-Each numbered step is exactly one skill under `skills/<name>/`. The only
-branching is at step 4 (FAQ vs. specialist). Loops are bounded — a ticket can
-be reopened at most once before it is closed as unresolved.
+Under the hood that narrative is implemented as **thirteen step folders**:
+three LLM-based **skills** under `skills/<name>/` and ten deterministic
+**automations** under `automations/<name>/`. Two of the automations are
+human-in-the-loop pause gates (`review-specialist-draft`,
+`approve-faq-promotion`). The only branching is at step 4 (FAQ vs.
+specialist). Loops are bounded — a ticket can be reopened at most once
+before it is closed as unresolved.
 
 ### Skills vs. automations
 
-The ten workflow steps are split into two folders by a strict rule:
+The thirteen step folders are split into two folders by a strict rule:
 
-| Folder | What lives there | Has `SKILL.md`? | Calls an LLM? |
-| --- | --- | --- | --- |
-| `skills/` | The two real AI **skills** | yes | yes |
-| `automations/` | Seven deterministic steps | no | no |
+| Folder | What lives there | Count | Has `SKILL.md`? | Calls an LLM? |
+| --- | --- | --- | --- | --- |
+| `skills/` | LLM-based **skills** | 3 | yes | yes |
+| `automations/` | Deterministic steps (incl. 2 HITL pause gates) | 10 | no | no |
 
 **Skills** in this repo follow Anthropic's definition: a folder with a
 `SKILL.md` that an LLM agent (Claude Code, Codex) loads at runtime to decide
 *when* the skill applies, and a script the agent invokes that performs the
-work — including a real LLM call. Two steps qualify:
+work — including a real LLM call. Three steps qualify:
 
 - `skills/check-faq-resolution/` — asks an LLM whether the FAQ knowledge
   base contains a direct resolution for the ticket.
 - `skills/investigate-specialist-solution/` — asks an LLM to act as the
   assigned IT specialist and produce a root cause + diagnostic steps +
   customer-safe solution.
+- `skills/draft-faq-candidate/` — after a specialist solution is accepted
+  by the customer, asks an LLM to draft a candidate FAQ entry (issue
+  pattern, symptoms, solution steps, required customer info) so the next
+  similar ticket can match against it. A supervisor approves or skips
+  through the `approve-faq-promotion` HITL gate before it lands in the
+  knowledge base.
 
 **Automations** are everything else: deterministic Python scripts that look
 up rows, score keywords, fill templates, and write CSVs. They never call an
 LLM. They live under `automations/` with just a `README.md` and a
 `scripts/` folder — no `SKILL.md`, no `install.sh`, because there is
 nothing for an LLM agent to decide. The orchestrator runs them as
-subprocesses.
+subprocesses. Two of them (`review-specialist-draft`,
+`approve-faq-promotion`) are HITL pause gates: the script records a
+human's decision rather than computing one. A tenth automation
+(`audit-ticket-process`) runs after a ticket closes to write the audit
+trail.
 
 That split is the most important lesson of the repo: **an "AI-assisted
 workflow" is not the same thing as a workflow where every step is an LLM
@@ -135,12 +153,12 @@ Every script — skill or automation — takes the same standard flags:
 
 The standard argument list is built by `make_skill_parser()` in
 `utils/ticketing_common.py`. Step-specific flags (e.g. `--feedback-text` on
-`verify-feedback-close-or-reopen`, `--model` on the two LLM skills) are
-added on top.
+`verify-feedback-close-or-reopen`, `--model` on the three LLM skills,
+`--decision` on the two HITL gates) are added on top.
 
 ### The envelope
 
-Every skill prints a JSON envelope with a stable shape:
+Every step (skill or automation) prints a JSON envelope with a stable shape:
 
 ```json
 {
@@ -188,7 +206,7 @@ call into the shared helpers.
 ## The orchestrator
 
 The orchestrator is in `scripts/orchestrator.py`. It is intentionally
-boring code, not a skill:
+boring code, not a step:
 
 1. Creates an isolated run folder under
    `/tmp/customer-ticket-process-web-demo/<workflow_run_id>/`.
@@ -199,8 +217,11 @@ boring code, not a skill:
    `STEP_SCRIPTS` (skills live under `skills/`, automations under
    `automations/`).
 4. Reads each envelope's `next_action` to decide what to run next.
-5. Pauses when the workflow needs a human (`verify-feedback-close-or-reopen`
-   needs the customer's reply, supplied via the web form).
+5. Pauses when a step needs outside input — the customer's reply on
+   `verify-feedback-close-or-reopen`, or a supervisor's decision on the
+   two HITL automations (`review-specialist-draft`,
+   `approve-faq-promotion`). The web form supplies the payload before
+   the orchestrator resumes.
 
 Keeping the control flow in plain Python means the demo is testable and
 predictable. The work — classification, FAQ matching, drafting, specialist
@@ -213,8 +234,8 @@ endpoints, branch visualisation, and likely stall points.
 ## Running the rest
 
 ```bash
-# Run from the repo root. Two LLM skills need TRITONAI_API_KEY set;
-# the other seven are deterministic and run offline.
+# Run from the repo root. The three LLM skills need TRITONAI_API_KEY set;
+# the ten automations are deterministic and run offline.
 
 # Automations (deterministic)
 uv run python automations/receive-ticket/scripts/receive_ticket.py --ticket-id TKT-00042
@@ -222,13 +243,16 @@ uv run python automations/classify-prioritize-ticket/scripts/classify_prioritize
 uv run python automations/draft-faq-response/scripts/draft_faq_response.py --ticket-id TKT-00042
 uv run python automations/escalate-to-specialist/scripts/escalate_to_specialist.py --ticket-id TKT-00042
 uv run python automations/draft-specialist-response/scripts/draft_specialist_response.py --ticket-id TKT-00042
+uv run python automations/review-specialist-draft/scripts/review_specialist_draft.py --ticket-id TKT-00042 --decision approve
 uv run python automations/send-customer-response/scripts/send_customer_response.py --ticket-id TKT-00042
 uv run python automations/verify-feedback-close-or-reopen/scripts/verify_feedback.py --ticket-id TKT-00042 --feedback-text "Thanks, that fixed it!"
+uv run python automations/approve-faq-promotion/scripts/approve_faq_promotion.py --ticket-id TKT-00042 --decision skip
 uv run python automations/audit-ticket-process/scripts/audit_ticket_process.py --ticket-id TKT-00042
 
 # Skills (LLM-based)
 uv run python skills/check-faq-resolution/scripts/check_faq_resolution.py --ticket-id TKT-00042
 uv run python skills/investigate-specialist-solution/scripts/investigate_specialist_solution.py --ticket-id TKT-00042
+uv run python skills/draft-faq-candidate/scripts/draft_faq_candidate.py --ticket-id TKT-00042
 ```
 
 Each step writes one row to a working CSV in `data/working/` (or appends to
@@ -278,10 +302,10 @@ for the original generation design.
 ## Testing
 
 ```bash
-uv run pytest                       # full suite (~30s, 238 tests)
-uv run pytest tests/skills          # the two LLM skills + end-to-end
-uv run pytest tests/automations     # the seven deterministic steps
-uv run pytest tests/utils             # shared infra in utils/ticketing_common.py
+uv run pytest                       # full suite (316 tests)
+uv run pytest tests/skills          # the three LLM skills + end-to-end
+uv run pytest tests/automations     # the ten deterministic steps
+uv run pytest tests/utils           # shared infra in utils/ticketing_common.py
 uv run pytest -k faq_resolution     # one pattern
 ```
 
@@ -293,9 +317,11 @@ Test layout mirrors the source layout:
   via `FAQ_RESOLUTION_MOCK_JSON`).
 - `tests/skills/test_investigate_specialist_solution.py` — the specialist
   skill (mocked LLM via `SPECIALIST_INVESTIGATION_MOCK_JSON`).
+- `tests/skills/test_draft_faq_candidate.py` — the FAQ-candidate skill
+  (mocked LLM via `FAQ_CANDIDATE_MOCK_JSON`).
 - `tests/skills/test_ticketing_workflow_e2e.py` — full workflow paths
   (FAQ branch, specialist branch, reopen-then-close-unresolved). Patches
-  both LLM calls so the tests run offline.
+  all LLM calls so the tests run offline.
 - `tests/skills/test_workflow_orchestrator.py` — orchestrator + subprocess
   invocation paths.
 - `tests/automations/test_<name>.py` — one test file per deterministic
@@ -312,14 +338,15 @@ project — `uv` for packages, numpy + polars only, tests required.
 The intended adaptation pattern is:
 
 1. Draw the business process. Identify lanes, decisions, loops, and handoffs.
-2. Pick the smallest set of skills that covers the process — one per decision
+2. Pick the smallest set of steps that covers the process — one per decision
    or transformation, not one per LLM call.
-3. Decide where each skill reads from and writes to. Put fast-changing
+3. Decide where each step reads from and writes to. Put fast-changing
    working data in a separate folder from source-of-truth data.
-4. Define the envelope contract (or reuse this one). Make sure every skill
+4. Define the envelope contract (or reuse this one). Make sure every step
    names its `next_action` so the orchestrator never has to guess.
-5. Build deterministic skills first. Only swap in an LLM where the judgment
-   is genuinely hard and a wrong call is easy to verify.
+5. Build deterministic automations first. Only promote a step to a skill
+   (LLM-based) where the judgment is genuinely hard and a wrong call is
+   easy to verify.
 6. Write a test for every function, scenarios for every branch, and a
    summary report so you can see the workflow's behaviour over a portfolio
    of cases — not just one happy path.

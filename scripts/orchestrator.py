@@ -117,7 +117,7 @@ SLA_BY_TIER = {"standard": "basic", "premium": "business", "enterprise": "critic
 
 
 class WorkflowError(RuntimeError):
-    """Raised when a skill or web request cannot proceed."""
+    """Raised when a step or web request cannot proceed."""
 
     def __init__(self, message: str, *, status: HTTPStatus = HTTPStatus.BAD_REQUEST, details: dict | None = None):
         super().__init__(message)
@@ -303,8 +303,9 @@ def run_step(
     The orchestrator uses Python code here because orchestration is control
     flow: choose the next step, pass stable ids, enforce timeouts, and
     surface failures. The domain work lives in the scripts under ``skills/``
-    (the two LLM-based steps) and ``automations/`` (the seven deterministic
-    steps). ``SKILL.md`` is loaded by an LLM agent — not by this web server.
+    (the LLM-based steps) and ``automations/`` (the deterministic steps,
+    including the HITL pause gates). ``SKILL.md`` is loaded by an LLM
+    agent — not by this web server.
     """
 
     script = STEP_SCRIPTS[skill_name]
@@ -327,7 +328,7 @@ def run_step(
     if extra:
         cmd.extend(extra)
 
-    # Skills are subprocesses instead of imported functions so their command
+    # Steps are subprocesses instead of imported functions so their command
     # line contract is tested exactly the way a real agent or scheduler would
     # call them. The JSON envelope is the handoff back to the orchestrator.
     result = subprocess.run(cmd, cwd=REPO_ROOT, capture_output=True, text=True, timeout=timeout)
@@ -360,12 +361,12 @@ def run_step(
 def drive_until_pause(
     paths: RunPaths, *, start_skill: str = "receive-ticket", first_step_number: int = 1
 ) -> list[dict]:
-    """Run skills until a step requires human input.
+    """Run steps (skills and automations) until one requires human input.
 
     Stops on any step in :data:`PAUSE_STEPS` (customer feedback, supervisor
     draft review, FAQ-promotion approval). The web demo's "Run All" button
     uses this path, as does the reopen continuation after negative
-    feedback. Step mode uses the same transition rules one skill at a
+    feedback. Step mode uses the same transition rules one step at a
     time through ``TicketWorkflowOrchestrator.step``.
     """
 
@@ -417,11 +418,11 @@ def save_run_metadata(paths: RunPaths, metadata: dict) -> None:
 
 
 def next_step_from_action(next_action: object) -> str:
-    """Translate a skill envelope's next_action into a runnable skill name.
+    """Translate a step envelope's next_action into a runnable step name.
 
     Unknown actions intentionally do not run. That makes stalls visible:
     students can see when the workflow is waiting on a human, an external
-    system, or an action that has not been implemented as a skill yet.
+    system, or an action that has not been implemented as a step yet.
     """
 
     action = "" if next_action is None else str(next_action)
@@ -743,11 +744,11 @@ def _step_io_record(skill: str, inputs: list[dict], outputs: list[dict], artifac
 
 
 def build_step_io(paths: RunPaths) -> list[dict]:
-    """Build the teaching view of what each completed skill read and wrote.
+    """Build the teaching view of what each completed step read and wrote.
 
     These records are not used for routing. They are deliberately redundant
     with the working CSVs so students can inspect the workflow as data moving
-    from one skill to the next.
+    from one step to the next.
     """
 
     ticket = ticket_row(paths.data_dir, paths.ticket_id)
@@ -962,7 +963,7 @@ def build_narrative(
             [
                 _text("The orchestrator has completed "),
                 _code(step_count),
-                _text(" skill step"),
+                _text(" workflow step"),
                 _text("" if step_count == 1 else "s"),
                 _text("."),
             ]
@@ -1078,16 +1079,16 @@ def build_narrative(
             )
         )
     else:
-        sentences.append(_sentence([_text("There is no next runnable skill for the current state.")]))
+        sentences.append(_sentence([_text("There is no next runnable step for the current state.")]))
     return {"title": "Ticket narrative", "sentences": sentences}
 
 
 def workflow_summary(paths: RunPaths, envelopes: list[dict]) -> dict:
     """Return the full state model consumed by the browser.
 
-    This is the adapter between file-based skill artifacts and the web page:
+    This is the adapter between file-based step artifacts and the web page:
     it reads the latest rows from the isolated working directory and shapes
-    them into cards, flow nodes, narrative text, and skill I/O records.
+    them into cards, flow nodes, narrative text, and step I/O records.
     """
 
     ticket = ticket_row(paths.data_dir, paths.ticket_id)
@@ -1218,17 +1219,19 @@ def workflow_summary(paths: RunPaths, envelopes: list[dict]) -> dict:
 
 
 class TicketWorkflowOrchestrator:
-    """Small teaching orchestrator that routes tickets through skill scripts.
+    """Small teaching orchestrator that routes tickets through step scripts.
 
-    The orchestrator is code, not a skill, because it is infrastructure:
-    it creates isolated run folders, calls skills, stores the next runnable
-    skill, and stops when the workflow needs outside input. It does not
-    decide categories, FAQ matches, specialist assignments, draft text, or
-    feedback outcomes. Those decisions remain inside the individual skills.
+    The orchestrator is code, not a step, because it is infrastructure:
+    it creates isolated run folders, calls each step, stores the next
+    runnable step, and stops when the workflow needs outside input. It
+    does not decide categories, FAQ matches, specialist assignments, draft
+    text, or feedback outcomes. Those decisions remain inside the individual
+    step scripts (LLM-based skills under ``skills/`` and deterministic
+    automations under ``automations/``).
 
     Each demo run persists ``next_step`` in ``metadata.json`` so the browser
-    can execute one skill at a time, like stepping through a debugger. Every
-    transition comes from the previous skill's JSON envelope ``next_action``.
+    can execute one step at a time, like stepping through a debugger. Every
+    transition comes from the previous step's JSON envelope ``next_action``.
     """
 
     def __init__(self, *, work_root: Path = DEFAULT_WORK_ROOT, source_data_dir: Path = DATA_DIR):
@@ -1236,7 +1239,7 @@ class TicketWorkflowOrchestrator:
         self.source_data_dir = Path(source_data_dir)
 
     def start_ticket(self, payload: dict) -> dict:
-        """Create a run and stop before the first skill.
+        """Create a run and stop before the first step.
 
         Used by step mode. The first browser click after this will run
         ``receive-ticket``.
@@ -1246,7 +1249,7 @@ class TicketWorkflowOrchestrator:
         return workflow_summary(paths, [])
 
     def run_until_response(self, payload: dict) -> dict:
-        """Create a run and execute skills until the customer must respond."""
+        """Create a run and execute steps until the customer must respond."""
 
         paths = create_web_ticket(payload, work_root=self.work_root, source_data_dir=self.source_data_dir)
         envelopes = drive_until_response(paths)
@@ -1254,7 +1257,7 @@ class TicketWorkflowOrchestrator:
         return workflow_summary(paths, envelopes)
 
     def step(self, workflow_run_id: str, *, feedback_text: str = "") -> dict:
-        """Run exactly one next skill for an existing demo run.
+        """Run exactly one next step for an existing demo run.
 
         Refuses to run when the next step is a human-input gate
         (:data:`PAUSE_STEPS`); those have dedicated endpoints that supply
@@ -1405,7 +1408,7 @@ class TicketWorkflowOrchestrator:
         last = envelopes[-1]
         next_step = next_step_from_action(last.get("next_action"))
         # This is the debugger checkpoint. The browser reads these fields to
-        # show "what just happened" and "which skill will run next".
+        # show "what just happened" and "which step will run next".
         metadata.update(
             {
                 "last_step_number": step_number,

@@ -65,69 +65,6 @@ audit_ticket_process = _load(
 )
 
 
-def _fake_faq_llm_decision(context: dict, *, model: str = "", client=None) -> dict:
-    """Keep workflow tests offline while preserving both FAQ and escalation paths."""
-
-    ticket_id = context["ticket"]["ticket_id"]
-    ticket_number = int(ticket_id.rsplit("-", 1)[1])
-    if ticket_number % 2 == 0:
-        return {
-            "faq_match_found": True,
-            "faq_id": "FAQ-001",
-            "confidence": 0.91,
-            "required_customer_info_available": True,
-            "reason": "Offline test fixture selected a known FAQ branch.",
-            "ticket_evidence": ticket_id,
-            "faq_evidence": "FAQ-001",
-        }
-    return {
-        "faq_match_found": False,
-        "faq_id": "",
-        "confidence": 0.22,
-        "required_customer_info_available": False,
-        "reason": "Offline test fixture selected the specialist branch.",
-        "ticket_evidence": ticket_id,
-        "faq_evidence": "",
-    }
-
-
-check_faq_resolution.call_llm_for_faq_decision = _fake_faq_llm_decision
-
-
-def _fake_specialist_llm_solution(context: dict, *, model: str = "", client=None) -> dict:
-    """Offline LLM fake for the specialist investigation skill.
-
-    Returns a generic-but-plausible diagnosis. The normalizer in the real
-    script will cap confidence when the upstream escalation flagged
-    missing customer info, so this fake can always return high confidence
-    and still exercise both review-required paths.
-    """
-
-    return {
-        "root_cause": "Provider-side state mismatch consistent with the customer report.",
-        "diagnostic_steps": [
-            "Reviewed audit log for the affected account",
-            "Replicated the issue against staging",
-            "Confirmed configuration with the runbook",
-        ],
-        "evidence_reviewed": [
-            "Ticket description and steps already tried",
-            "Recent change history on the affected system",
-        ],
-        "solution_summary": (
-            "Applied the documented mitigation against the provider so the account "
-            "returns to a known-good state. Please sign back in to confirm."
-        ),
-        "customer_action_required": ("Sign back in and reply to confirm whether the issue is resolved."),
-        "confidence": 0.82,
-        "requires_follow_up_flag": False,
-        "reason": "Offline test fixture — plausible default response.",
-    }
-
-
-investigate_specialist_solution.call_llm_for_specialist_solution = _fake_specialist_llm_solution
-
-
 def _common_args(ticket_id: str, out_dir: Path) -> list[str]:
     return [
         "--ticket-id",
@@ -151,18 +88,15 @@ def _last_row(out_dir: Path, table: str, ticket_id: str) -> dict | None:
     return df.tail(1).to_dicts()[0]
 
 
-@pytest.fixture(scope="module")
-def faq_branch_ticket() -> str:
-    """Find a ticket whose category will produce an FAQ match in our skill.
+def _probe_branch(target: str, ticket_ids: list[str], probe_prefix: str) -> str | None:
+    """Run classify + FAQ check (real LLM) until a ticket lands in ``target`` branch.
 
-    Iterate through the first 200 tickets and pick the first one for
-    which check-faq-resolution finds a match given current triage logic.
-    The chosen id is cached for the module so we run once per session.
+    ``target`` is one of ``"draft-faq-response"`` or ``"escalate-to-specialist"``.
+    Returns the first matching ticket id, or None if none found within the
+    given list.
     """
-
-    submitted = pl.read_csv(DATA_DIR / "raw" / "submitted_tickets.csv")
-    for ticket_id in submitted["ticket_id"].to_list()[:200]:
-        out = Path("/tmp") / f"e2e_probe_{ticket_id}"
+    for ticket_id in ticket_ids:
+        out = Path("/tmp") / f"{probe_prefix}_{ticket_id}"
         if out.exists():
             for f in out.iterdir():
                 f.unlink()
@@ -171,33 +105,42 @@ def faq_branch_ticket() -> str:
         rc2 = check_faq_resolution.main(_common_args(ticket_id, out))
         if rc1 == 0 and rc2 == 0:
             faq = _last_row(out, "faq_decisions", ticket_id)
-            if (
-                faq
-                and str(faq.get("faq_match_found", "")).lower() == "true"
-                and faq.get("recommended_next_step") == "draft-faq-response"
-            ):
+            if faq and faq.get("recommended_next_step") == target:
                 return ticket_id
-    pytest.skip("no FAQ-matching ticket found in the first 200 tickets")
+    return None
+
+
+@pytest.fixture(scope="module")
+def faq_branch_ticket() -> str:
+    """Find a ticket the real FAQ skill routes to draft-faq-response.
+
+    Probes login_access / password_reset tickets first (highest FAQ coverage)
+    so we find a match in a small number of real LLM calls. Module-scoped:
+    one probe per session.
+    """
+    submitted = pl.read_csv(DATA_DIR / "raw" / "submitted_tickets.csv")
+    high_coverage = submitted.filter(pl.col("affected_system").is_in(["Identity Provider", "Customer Portal"]))
+    candidates = high_coverage["ticket_id"].to_list()[:15]
+    found = _probe_branch("draft-faq-response", candidates, "e2e_probe_faq")
+    if found is None:
+        pytest.skip("no FAQ-matching ticket found in the high-coverage probe window")
+    return found
 
 
 @pytest.fixture(scope="module")
 def escalation_branch_ticket() -> str:
-    """Find a ticket whose FAQ check declines and the specialist path is needed."""
+    """Find a ticket the real FAQ skill routes to escalate-to-specialist.
 
+    Probes software_bug / data_reporting tickets (low FAQ coverage) so the
+    skill is more likely to escalate. Module-scoped.
+    """
     submitted = pl.read_csv(DATA_DIR / "raw" / "submitted_tickets.csv")
-    for ticket_id in submitted["ticket_id"].to_list()[:200]:
-        out = Path("/tmp") / f"e2e_probe_esc_{ticket_id}"
-        if out.exists():
-            for f in out.iterdir():
-                f.unlink()
-        out.mkdir(parents=True, exist_ok=True)
-        rc1 = classify_prioritize_ticket.main(_common_args(ticket_id, out))
-        rc2 = check_faq_resolution.main(_common_args(ticket_id, out))
-        if rc1 == 0 and rc2 == 0:
-            faq = _last_row(out, "faq_decisions", ticket_id)
-            if faq and faq.get("recommended_next_step") == "escalate-to-specialist":
-                return ticket_id
-    pytest.skip("no escalation-needed ticket found in the first 200 tickets")
+    low_coverage = submitted.filter(pl.col("affected_system").is_in(["Inventory App", "Analytics Dashboard", "CRM"]))
+    candidates = low_coverage["ticket_id"].to_list()[:15]
+    found = _probe_branch("escalate-to-specialist", candidates, "e2e_probe_esc")
+    if found is None:
+        pytest.skip("no escalation-needed ticket found in the low-coverage probe window")
+    return found
 
 
 def test_faq_branch_full_workflow(tmp_path: Path, faq_branch_ticket: str) -> None:

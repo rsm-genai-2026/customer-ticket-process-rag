@@ -237,14 +237,21 @@ def infer_current_state(history: dict) -> dict:
     response_sent_to_customer = any(e[1] == "response_sent" for e in events)
     feedback = any(e[1] == "feedback" for e in events)
 
-    # faq_match_found from the most-recent FAQ decision (working > historical)
+    # faq_match_found AND recommended_next_step from the most-recent FAQ decision.
+    # The FAQ skill computes recommended_next_step based on match + confidence +
+    # required-info — audit must trust that field rather than re-derive routing
+    # from faq_match_found alone (which loses the confidence/info constraints).
     faq_match_found = None
+    faq_recommended_next_step = ""
     if history["working"]["faq_decisions"]:
         last = sorted(history["working"]["faq_decisions"], key=lambda r: r.get("created_at", ""))[-1]
         faq_match_found = str(last.get("faq_match_found", "")).lower() == "true"
+        faq_recommended_next_step = str(last.get("recommended_next_step", "")).strip()
     elif history["historical"]["faq_checks"]:
         last = history["historical"]["faq_checks"][0]
         faq_match_found = str(last.get("faq_match_found", "")).lower() == "true"
+        # Historical rows pre-date the recommended_next_step field; infer from match.
+        faq_recommended_next_step = "draft-faq-response" if faq_match_found else "escalate-to-specialist"
 
     # Closure status: only the LATEST feedback row counts. Any older
     # reopen row is by definition no longer the current decision.
@@ -288,6 +295,7 @@ def infer_current_state(history: dict) -> dict:
             "triaged": triaged,
             "faq_checked": faq_checked,
             "faq_match_found": faq_match_found,
+            "faq_recommended_next_step": faq_recommended_next_step,
             "escalated": escalated,
             "specialist_done": specialist_done,
             "response_drafted": response_drafted,
@@ -314,6 +322,13 @@ def list_valid_next_actions(state: dict) -> list[str]:
     if s == "triaged_awaiting_faq_check":
         return ["check-faq-resolution"]
     if s == "faq_checked_awaiting_decision":
+        # Trust the FAQ skill's own routing decision — it considers match
+        # plus confidence + required-info; audit must not re-derive from
+        # the match flag alone.
+        recommended = flags.get("faq_recommended_next_step")
+        if recommended in {"draft-faq-response", "escalate-to-specialist"}:
+            return [recommended]
+        # Fallback: match flag only (handles legacy rows missing the field).
         if flags["faq_match_found"]:
             return ["draft-faq-response"]
         return ["escalate-to-specialist"]

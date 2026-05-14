@@ -30,46 +30,6 @@ import pytest
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 DATA_DIR = _REPO_ROOT / "data"
 
-FAQ_MATCH_JSON = json.dumps(
-    {
-        "faq_match_found": True,
-        "faq_id": "FAQ-001",
-        "confidence": 0.91,
-        "required_customer_info_available": True,
-        "reason": "Offline test fixture selected the FAQ branch.",
-        "ticket_evidence": "ticket id bucket",
-        "faq_evidence": "FAQ-001",
-    }
-)
-FAQ_NO_MATCH_JSON = json.dumps(
-    {
-        "faq_match_found": False,
-        "faq_id": "",
-        "confidence": 0.21,
-        "required_customer_info_available": False,
-        "reason": "Offline test fixture selected the specialist branch.",
-        "ticket_evidence": "ticket id bucket",
-        "faq_evidence": "",
-    }
-)
-
-SPECIALIST_SOLUTION_JSON = json.dumps(
-    {
-        "root_cause": "Provider-side state mismatch consistent with the ticket report.",
-        "diagnostic_steps": [
-            "Reviewed account audit log",
-            "Replicated in staging",
-            "Applied the documented mitigation",
-        ],
-        "evidence_reviewed": ["ticket description", "recent change history"],
-        "solution_summary": ("Applied the documented mitigation; please sign back in to confirm the issue is gone."),
-        "customer_action_required": ("Sign back in and reply to confirm whether the issue is resolved."),
-        "confidence": 0.82,
-        "requires_follow_up_flag": False,
-        "reason": "Offline test fixture for the specialist branch.",
-    }
-)
-
 SCRIPT_BY_SKILL = {
     "receive-ticket": "automations/receive-ticket/scripts/receive_ticket.py",
     "classify-prioritize-ticket": ("automations/classify-prioritize-ticket/scripts/classify_prioritize_ticket.py"),
@@ -116,16 +76,7 @@ def _run(
     ]
     if extra:
         cmd.extend(extra)
-    env = None
-    if skill == "check-faq-resolution":
-        ticket_number = int(ticket_id.rsplit("-", 1)[1])
-        env = {
-            **os.environ,
-            "FAQ_RESOLUTION_MOCK_JSON": FAQ_MATCH_JSON if ticket_number % 2 == 0 else FAQ_NO_MATCH_JSON,
-        }
-    elif skill == "investigate-specialist-solution":
-        env = {**os.environ, "SPECIALIST_INVESTIGATION_MOCK_JSON": SPECIALIST_SOLUTION_JSON}
-    result = subprocess.run(cmd, capture_output=True, text=True, env=env)
+    result = subprocess.run(cmd, capture_output=True, text=True)
     assert result.returncode in (0, 2, 3), f"skill {skill} crashed unexpectedly:\n{result.stderr}"
     if not result.stdout.strip():
         raise AssertionError(f"skill {skill} produced no JSON output:\n{result.stderr}")
@@ -190,45 +141,50 @@ def _drive_ticket(
 
 @pytest.fixture(scope="module")
 def candidate_tickets() -> list[str]:
-    """Return five ticket ids spanning both the FAQ and specialist branches.
+    """Return ticket ids spanning both the FAQ and specialist branches.
 
-    Pre-running classify + faq lets us bucket each one by branch so the
-    test exercises both. Probe runs go to throwaway temp dirs and do not
-    pollute the real ``data/working/``.
+    Probes real classify + FAQ skills against TritonAI, picking tickets from
+    high-coverage systems (likely FAQ) and low-coverage systems (likely
+    specialist) so the probe terminates after a small number of real LLM
+    calls. Module-scoped: one probe per session.
     """
-
     submitted = pl.read_csv(DATA_DIR / "raw" / "submitted_tickets.csv")
+    faq_candidates = submitted.filter(pl.col("affected_system").is_in(["Identity Provider", "Customer Portal"]))[
+        "ticket_id"
+    ].to_list()[:15]
+    spec_candidates = submitted.filter(
+        pl.col("affected_system").is_in(["Inventory App", "Analytics Dashboard", "CRM"])
+    )["ticket_id"].to_list()[:15]
+
     faq_branch: list[str] = []
     specialist_branch: list[str] = []
-    for ticket_id in submitted["ticket_id"].to_list()[:200]:
+
+    def _probe(ticket_id: str) -> str | None:
         probe = Path("/tmp") / f"orch_probe_{ticket_id}"
         probe.mkdir(parents=True, exist_ok=True)
         for f in probe.iterdir():
             f.unlink()
         wf = f"probe-{ticket_id}"
-        cls_env = _run(
-            "classify-prioritize-ticket",
-            ticket_id=ticket_id,
-            out_dir=probe,
-            workflow_run_id=wf,
-        )
+        cls_env = _run("classify-prioritize-ticket", ticket_id=ticket_id, out_dir=probe, workflow_run_id=wf)
         if cls_env["status"] != "ok":
-            continue
-        faq_env = _run(
-            "check-faq-resolution",
-            ticket_id=ticket_id,
-            out_dir=probe,
-            workflow_run_id=wf,
-        )
+            return None
+        faq_env = _run("check-faq-resolution", ticket_id=ticket_id, out_dir=probe, workflow_run_id=wf)
         if faq_env["status"] != "ok":
-            continue
-        next_step = faq_env["next_action"]
-        if next_step == "draft-faq-response" and len(faq_branch) < 3:
-            faq_branch.append(ticket_id)
-        elif next_step == "escalate-to-specialist" and len(specialist_branch) < 2:
-            specialist_branch.append(ticket_id)
-        if len(faq_branch) >= 3 and len(specialist_branch) >= 2:
+            return None
+        return faq_env["next_action"]
+
+    for ticket_id in faq_candidates:
+        if len(faq_branch) >= 3:
             break
+        if _probe(ticket_id) == "draft-faq-response":
+            faq_branch.append(ticket_id)
+
+    for ticket_id in spec_candidates:
+        if len(specialist_branch) >= 2:
+            break
+        if _probe(ticket_id) == "escalate-to-specialist":
+            specialist_branch.append(ticket_id)
+
     if not faq_branch or not specialist_branch:
         pytest.skip("could not find both FAQ and specialist tickets to drive")
     return faq_branch + specialist_branch

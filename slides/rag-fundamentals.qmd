@@ -1,0 +1,623 @@
+---
+title: "RAG: Retrieval-Augmented Generation"
+subtitle: "Naive RAG, HyQ, and a tangible demo on the Helios KB"
+format:
+  revealjs:
+    slide-number: true
+    code-line-numbers: false
+    theme: [default, ../../../gh/rsm-teaching/quarto-files/scss/rsm-slides.scss]
+    resource-path: ["../../../gh/rsm-teaching/quarto-files"]
+    embed-resources: true
+    mermaid:
+      theme: neutral
+execute:
+  echo: false
+---
+
+```{python}
+#| tags: [parameters]
+title = "RAG: Retrieval-Augmented Generation"
+subtitle = "Naive RAG, HyQ, and a tangible demo on the Helios KB"
+author = "Professor Vincent R. Nijs"
+program = "Rady School of Management, UC San Diego"
+repo = "customer-ticket-process"
+```
+
+## `{python} title` {.title-slide}
+
+`{python} subtitle`
+
+`{python} program`
+
+`{python} author`
+
+::: notes
+This deck is a tutorial. It motivates why RAG exists, builds up the
+intuition with embeddings + cosine similarity, walks through naive RAG
+and HyQ on a real corpus (the 18 KB docs under `rag/knowledge_base/`),
+and lands on the honest failure modes so students can think about
+what to do next.
+:::
+
+## What we will discuss {.content-slide .smaller}
+
+1. What RAG is and the problem it solves
+2. What an embedding actually is, in plain terms
+3. How cosine similarity ranks retrieved chunks
+4. Naive RAG: simplest possible pipeline + its failure modes
+5. HyQ (Hypothetical Queries): an upgrade that respects how docs are written
+6. Real numbers from the eval suite — when HyQ wins, when it doesn't
+7. The operational insight that often matters more than algorithms:
+   **what questions do your customers actually ask?**
+
+::: notes
+Treat this as conceptual scaffolding, not a coding tutorial. The
+companion repo and the live demo are where students touch the levers.
+:::
+
+## Why RAG exists {.section-slide}
+
+## The problem RAG solves {.content-slide}
+
+LLMs are trained on the public web. They have not seen:
+
+- Your company's internal SOPs
+- Your vendor contracts and SLAs
+- Last quarter's post-incident review
+- Your specific support runbooks
+- The policy your CEO sent on Tuesday
+
+An LLM asked about any of these makes up something plausible — or refuses.
+
+::: notes
+The model has a knowledge cutoff and a "no internal documents" handicap.
+Both can be addressed by giving the model the right text at the right
+moment. That's what RAG is.
+:::
+
+## The simplest possible fix {.content-slide}
+
+Before calling the LLM, **paste the relevant document into the prompt**.
+
+That is RAG. Everything else is engineering:
+
+- Which document?
+- Which part of it?
+- How do you find it fast?
+- What do you do when nothing in your library is relevant?
+
+::: notes
+This framing matters. RAG is not a magical technique — it's a
+discipline for getting the right text into the prompt. The hard work
+is selection, not generation.
+:::
+
+## The RAG pipeline {.content-slide}
+
+```{mermaid}
+flowchart LR
+  Q["User<br/>question"] --> E1["Embed<br/>query"]
+  E1 --> R[Retrieve<br/>top-k chunks]
+  KB[(Knowledge</br>base)] -.indexed</br>offline.-> R
+  R --> P[Chunks</br>+ question]
+  P --> LLM[LLM]
+  LLM --> A[Answer<br/>+ citations]
+```
+
+Two halves: **offline** (build the index) and **online** (answer queries).
+
+::: notes
+Students often confuse these. Indexing is a batch job that happens
+when documents change. Retrieval is the millisecond-scale per-query
+step. We're going to ignore the prompt-building / LLM step in this
+deck and focus on how chunks are found in the first place.
+:::
+
+## Embeddings and cosine similarity {.section-slide}
+
+## What is an embedding? {.content-slide}
+
+An **embedding model** turns a piece of text into a fixed-length list
+of numbers (a vector).
+
+For our model (`api-tgpt-embeddings`): Every text becomes a list of
+**1024 floating-point numbers**, regardless of the input length.
+
+```text
+"how do I reset my password"
+  → [ 0.014, -0.082, 0.337, ..., -0.041 ]   # 1024 numbers
+```
+
+The key property: **texts with similar meaning produce vectors that
+point in similar directions.**
+
+::: notes
+This is not a hash. Two paraphrases of the same idea produce different
+exact numbers but very similar directions. That direction-similarity
+is what we exploit.
+:::
+
+## Cosine similarity, in pictures {.content-slide .smaller}
+
+Imagine each text as an arrow from the origin in some high-dimensional space.
+
+```{mermaid}
+flowchart LR
+  A[reset</br>password] -.- B[forgot login]
+  A -.- C[invoice wrong]
+```
+
+- *reset password* and *forgot login* point in nearly the same direction → high cosine
+- *reset password* and *invoice wrong* point in different directions → low cosine
+
+Cosine ranges from -1 to +1. We rank retrieved chunks by their cosine
+similarity to the user's query.
+
+::: notes
+The geometric intuition is more important than the formula. Cosine
+ignores the length of the vector and only cares about the angle.
+Don't get hung up on "what does dimension 47 mean?" — these dimensions
+are not interpretable individually.
+:::
+
+## The math, briefly {.content-slide}
+
+For two vectors $u$ and $v$:
+
+$$\cos(u, v) = \frac{u \cdot v}{\|u\| \cdot \|v\|}$$
+
+If we **pre-normalise** every vector to length 1 (the standard trick),
+then $\|u\| = \|v\| = 1$ and cosine reduces to just the dot product
+$u \cdot v$.
+
+In numpy: A single matrix-vector multiply $M$, $q$ gives the cosine
+similarity of $q$ against every row of $M$ at once.
+
+::: notes
+This is why no vector database is needed for small corpora. The
+"vector store" is a numpy array; the "search" is one matmul. Fast,
+inspectable, no infrastructure.
+:::
+
+## Naive RAG {.section-slide}
+
+## Naive RAG in three steps {.content-slide}
+
+```{mermaid}
+flowchart LR
+  D[Document] --> C[Chunk it<br/>sliding</br>window]
+  C --> E[Embed each</br>chunk]
+  E --> M[(Matrix:<br/>rows × 1024)]
+  Q[Query] --> EQ[Embed query]
+  M --> S{cosine<br/>similarity}
+  EQ --> S
+  S --> T[Top-k chunks]
+```
+
+::: notes
+This is the textbook baseline. Chunk by token count, embed verbatim,
+cosine retrieval. It works. It also has predictable failure modes,
+which is why we go further.
+:::
+
+## What naive chunking looks like {.content-slide}
+
+A 300-word document, 100-word chunks with 25-word overlap:
+
+```text
+chunk 0:  words   0..100   →  embedding row 0
+chunk 1:  words  75..175   →  embedding row 1
+chunk 2:  words 150..250   →  embedding row 2
+chunk 3:  words 225..325   →  embedding row 3
+```
+
+Question: Why the overlap?
+
+::: fragment
+Notice in `rag/naive_index.json`:
+
+- Chunks are labelled `window 0`, `window 1`, ...
+- The natural `## Identity verification` heading is **destroyed**
+- A chunk can split mid-sentence
+:::
+
+::: notes
+Open `rag/index/naive_index.json` after the eval and let students
+read a chunk. The reading experience is jarring — that's the point.
+The retrieval system has no idea what each chunk is "about" except
+through its embedding.
+:::
+
+## Naive RAG: when it works {.content-slide}
+
+For our 18-doc corpus on the eval suite:
+
+- Hit-rate@3 = **8/10** for naive RAG
+- Most "obvious" queries hit the right doc
+
+Example: "wrong customer on my invoice" → returns KB-013 (the
+billing-export RCA) at position 1 with score 0.529.
+
+When the query keywords overlap the chunk text, naive does fine.
+
+::: notes
+Naive is not bad. For many corpora it is the right amount of work.
+We use it as the baseline because (a) it really does work, and
+(b) the contrast with HyQ is the lesson.
+:::
+
+## HyQ — Hypothetical Queries {.section-slide}
+
+## The HyQ idea {.content-slide}
+
+Instead of embedding the chunk text, embed **questions the chunk
+answers**.
+
+```{mermaid}
+flowchart LR
+  D[Document] --> C[Chunk on</br>natural headings]
+  C --> G[Ask LLM:<br/>5 questions]
+  G --> EQ[Embed questions]
+  EQ --> M[(Matrix:<br/>rows × 1024)]
+  Q[User query] --> EQuery[Embed query]
+  M --> S{cosine}
+  EQuery --> S
+  S --> R[Top question</br>Parent chunk]
+```
+
+::: notes
+Two changes from naive:
+1. Chunk on ## headings, not by token count
+2. Embed LLM-generated questions per chunk, not the chunk text itself
+:::
+
+## Why this tends to win on our docs {.content-slide}
+
+1. Our docs were **written as a sequence of self-contained sections.** HyQ respects those boundaries instead of slicing through them.
+2. User queries **are questions.** Embeddings of questions live closer to other questions in vector space than to declarative section bodies.
+3. The retrieved chunk carries its **real heading** and the **matched question** — so downstream prompts and citations are self-explanatory.
+
+::: notes
+The third point is more important than it sounds. A retrieved chunk
+with a real heading like "Identity verification" gives the next LLM
+call (and any human reviewer) a sense of context that a chunk labelled
+`window 1` never can.
+:::
+
+## HyQ index shape {.content-slide .smaller}
+
+```python
+index = {
+  "mode": "hyq",
+  "embed_model": "api-tgpt-embeddings",
+  "chunks": [
+    {
+      "chunk_id": "KB-001#1",
+      "doc_id": "KB-001",
+      "doc_title": "Tier-1 Password Reset SOP",
+      "section_heading": "Identity verification (required before any reset)",
+      "text": "...",
+      "hyq": [
+        "How do I verify identity before a reset?",
+        "Can I use email verification for password resets?",
+        "What if the manager is on PTO?",
+        "..."
+      ],
+      "embedding_rows": [3, 4, 5, 6, 7]   # rows in the embedding matrix
+    },
+    ...
+  ],
+  "embeddings": <np.ndarray shape=(505, 1024)>
+}
+```
+
+- 18 docs → 101 sections → 505 questions → 505 × 1024 = ~2 MB matrix
+- No vector database. One JSON file + one `.npy` file.
+
+::: notes
+Show this side-by-side with the naive index in class — it makes the
+"chunks are destinations, questions are the address book" framing
+concrete.
+:::
+
+## The eval results {.content-slide .smaller}
+
+Ten hand-picked queries paraphrasing real support situations:
+
+```text
+Hit-rate@3: NAIVE = 8/10 (80%)   HyQ = 9/10 (90%)
+```
+
+Sample where HyQ wins cleanly:
+
+> *Query:* "how long does the vendor say we have to notify a customer of a breach"
+> *Expected:* KB-006 (AuriLite IDP contract — breach notification SLA)
+>
+> - Naive top-3: KB-003, KB-005, KB-005  ✗ (returns data classification + after-hours)
+> - HyQ top-3:   **KB-006**, KB-013, KB-013  ✓
+
+Naive missed because no chunk contains the literal phrase "breach
+notification" — HyQ found a hypothetical question that did.
+
+::: notes
+This is the kind of win HyQ gets. The doc contains the answer; naive
+chunking doesn't surface it because the embedding of the raw chunk
+doesn't echo the user's vocabulary. HyQ does, via the generated
+question.
+:::
+
+## A challenging query {.content-slide .smaller}
+
+> "is there a system change scheduled that could explain the current portal slowness"
+
+Expected: **KB-015 (Q2 2026 change calendar)** — it lists a Customer
+Portal upgrade window on 2026-06-07.
+
+Actual:
+
+| Rank | Naive | HyQ |
+|-----:|-------|-----|
+| 1 | KB-009 portal runbook | KB-010 dashboard runbook |
+| 2 | KB-009 portal runbook | KB-009 portal runbook |
+| 3 | KB-010 dashboard runbook | KB-009 portal runbook |
+| 4 | **KB-015** ← 4th | (not in top 5) |
+
+Naive at least surfaces KB-015 at position 4. HyQ doesn't.
+
+::: notes
+Discussion prompt: Why is HyQ *worse* than naive on this one? Walk
+students through their hypotheses before showing the next slide. Many
+will guess "the calendar doc was written from the wrong perspective."
+That's the natural answer — and it's wrong.
+:::
+
+## Why it fails — the actual mechanism {.content-slide .smaller}
+
+The user query has two clauses:
+
+- **Cause**: "system change scheduled"
+- **Symptom**: "portal slowness"
+
+Dense embeddings weight the **symptom** clause more heavily because
+words like *slow*, *down*, *portal* are common, specific, and have
+strong neighbours in training data. The query vector ends up pointing
+toward "things about slow portals."
+
+The runbooks (KB-009, KB-010) have generated questions like:
+
+- "Why is the dashboard slow at a specific time every night?" → 0.781
+- "Why is the portal down every Sunday?" → 0.725
+
+KB-015's best symptom-shaped question only manages 0.661.
+
+::: notes
+This is a structural property of dense retrieval, not a flaw of HyQ.
+Two-clause queries with unequal vividness get pulled toward the more
+vivid clause. The fix is structural too — different retrieval, or
+different questions.
+:::
+
+## Three ways to fix it {.content-slide}
+
+::: incremental
+
+1. **Hybrid search**: combine cosine with a keyword score (BM25). The literal word *scheduled* appears in KB-015 and almost nowhere else.
+2. **Query rewriting**: ask the LLM to split a multi-clause query into single-clause queries, retrieve each, merge results.
+3. **Add a question to KB-015** that echoes the user's exact vocabulary. This is HyQ's signature operational fix and the next section is dedicated to it.
+
+:::
+
+::: notes
+All three are real techniques. We'll dwell on (3) because it's a
+beautiful property unique to HyQ and a great teaching point about the
+gap between "good algorithm" and "good operational pattern."
+:::
+
+## Patching retrieval by adding questions {.section-slide}
+
+## Adding questions is cheap and additive {.content-slide}
+
+Each new question:
+
+- One embedding API call (~80 tokens, sub-cent at TritonAI rates)
+- One row appended to the embedding matrix (~4 KB)
+- A one-line append to that chunk's `hyq` list in the JSON
+
+You can do this without re-embedding anything else and without
+touching the source documents.
+
+::: notes
+This is the operational killer feature of HyQ. The corpus is durable,
+chunking is fiddly, but the question list is an additive surface that
+you can curate over time.
+:::
+
+## Vocabulary matching beats paraphrasing {.content-slide .smaller}
+
+Four candidate questions for the portal-slowness miss, scored against the
+user's query:
+
+| Candidate question         | Score | Note |
+| -------------------------- | ----- | ---- |
+| "Before troubleshooting a **slow** or **down portal**, what **scheduled changes** should I check?" | **0.882** | echoes both clauses |
+| "Could **portal slowness** or **downtime** right now be caused by a **scheduled change**?" | **0.874** | echoes both clauses |
+| "Why is the **Customer Portal slow** today — is there a **scheduled maintenance** window?" | **0.858** | echoes both clauses |
+| "Is there a **planned outage** that explains current **degraded performance**?" | 0.781 | paraphrases — and loses |
+
+Same meaning, different words → 0.10 lower cosine. **You are writing
+magnets for embedding similarity, not prose.**
+
+::: notes
+This is one of the most important slides in the deck. The lesson
+generalises: when patching HyQ for a missed query, echo the customer's
+exact words, do not paraphrase. The fourth candidate is the negative
+example — semantically equivalent, lexically different, and it loses.
+:::
+
+## One question can live on multiple chunks {.content-slide}
+
+The portal-slowness query benefits from **two** docs:
+
+- KB-015 (calendar): *is anything scheduled?*
+- KB-009 (runbook): *if not, what's the diagnostic procedure?*
+
+If we add the same patch question to **both** chunks, the de-dup
+behaviour in HyQ retrieval surfaces both. Each chunk shows up once,
+matched on the same question, with the same score.
+
+> **Chunks are destinations; questions are the address book.**
+> One destination can have many addresses. One address can route to
+> multiple destinations.
+
+::: notes
+Demonstrate this in the live demo. The same patch question pinned to
+KB-015 and KB-009 returns both. That is the correct result for this
+query — not a workaround.
+:::
+
+## The really important point {.section-slide}
+
+## Real customer Q&A beats LLM-generated questions {.content-slide .smaller}
+
+When we built the HyQ index, we asked an LLM:
+
+> "Generate 5 hypothetical questions this section answers."
+
+That gave us questions like "How do I verify identity before a reset?"
+— polite, complete, slightly textbook.
+
+**Real customers do not type like that.** Real customers type:
+
+- "i forgot my password help"
+- "cant log in pls"
+- "portal stuck after sso"
+- "tax wrong on my latest invoice"
+
+::: notes
+The polite LLM-generated questions point in the rough direction of
+what customers ask, but they're systematically displaced. The
+embedding model has seen the customer's actual phrasing far more often
+than the LLM's clean paraphrase of it.
+:::
+
+## What would be better seed data? {.content-slide}
+
+A historical record of **questions customers actually asked** paired
+with **the doc that resolved them**.
+
+That's just a ticket log with resolution attribution:
+
+```text
+TKT-00042  "cant log in to portal pls help"  →  resolved by KB-001
+TKT-00099  "invoice tax wrong after move"    →  resolved by KB-013
+TKT-00115  "portal slow today???"            →  resolved by KB-015
+...
+```
+
+Embed those questions — that's your HyQ index. **Real vocabulary,
+real query distribution.**
+
+::: notes
+The classroom takeaway: RAG isn't only about clever algorithms. The
+operational signal you have access to — past tickets, FAQs, recorded
+support conversations — is often the most leveraged input to retrieval
+quality. And this repo's workflow already produces exactly that trail
+in `data/working/`.
+:::
+
+## What does this require operationally? {.content-slide}
+
+The historical data needs **resolution attribution** — each ticket
+tagged with which doc resolved it.
+
+- If your support process already writes that down → free training data
+- If it doesn't → start now; you'll thank yourself in six months
+
+The ticket workflow in this repo produces that trail
+(`data/working/ticket_action_log.csv`) as a side effect of running.
+Same pattern: the workflow's audit trail becomes future retrieval's
+training data.
+
+::: notes
+This connects RAG back to the workflow lesson from the previous deck.
+The "AI-assisted process" produces auditable signals that compound:
+better workflow → better data → better retrieval → better workflow.
+:::
+
+## Wrap-up {.section-slide}
+
+## What we covered {.content-slide .smaller}
+
+| Concept | One-line summary |
+| ------- | ---------------- |
+| Embedding | text → 1024 floats; meaning maps to direction |
+| Cosine similarity | how aligned two vectors are; we use it to rank |
+| Naive RAG | chunk by tokens, embed chunks, retrieve by cosine |
+| HyQ | chunk by ## heading, embed LLM-generated questions per chunk |
+| Two-clause query failure | embedding pulls toward the more vivid clause |
+| Patch by adding questions | cheap, additive, vocabulary-driven |
+| Real customer Q&A | the best HyQ source data is your own ticket history |
+
+::: notes
+Use this as a recap before the live demo. Then run the demo. Then
+take Q&A.
+:::
+
+## What to play with {.content-slide}
+
+```bash
+# Build both indices (uses your TRITONAI_API_KEY)
+uv run python -m rag.build_index --mode naive
+uv run python -m rag.build_index --mode hyq
+
+# Run the side-by-side eval
+uv run python rag/eval.py
+
+# Open the interactive demo
+uv run python scripts/rag_demo.py --port 8766
+# → http://127.0.0.1:8766
+```
+
+Try a query like "portal slowness scheduled change" in the demo and
+watch which docs each mode surfaces. Then add a custom question to
+KB-015 and see the ranking change.
+
+::: notes
+The demo is the lab. The slides are the framing. Encourage students
+to "break" the demo — try queries that ought to fail and see which
+mode degrades gracefully.
+:::
+
+## Further reading {.content-slide .smaller}
+
+- `rag/README.md` — the full design notes including the patch-by-questions
+  section
+- `rag/knowledge_base/INDEX.md` — the 18 simulated proprietary docs
+- `rag/build_index.py` — naive + HyQ index construction
+- `rag/retrieval.py` — `load_index`, `naive_retrieve`, `hyq_retrieve`
+- `rag/eval.py` — the 10-query side-by-side comparison
+
+External references (worth reading if RAG becomes part of your workflow):
+
+- Lewis et al. (2020), *Retrieval-Augmented Generation for
+  Knowledge-Intensive NLP Tasks* — the original RAG paper
+- Gao et al. (2022), *Precise Zero-Shot Dense Retrieval without
+  Relevance Labels (HyDE)* — the cousin of HyQ that embeds a
+  hypothetical answer instead of hypothetical questions
+
+::: notes
+Encourage students to read at least one of the papers. The framing in
+this deck is operational; the papers give the theoretical version.
+:::
+
+## Questions? {.title-slide}
+
+`{python} author`
+
+`{python} program`
+
+::: notes
+End slide. Students should leave with the operational mental model
+(chunks as destinations, questions as the address book) and the
+practical insight (your ticket log is RAG training data).
+:::

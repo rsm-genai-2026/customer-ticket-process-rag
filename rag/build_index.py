@@ -27,7 +27,6 @@ from __future__ import annotations
 import argparse
 import datetime as dt
 import json
-import os
 import re
 import sys
 from dataclasses import dataclass, field
@@ -204,17 +203,7 @@ def _hyq_prompt(chunk: Chunk, n: int) -> str:
 
 
 def generate_hyq(chunk: Chunk, n: int, *, model: str = DEFAULT_HYQ_MODEL) -> list[str]:
-    """Return ``n`` hypothetical questions for ``chunk``.
-
-    Mocked at test time via the ``HYQ_QUESTIONS_MOCK_JSON`` env var (which
-    must contain a JSON object ``{"questions": [...]}`` — same questions
-    are returned for every chunk).
-    """
-    mock = os.environ.get("HYQ_QUESTIONS_MOCK_JSON", "").strip()
-    if mock:
-        payload = json.loads(mock)
-        return list(payload["questions"])[:n]
-
+    """Return ``n`` hypothetical questions for ``chunk``."""
     result = ask_json(
         _hyq_prompt(chunk, n),
         schema=_HyQResult,

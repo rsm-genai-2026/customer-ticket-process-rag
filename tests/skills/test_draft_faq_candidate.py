@@ -140,8 +140,8 @@ def test_missing_close_feedback_raises_via_envelope(tmp_path: Path) -> None:
     assert env["error"]["code"] == "missing_upstream"
 
 
-def test_main_happy_path_writes_candidate(monkeypatch, tmp_path: Path) -> None:
-    monkeypatch.setenv("FAQ_CANDIDATE_MOCK_JSON", json.dumps(MOCK_CANDIDATE))
+def test_main_happy_path_writes_candidate(tmp_path: Path) -> None:
+    """Hit the real LLM; assert envelope routing and CSV shape, not wording."""
     _seed_specialist_solution(tmp_path)
     _seed_close_feedback(tmp_path)
     rc, env = _run_main(tmp_path)
@@ -152,20 +152,20 @@ def test_main_happy_path_writes_candidate(monkeypatch, tmp_path: Path) -> None:
     rows = list(csv.DictReader((tmp_path / "faq_candidates.csv").open(newline="")))
     assert len(rows) == 1
     row = rows[0]
-    assert row["category"] == "login_access"
-    assert row["system_name"] == "Customer Portal"
-    assert row["issue_pattern"] == "sso_session_drift_after_password_change"
-    assert "Sign out completely" in row["solution_steps"]
-    assert row["confidence"] == "0.82"
-
-
-def test_main_falls_back_to_other_for_unknown_category(monkeypatch, tmp_path: Path) -> None:
-    monkeypatch.setenv(
-        "FAQ_CANDIDATE_MOCK_JSON",
-        json.dumps({**MOCK_CANDIDATE, "category": "definitely_not_a_real_category"}),
-    )
-    _seed_specialist_solution(tmp_path)
-    _seed_close_feedback(tmp_path)
-    rc, env = _run_main(tmp_path)
-    assert rc == 0
-    assert env["outputs"]["category"] == "other"
+    # category must be valid; the normalize layer enforces this regardless of LLM output.
+    assert row["category"] in {
+        "login_access",
+        "password_reset",
+        "billing_account",
+        "software_bug",
+        "hardware_issue",
+        "network_connectivity",
+        "email_calendar",
+        "data_reporting",
+        "security_request",
+        "other",
+    }
+    assert row["issue_pattern"].strip()
+    assert row["solution_steps"].strip()
+    confidence = float(row["confidence"])
+    assert 0.0 <= confidence <= 1.0

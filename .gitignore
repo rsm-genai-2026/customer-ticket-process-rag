@@ -39,6 +39,7 @@ __pycache__/
 
 # extra
 docs/
-AGENTS.md
-.codex/
 .agents/
+.codex/
+AGENTS.md
+CLAUDE.md

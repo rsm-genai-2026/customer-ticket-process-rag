@@ -1,7 +1,8 @@
-"""Shared helpers for the IT ticketing skills.
+"""Shared helpers for the IT ticketing workflow steps.
 
-These utilities are used by every skill under ``skills/`` that runs the
-AI-assisted IT ticketing workflow. They handle the boring-but-must-be-correct
+These utilities are used by every step in the AI-assisted IT ticketing
+workflow — both the LLM-based skills under ``skills/`` and the deterministic
+automations under ``automations/``. They handle the boring-but-must-be-correct
 pieces required for orchestrated execution:
 
 * Loading CSVs and requiring a ticket exists.
@@ -9,7 +10,7 @@ pieces required for orchestrated execution:
   decision so the orchestrator can correlate, retry, and replay.
 * Idempotency: a re-run with the same ``(workflow_run_id, step_id)``
   is a no-op rather than appending a duplicate row.
-* File locking around every CSV write so concurrent skill runs do not
+* File locking around every CSV write so concurrent step runs do not
   interleave their output (POSIX flock; falls back to a no-op on
   systems without ``fcntl``).
 * A stable JSON envelope for orchestrator output, with text-mode for
@@ -51,13 +52,13 @@ ACTION_LOG_COLUMNS = [
     "notes",
 ]
 
-# Common envelope statuses returned by skill scripts.
+# Common envelope statuses returned by step scripts (skills and automations).
 STATUS_OK = "ok"
 STATUS_SKIPPED = "skipped"
 STATUS_ERROR = "error"
 
 # Modes:
-#   "live" — only read live skill output from data/working/. Refuses if
+#   "live" — only read live step output from data/working/. Refuses if
 #            an expected upstream working row is missing. Default.
 #   "demo" — also accept the synthetic processed/ tables as historical
 #            fallback. Useful for tutorials against the seeded dataset.
@@ -65,8 +66,9 @@ MODE_LIVE = "live"
 MODE_DEMO = "demo"
 DEFAULT_MODE = MODE_LIVE
 
-# Confidence threshold below which a skill's output is flagged for human
-# review. Skills can override per-decision but this is the project default.
+# Confidence threshold below which a step's output is flagged for human
+# review. Individual steps can override per-decision but this is the
+# project default.
 HUMAN_REVIEW_CONFIDENCE_THRESHOLD = 0.60
 
 
@@ -92,12 +94,14 @@ def default_step_id(skill_name: str) -> str:
 
 
 def make_skill_parser(description: str = "") -> argparse.ArgumentParser:
-    """Return an argparse parser with the standard skill CLI surface.
+    """Return an argparse parser with the standard step CLI surface.
 
-    Every skill takes the same orchestrator-facing arguments. Building
-    them in one place keeps the contract identical across skills and
-    means students adding a new skill don't need to re-derive the flag
-    names from a sibling script.
+    Every workflow step — skill or automation — takes the same
+    orchestrator-facing arguments. Building them in one place keeps the
+    contract identical across steps and means students adding a new step
+    don't need to re-derive the flag names from a sibling script.
+    (The function name is ``make_skill_parser`` for historical reasons;
+    it is used by both skills and automations.)
 
     The returned parser exposes:
 
@@ -109,7 +113,7 @@ def make_skill_parser(description: str = "") -> argparse.ArgumentParser:
     * ``--idempotency-mode {skip,replace}`` — short-circuit a duplicate
       ``(workflow_run_id, step_id)`` or rewrite the existing row
 
-    Skill-specific flags (e.g. ``--feedback-text``) can be added to the
+    Step-specific flags (e.g. ``--feedback-text``) can be added to the
     returned parser before ``parse_args``.
     """
 
@@ -155,7 +159,7 @@ def now_iso() -> str:
 def working_lock(out_dir: Path):
     """POSIX advisory lock around any write into ``out_dir``.
 
-    Skills append to shared CSVs in ``data/working/``. Concurrent skill
+    Steps append to shared CSVs in ``data/working/``. Concurrent step
     runs (orchestrator parallelism, two analysts on the same ticket)
     would otherwise interleave rows or rewrite headers. We hold an
     exclusive ``fcntl`` lock on a sentinel file in the working directory
@@ -258,7 +262,7 @@ def latest_working_row(
 def find_step_row(out_dir: Path, table: str, workflow_run_id: str, step_id: str) -> dict | None:
     """Return any existing row that matches ``(workflow_run_id, step_id)``.
 
-    Used by skill scripts before writing to detect a re-run of the same
+    Used by step scripts before writing to detect a re-run of the same
     step and short-circuit with ``status=skipped`` instead of appending
     a duplicate row.
     """
@@ -288,7 +292,7 @@ def append_csv_row(path: Path, row: dict) -> None:
     with a stderr warning rather than silently introducing column drift.
 
     All writes are guarded by a POSIX advisory lock on the parent
-    directory's lock file, so concurrent skill runs cannot interleave
+    directory's lock file, so concurrent step runs cannot interleave
     rows.
     """
 
@@ -385,10 +389,10 @@ def append_action_log(out_dir: Path, record: dict) -> None:
     """Append one row to ``out_dir/ticket_action_log.csv``.
 
     Always uses :data:`ACTION_LOG_COLUMNS` as the schema so different
-    skills produce a uniform timeline. Missing fields are written as
+    steps produce a uniform timeline. Missing fields are written as
     empty strings. The action log is append-only — re-running a step
     intentionally appends another row so the audit trail shows the
-    retry; idempotency lives on the per-skill working tables.
+    retry; idempotency lives on the per-step working tables.
     """
 
     path = Path(out_dir) / ACTION_LOG_FILENAME
@@ -410,7 +414,7 @@ def needs_human_review(
     """Return True if a decision should be queued for a human reviewer.
 
     Triggered when confidence is below ``threshold`` or when ``extra``
-    is True (used by skills that detect a structural reason for review,
+    is True (used by steps that detect a structural reason for review,
     e.g. an ambiguous customer reply).
     """
 
@@ -439,11 +443,13 @@ def make_envelope(
     outputs: dict | None = None,
     error: dict | None = None,
 ) -> dict:
-    """Build the standard JSON envelope returned by every skill.
+    """Build the standard JSON envelope returned by every step.
 
     Stable shape so an orchestrator can dispatch on ``next_action``,
     short-circuit on ``status == "skipped"``, surface ``error`` on
     failure, and route to a human reviewer when ``review_required``.
+    The ``skill_name`` field carries the step name for historical
+    reasons — it is set for skills and automations alike.
     """
 
     return {
@@ -489,16 +495,16 @@ def emit_error(
 ) -> int:
     """Emit an error envelope and return the exit code.
 
-    Every skill catches the same handful of exception classes (missing
+    Every step catches the same handful of exception classes (missing
     ticket, missing upstream row, missing data file, invalid input) and
     needs to produce the same shape of envelope + stderr message. This
-    helper centralises that pattern so skill scripts read as:
+    helper centralises that pattern so step scripts read as:
 
         except KeyError as exc:
             return emit_error(..., error_code="ticket_not_found",
                               message=str(exc), exit_code=2)
 
-    ``next_action`` should be set when the caller can recommend a skill
+    ``next_action`` should be set when the caller can recommend a step
     to run instead (e.g. ``classify-prioritize-ticket`` after a missing
     triage row). Returning the exit code lets the caller ``return`` it
     directly from ``main()``.

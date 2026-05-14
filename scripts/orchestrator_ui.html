@@ -761,7 +761,7 @@
             ${example_options}
           </select>
           <div class="muted" id="example-description">
-            Pick an example to load a known scenario, then step through it or run all skills.
+            Pick an example to load a known scenario, then step through it or run the complete workflow.
           </div>
         </div>
         <div class="grid-2">
@@ -855,7 +855,7 @@ but the CSV export leaves out several accounts.</textarea>
                 <span class="cs-skill-code" id="cs-now-code"></span>
               </div>
               <div class="cs-summary" id="cs-now-summary">
-                Pick an example or fill in the form, then start step mode to walk skill-by-skill.
+                Pick an example or fill in the form, then start step mode to walk step-by-step.
               </div>
             </div>
           </div>
@@ -873,7 +873,7 @@ but the CSV export leaves out several accounts.</textarea>
         </div>
         <div class="section-label">Customer response</div>
         <div class="response" id="response-text">
-Submit a ticket to run the skill workflow and generate the customer response.</div>
+Submit a ticket to run the workflow and generate the customer response.</div>
         <div class="feedback hidden" id="feedback-panel">
           <label for="feedback_text">Customer Feedback</label>
           <textarea id="feedback_text">Thanks, that fixed it!</textarea>
@@ -930,7 +930,7 @@ Submit a ticket to run the skill workflow and generate the customer response.</d
             <button class="secondary" id="faq-skip-button" type="button">Skip</button>
           </div>
         </div>
-        <div class="section-label">Skill activity</div>
+        <div class="section-label">Step activity</div>
         <div class="skill-io" id="skill-io"></div>
         <details class="run-details" id="run-details">
           <summary>Step log</summary>
@@ -1076,7 +1076,7 @@ Submit a ticket to run the skill workflow and generate the customer response.</d
     }
 
     function resetWorkflowView(
-      message = "Submit a ticket to run the skill workflow and generate the customer response."
+      message = "Submit a ticket to run the workflow and generate the customer response."
     ) {
       showError("");
       activeRunId = "";
@@ -1086,7 +1086,7 @@ Submit a ticket to run the skill workflow and generate the customer response.</d
         pastSkill: "",
         nowSkill: "",
         nowLabel: "Submit a ticket",
-        nowPurpose: "Pick an example or fill in the form, then start step mode to walk skill-by-skill."
+        nowPurpose: "Pick an example or fill in the form, then start step mode to walk step-by-step."
       });
       responseText.textContent = message;
       feedbackPanel.classList.add("hidden");
@@ -1109,7 +1109,7 @@ Submit a ticket to run the skill workflow and generate the customer response.</d
         ? `Expected first branch: $${example.expected_initial_branch}.`
         : "";
       exampleDescription.textContent = `$${example.scenario || ""} $${expected}`;
-      resetWorkflowView(`Loaded example: $${example.label}. Start step mode or run all skills.`);
+      resetWorkflowView(`Loaded example: $${example.label}. Start step mode or run the complete workflow.`);
     }
 
     function showError(message) {
@@ -1155,12 +1155,12 @@ Submit a ticket to run the skill workflow and generate the customer response.</d
         csNowLabel.textContent = "Done";
         csNowSkill.textContent = "Workflow complete";
         csNowCode.textContent = "";
-        csNowSummary.textContent = "Every skill in this run has finished.";
+        csNowSummary.textContent = "Every step in this run has finished.";
       } else {
         csNowLabel.textContent = "Doing now";
         csNowSkill.textContent = nowLabel || nowSkill || "Submit a ticket";
         csNowCode.textContent = nowSkill && nowLabel && nowLabel !== nowSkill ? nowSkill : "";
-        csNowSummary.textContent = nowPurpose || SKILL_PURPOSE[nowSkill] || "Ready to run the next skill.";
+        csNowSummary.textContent = nowPurpose || SKILL_PURPOSE[nowSkill] || "Ready to run the next step.";
       }
     }
 
@@ -1205,7 +1205,7 @@ Submit a ticket to run the skill workflow and generate the customer response.</d
       if (!items.length) {
         const empty = document.createElement("div");
         empty.className = "io-card io-card-empty";
-        empty.textContent = "Run a skill to see the exact inputs and outputs recorded for it.";
+        empty.textContent = "Run a step to see the exact inputs and outputs recorded for it.";
         skillIo.append(empty);
         return;
       }
@@ -1220,7 +1220,7 @@ Submit a ticket to run the skill workflow and generate the customer response.</d
         check.textContent = "✓";
         const skillName = document.createElement("span");
         skillName.className = "io-summary-skill";
-        skillName.textContent = record.label || record.skill || "skill";
+        skillName.textContent = record.label || record.skill || "step";
         const code = document.createElement("span");
         code.className = "io-summary-code";
         code.textContent = record.skill && record.label && record.skill !== record.label ? record.skill : "";
@@ -1468,7 +1468,7 @@ Submit a ticket to run the skill workflow and generate the customer response.</d
       const selected = exampleTickets.find((example) => example.id === exampleSelect.value);
       if (!selected) {
         exampleDescription.textContent =
-          "Pick an example to load a known scenario, then step through it or run all skills.";
+          "Pick an example to load a known scenario, then step through it or run the complete workflow.";
         resetWorkflowView();
         return;
       }
@@ -1536,7 +1536,7 @@ Submit a ticket to run the skill workflow and generate the customer response.</d
       }
       if (!activeRunId || !activeNextStep) return;
       showError("");
-      setBusy(true, "Running next skill");
+      setBusy(true, "Running next step");
       try {
         const payload = { workflow_run_id: activeRunId };
         if (activeNextStep === "verify-feedback-close-or-reopen") {

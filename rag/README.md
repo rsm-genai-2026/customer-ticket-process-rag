@@ -1,14 +1,35 @@
 # RAG layer — Naive vs. HyQ on the Helios KB
 
-A teaching scaffold for the MeridianLife simulation series. We build two
-retrieval-augmented-generation indices over the same 18 simulated
+We build two retrieval-augmented-generation indices over the same 18 simulated
 proprietary documents in `knowledge_base/`, compare them side-by-side,
 and watch the second one win on most queries.
 
 No vector database. The corpus is small (≤ a few hundred chunks × 1024
 dims ≈ a few MB), so the index lives on disk as JSON + `.npy` and in
-memory as a single Python dict. Query time is a single numpy matmul
+memory as a single Python dict. Query time is one matrix multiplication
 against the whole matrix — fast, transparent, and pedagogically honest.
+
+## Concepts you'll see throughout
+
+- **Embedding** — a fixed-length vector of numbers (1024 floats here)
+  produced from a piece of text by an embedding model. Two texts with
+  similar meaning produce vectors that point in similar directions.
+- **Cosine similarity** — a number from -1 to 1 measuring how aligned
+  two vectors are in direction (ignoring their lengths). 1.0 means
+  identical direction, 0 means unrelated, -1 means opposite. We rank
+  retrieved chunks by cosine similarity to the user's query: more
+  aligned = more relevant.
+- **L2-normalised** — scaled so the vector has length 1. We pre-normalise
+  every embedding when we build the index. The reason is mathematical
+  convenience: for unit-length vectors, cosine similarity is just the
+  dot product (multiply-and-sum). One `matrix @ query` gives every
+  chunk's score at once — no division, no extra steps.
+- **Dense vs sparse retrieval** — *dense* means each text is represented
+  by a smallish vector of floats (1024 in our case) where almost every
+  position has a non-zero value; what we do here. *Sparse* means
+  representing text as a much larger but mostly-zero vector that tracks
+  individual words (e.g. BM25). Dense captures meaning, sparse captures
+  literal vocabulary; the two have different failure modes.
 
 ## The two modes
 
@@ -21,6 +42,7 @@ against the whole matrix — fast, transparent, and pedagogically honest.
   against every chunk, return top-k.
 
 What students should notice when they look at the index:
+
 - The natural section headings ("Identity verification", "Lessons for
   Tier-1") have been destroyed. Each chunk gets a label like
   `window 0`, `window 1`. The model has no idea what's in the chunk
@@ -40,6 +62,7 @@ What students should notice when they look at the index:
   section, return top-k unique sections.
 
 Why this tends to win on these docs:
+
 1. The 18 KB docs were *written* as a sequence of self-contained
    sections — HyQ respects the author's boundaries instead of fighting
    them.
@@ -114,17 +137,93 @@ index = {
 ```
 
 Because the embeddings are pre-normalised, cosine similarity is a plain
-`embeddings @ query_vec` — no division, no `cdist`, no FAISS.
+`embeddings @ query_vec` — no division, no helper functions like scipy's
+`cdist`, no specialised vector-search libraries like FAISS.
 
 ## When HyQ does NOT win
 
-The eval suite intentionally includes a query that HyQ also misses (the
-"is there a scheduled change explaining portal slowness" case). The
-generated questions describe the change-calendar entries, but the
-user's query is about a *symptom*; the symptom side lives in the
-runbooks, not the calendar. Useful teaching point: HyQ helps when the
-generated questions overlap with how users actually ask, and not when
-the doc was written from a different angle than the question.
+The eval suite includes one query both modes get wrong:
+
+> "is there a system change scheduled that could explain the current portal slowness"
+
+The intended hit is **KB-015 (the Q2 2026 change calendar)**. Both modes
+return the Customer Portal and Analytics Dashboard runbooks instead. KB-015
+doesn't even crack the HyQ top-5. Why?
+
+The user query has two parts: a **cause** part ("system change scheduled")
+and a **symptom** part ("portal slowness"). Dense vector embeddings give more
+weight to the symptom part because words like *slow*, *down*, *portal* are
+common and specific, so they push the query vector strongly in that direction.
+The runbooks have multiple questions containing exactly those words:
+
+| | Question | Score |
+| --- | --- | --- |
+| 1 | KB-010 "What can I do about the **dashboard being slow** between 03:00–04:30 UTC?" | 0.783 |
+| 2 | KB-010 "Why is the **dashboard slow** at a specific time every night?" | 0.781 |
+| 3 | KB-009 "Why is the **portal down** every Sunday?" | 0.725 |
+| … | (more runbook hits in the 0.66–0.70 range) | |
+| 6 | KB-015 best hit (the failover-drill question above) | 0.661 |
+
+KB-015's best match is genuinely close, just not close enough to win. The
+cause part of the query ("scheduled change") is harder for embeddings to
+anchor on — it's a phrase about state of the world rather than a concrete
+symptom, and there's no single word in it as semantically loaded as *slow*.
+
+**The teaching point.** Embedding-based retrieval ranks by overall semantic
+similarity in vector space. When a query has two clauses of unequal
+"vividness," the more vivid clause dominates the result. That's a structural
+limitation of dense retrieval, not a flaw of HyQ specifically.
+
+**Two practical fixes** worth showing students if you want to extend the
+lesson:
+
+1. **Hybrid search.** Combine the dense-vector cosine score with a
+   keyword-based score. BM25 is the standard keyword scorer — it ranks
+   documents by how often the literal query words appear, adjusted for
+   how rare each word is across the corpus. The word *scheduled* appears
+   in KB-015's questions and almost nowhere else in the corpus, so BM25
+   would lift KB-015 strongly. Hybrid ranking is just a weighted sum of
+   the two scores.
+2. **Query rewriting.** Before retrieval, ask the LLM to split a multi-part
+   query into single-clause queries ("scheduled changes affecting the portal"
+   and "portal slowness symptoms"), run each, then merge results. The
+   per-clause retrievals each have a chance to win on their own clause.
+
+## Patching retrieval by adding questions
+
+The change-calendar miss above also points at HyQ's most operationally
+useful property: **a specific miss can be patched by adding a question —
+no re-chunking, no doc edits.** One embedding API call, one row appended
+to the matrix.
+
+Three things worth knowing about how this changes the design pattern:
+
+1. **Echo the user's vocabulary.** When patching a miss, repeat the user's
+   actual words rather than paraphrasing. Adding *"Could portal slowness
+   or downtime right now be caused by a scheduled change?"* to KB-015
+   scores **0.874** against the failing query — comfortably above the
+   runbook's 0.783. A semantically equivalent *"Is there a planned outage
+   that explains current degraded performance?"* only scores **0.781**.
+   Same meaning, different words; you're writing magnets for embedding
+   similarity, not prose.
+
+2. **One question can live on multiple chunks.** Adding the winning
+   question to BOTH KB-015 (calendar) AND KB-009 (portal runbook) makes
+   both surface at the top of the result, each matched on the new
+   question with the same score. That's the right answer here — the user
+   benefits from both *"is anything scheduled?"* (calendar) and *"if not,
+   what's the diagnostic procedure?"* (runbook). Chunks are destinations;
+   questions are the address book.
+
+3. **Real customer Q&A beats LLM-generated questions.** Whenever you have
+   historical tickets that cite which doc resolved each one, you have real
+   (question, doc) pairs — with the customer's actual vocabulary and the
+   actual query distribution. LLM-generated questions cover docs uniformly;
+   real customers ask the same five questions over and over and ignore
+   80% of any doc. The dependency is that each historical ticket must tag
+   which doc resolved it. The ticket workflow in this repo writes exactly
+   that trail to `data/working/` as it runs, so the same trail could seed
+   a future, richer HyQ index.
 
 ## Graceful degradation
 
@@ -140,9 +239,13 @@ guess whether the retrieved chunks are noise.
 uv run pytest tests/rag -v
 ```
 
-All tests run offline: `utils.embed.embed` accepts an injected client,
-the HyQ generator looks at `HYQ_QUESTIONS_MOCK_JSON` before calling the
-LLM, and the retrieval tests use synthetic embedding matrices.
+Tests call the real TritonAI gateway — embeddings and HyQ generation are
+not mocked. The only purely-local tests are for self-contained helpers
+(frontmatter parser, chunkers, the JSON+npy round-trip). Pure-LLM
+behaviour is tested with looseness-aware asserts (length, structure,
+threshold-based ranking) that tolerate model non-determinism without
+silently passing on a broken pipeline. Requires `TRITONAI_API_KEY` in
+`.env`.
 
 ## What's deliberately not in this milestone
 
