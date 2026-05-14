@@ -259,6 +259,24 @@ Each step writes one row to a working CSV in `data/working/` (or appends to
 `ticket_action_log.csv`), so you can `cat` the files between steps and see
 the trail.
 
+### RAG demo (Naive vs HyQ)
+
+A separate browser demo compares two retrieval strategies — naive
+sliding-window chunking vs HyQ (Hypothetical Queries) — over the 18
+simulated proprietary documents in `rag/knowledge_base/`. Build the
+indices once, then run the demo:
+
+```bash
+uv run python -m rag.build_index --mode naive
+uv run python -m rag.build_index --mode hyq
+uv run python scripts/rag_demo.py --port 8766
+# → http://127.0.0.1:8766
+```
+
+The UI shows side-by-side hits, the matched HyQ question for each, and
+the rendered chunk markdown. See [`rag/README.md`](rag/README.md) for the
+design notes and teaching points.
+
 ### Scenario suite
 
 The repo ships 20 curated example tickets in `data/examples/ticket_scenarios.py`,

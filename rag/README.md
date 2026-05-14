@@ -94,6 +94,36 @@ from each mode and a `Hit-rate@3` summary at the bottom. On the current
 corpus and embedding model, HyQ typically scores 9–10/10 while Naive
 scores 7–8/10.
 
+## Interactive demo (Naive vs HyQ, in a browser)
+
+Once both indices are built, the demo serves a single-page UI that runs
+each query through both modes side-by-side, with the matched HyQ question
+and the rendered chunk markdown visible for every hit.
+
+```bash
+uv run python scripts/rag_demo.py
+# then open http://127.0.0.1:8766
+```
+
+Optional flags: `--port 8766` (default), `--host 127.0.0.1`. The server
+loads both `rag/index/*` files once at startup, so the first request after
+launch is fast.
+
+In the UI:
+
+- The **preset dropdown** seeds the query box with one of 10 curated
+  examples from `rag/preset_queries.py`, each tagged with a category
+  (*easy*, *hyq_wins*, *both_fail*, *vocab*, *multi_doc*) and a one-line
+  teaching note.
+- Each hit shows the doc ID, section heading, cosine score, snippet, and
+  — for HyQ hits — the **matched hypothetical question** that brought
+  the chunk back. Click *Show full chunk* to expand the chunk's rendered
+  markdown.
+- The *Reading the result* panel summarises rank, verdict, and the gap
+  between the two modes when a preset (with an expected doc) is loaded.
+
+Stop with `Ctrl+C`.
+
 ## What's in this folder
 
 ```
