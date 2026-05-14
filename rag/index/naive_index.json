@@ -1,0 +1,393 @@
+{
+  "schema_version": 1,
+  "mode": "naive",
+  "embed_model": "api-tgpt-embeddings",
+  "built_at": "2026-05-14T04:08:58+00:00",
+  "chunks": [
+    {
+      "chunk_id": "KB-001#n0",
+      "doc_id": "KB-001",
+      "doc_title": "Tier-1 Password Reset Standard Operating Procedure",
+      "doc_type": "sop",
+      "section_heading": "window 0",
+      "text": "# Tier-1 Password Reset SOP This is the verification-first procedure every Tier-1 support analyst must follow before resetting a password for any employee or customer-facing account. It supersedes the prior 2024 SOP (which allowed email-based verification). ## Identity verification (required before any reset) A Tier-1 analyst must complete **one** of the following checks before triggering a reset in the Identity Provider admin console. Email-based self-attestation is no longer acceptable. 1. **Slack manager DM** \u2014 Confirm the request via Slack DM with the employee's direct manager as listed in BambooHR. The manager must reply with the literal string `APPROVED: <ticket_id>` within 30 minutes. 2. **Video callback** \u2014 Place a Zoom callback to the number on file in BambooHR and visually confirm the requester matches their badge photo. 3. **Yubikey challenge** \u2014 For accounts already enrolled in hardware MFA, trigger a Yubikey challenge through the Identity Provider self-service portal at `idp.helios.internal/reset`. For customer (non-employee) accounts, only option 3 applies. Tier-1 must not reset customer credentials by phone \u2014 escalate to the Identity & Security specialist group via the escalation matrix (KB-014). ## Reset procedure 1. Open the IDP admin console at `idp.helios.internal/admin`. 2. Search by employee ID (preferred) or username. 3. Choose **Force credential rotation**, NOT **Manual password set** \u2014 the latter bypasses the audit log and triggers a SOC alert. 4. The user receives a one-time reset link valid for 60 minutes. 5. Record the ticket id in the **Reason** field. Free-text reasons are pulled into the weekly SOC review. ## Time targets - Verification: 15 minutes. - Reset execution: 5 minutes. - Total target: under 25 minutes from ticket assignment. Tickets exceeding 25 minutes auto-flag for support-lead review (Maya Chen, APAC-Day, or her delegate). ## Common failure modes - Manager DM goes unanswered within 30 minutes \u2192 escalate to the",
+      "hyq": [],
+      "embedding_rows": [
+        0
+      ]
+    },
+    {
+      "chunk_id": "KB-001#n1",
+      "doc_id": "KB-001",
+      "doc_title": "Tier-1 Password Reset Standard Operating Procedure",
+      "doc_type": "sop",
+      "section_heading": "window 1",
+      "text": "Time targets - Verification: 15 minutes. - Reset execution: 5 minutes. - Total target: under 25 minutes from ticket assignment. Tickets exceeding 25 minutes auto-flag for support-lead review (Maya Chen, APAC-Day, or her delegate). ## Common failure modes - Manager DM goes unanswered within 30 minutes \u2192 escalate to the manager's manager; do not reset on partial approval. - BambooHR shows the employee as on leave \u2192 verify with the People team before resetting; off-boarded users must not be reset under any circumstances (route to security_request). - User claims they \"already tried\" the self-service portal but no event appears in the IDP audit log \u2192 suspect phishing or impersonation; flag the ticket and notify the security on-call.",
+      "hyq": [],
+      "embedding_rows": [
+        1
+      ]
+    },
+    {
+      "chunk_id": "KB-002#n0",
+      "doc_id": "KB-002",
+      "doc_title": "VPN Access Provisioning Policy",
+      "doc_type": "policy",
+      "section_heading": "window 0",
+      "text": "# VPN Access Provisioning Policy All remote access to Helios production networks is brokered through the MeshGuard VPN gateway cluster (`vpn-gw-{1,2,3}.helios.internal`). This policy defines who can request which VPN profile, the approval chain, and the maximum certificate lifetime. ## VPN profile catalogue | Profile | Audience | Cert lifetime | Approver | | --- | --- | --- | --- | | `vpn-employee` | Full-time staff | 90 days | Manager + Network on-call | | `vpn-contractor` | Contractors (W-9 or W-8) | 30 days | Security on-call | | `vpn-vendor` | External vendor support engineers | 7 days | Network lead + CISO delegate | | `vpn-emergency` | Major-incident pages, oncall break-glass | 24 hours | CISO or IR commander | The `vpn-emergency` profile is provisioned only during an active P1 or P2 incident and is automatically revoked when the incident is closed in PagerDuty. Profiles `vpn-vendor` and `vpn-emergency` are logged to the SOC SIEM in addition to the standard MeshGuard audit log. ## Provisioning steps (Tier-1 cannot do these) VPN access provisioning is **specialist-only**. Tier-1 analysts triaging a ticket that requests VPN access must escalate to `network_infra` with the following collected: 1. Employee ID and BambooHR confirmation that the employee is in an active status. 2. Manager name and Slack handle (required for `vpn-employee`). 3. Requested profile. 4. Business justification (one or two sentences). 5. Whether the requester already has a Yubikey enrolled \u2014 if not, the Identity & Security specialist must enroll one before the VPN profile is issued. ## Common quirks - The MeshGuard client (`MeshGuard Connect 3.4.x`) requires the system clock to be within 30 seconds of NTP. Out-of-skew clients fail with `ERR_HANDSHAKE_DRIFT` and not the more obvious certificate error. - macOS 15.3 introduced a regression where the VPN tunnel drops on Wi-Fi network change.",
+      "hyq": [],
+      "embedding_rows": [
+        2
+      ]
+    },
+    {
+      "chunk_id": "KB-002#n1",
+      "doc_id": "KB-002",
+      "doc_title": "VPN Access Provisioning Policy",
+      "doc_type": "policy",
+      "section_heading": "window 1",
+      "text": "is issued. ## Common quirks - The MeshGuard client (`MeshGuard Connect 3.4.x`) requires the system clock to be within 30 seconds of NTP. Out-of-skew clients fail with `ERR_HANDSHAKE_DRIFT` and not the more obvious certificate error. - macOS 15.3 introduced a regression where the VPN tunnel drops on Wi-Fi network change. The MeshGuard-published fix is to enable the **Keep-Alive** option in profile settings; the fix is rolled into client `3.4.7` and later. - Split-tunnel is disabled by policy for `vpn-vendor` and `vpn-emergency`. Any vendor reporting access issues to non-Helios sites is expected \u2014 do not change the tunnel mode. ## Revocation Revocation is automatic on the cert lifetime above, or immediate via the MeshGuard admin console under **Profiles \u2192 Revoke**. Revoked certs cannot be re-issued \u2014 a new request must be filed.",
+      "hyq": [],
+      "embedding_rows": [
+        3
+      ]
+    },
+    {
+      "chunk_id": "KB-003#n0",
+      "doc_id": "KB-003",
+      "doc_title": "Helios Data Classification Policy",
+      "doc_type": "policy",
+      "section_heading": "window 0",
+      "text": "# Data Classification Policy Helios classifies every piece of data into one of four tiers. The tier determines who can access the data, how it must be stored, and what support analysts can include in a ticket response. | Tier | Label | Examples | May appear in ticket reply? | | --- | --- | --- | --- | | T1 | Public | Marketing pages, public docs | Yes | | T2 | Internal | Org charts, runbooks, this policy | Yes, to employee requesters only | | T3 | Confidential | Customer PII, billing details, ticket bodies | Only the requester's own data | | T4 | Restricted | Credentials, encryption keys, payroll, audit findings | **Never** in a ticket reply | ## Rules for support analysts 1. **Never paste a T4 value into a ticket reply.** This includes API keys, password hashes, MFA seeds, and the contents of the IDP `secrets` table. If a customer pastes one in their ticket, treat the ticket as contaminated \u2014 see KB-005 \u00a73. 2. T3 data from one customer must never be referenced when replying to a different customer, even as an example. 3. Internal runbooks (T2) can be summarised in replies to *employee* requesters but not to external customers. 4. When in doubt, escalate to `identity_security` before sending the reply. The reviewer is paid to read your draft. ## Storage rules - T3 and T4 data must live in systems explicitly listed in the `data_locations.csv` register. Local CSV exports to laptops are not permitted. - T4 data must be encrypted at rest with the Helios KMS key (`alias/helios-t4-2026`). Manual rotation cadence: 180 days. The rotation playbook lives in the security wiki under `Security \u2192 KMS \u2192 Tier-4 Rotation`. ## Reporting suspected exposures Suspected T3 or T4 exposures must be",
+      "hyq": [],
+      "embedding_rows": [
+        4
+      ]
+    },
+    {
+      "chunk_id": "KB-003#n1",
+      "doc_id": "KB-003",
+      "doc_title": "Helios Data Classification Policy",
+      "doc_type": "policy",
+      "section_heading": "window 1",
+      "text": "to laptops are not permitted. - T4 data must be encrypted at rest with the Helios KMS key (`alias/helios-t4-2026`). Manual rotation cadence: 180 days. The rotation playbook lives in the security wiki under `Security \u2192 KMS \u2192 Tier-4 Rotation`. ## Reporting suspected exposures Suspected T3 or T4 exposures must be reported to the security on-call via PagerDuty within 60 minutes of discovery \u2014 see KB-014 for the escalation matrix. The 60-minute window is contractual under the AuriLite IDP DPA (KB-006) and several enterprise customer contracts.",
+      "hyq": [],
+      "embedding_rows": [
+        5
+      ]
+    },
+    {
+      "chunk_id": "KB-004#n0",
+      "doc_id": "KB-004",
+      "doc_title": "BYOD Mobile Device Policy",
+      "doc_type": "policy",
+      "section_heading": "window 0",
+      "text": "# BYOD Mobile Device Policy Helios allows employees to use a personal phone or tablet for work email and authenticator apps, subject to enrolment in the Workplace IT MDM profile (`helios-byod-mdm.mobileconfig`). ## What enrolment does - Installs the Helios root CA so email and intranet sites validate. - Installs the Helios certificate for the AuriLite IDP push-MFA app. - Enforces a minimum 6-digit passcode and 10-minute auto-lock. - Enables remote wipe of the work profile **only** (not the device). Personal photos, contacts, and apps outside the work profile are not affected. ## What enrolment does NOT do - It does not give Helios access to personal SMS, call logs, location, microphone, or camera. The MDM agent reports only: device model, OS version, jailbreak status, and the inventory of Helios-managed apps. - It does not permit Helios to remotely lock the entire device. ## Eligibility - Employees in a `support_analyst` or higher role can enroll. - Contractors can enroll only with manager + Security on-call approval. - Devices below the minimum supported OS (iOS 17, Android 13) are not eligible. The Workplace IT team will not troubleshoot mail issues on unsupported OS versions. ## Common support issues - **Push MFA stops working after OS upgrade.** Re-enroll the device in MDM; the AuriLite push token is rebuilt on first launch after re-enrolment. - **Mail no longer syncs after password change.** The native iOS Mail app caches the old token; remove and re-add the account. - **\"Cannot verify server identity\" on first launch.** The Helios root CA was not installed \u2014 re-run the MDM enrolment. ## Off-boarding When an employee leaves Helios, the MDM profile is removed automatically within 30 minutes of their IDP account deactivation. This wipes only the work profile.",
+      "hyq": [],
+      "embedding_rows": [
+        6
+      ]
+    },
+    {
+      "chunk_id": "KB-005#n0",
+      "doc_id": "KB-005",
+      "doc_title": "After-Hours Support Coverage Policy",
+      "doc_type": "policy",
+      "section_heading": "window 0",
+      "text": "# After-Hours Support Coverage Policy Defines which tickets receive after-hours attention and which wait for the next business-day shift. ## Coverage windows by shift | Shift | Hours (UTC) | Coverage | | --- | --- | --- | | NA-Day | 14:00\u201322:00 | All tickets, all priorities | | NA-Evening | 22:00\u201306:00 | P1 + P2 only; P3/P4 queue to NA-Day | | EU-Day | 07:00\u201315:00 | All tickets, all priorities | | APAC-Day | 00:00\u201308:00 | All tickets, all priorities | A ticket arriving during a \"P1+P2 only\" window with a lower priority is parked in the **Overnight Queue** and surfaces at the start of the next NA-Day shift. The orchestrator's `next_action` field will still indicate the correct downstream skill \u2014 the queue is a scheduling concept layered on top of the workflow. ## Definition of P1 / P2 (this overrides any vendor SLA) - **P1** \u2014 A production system is down for more than 10% of users, OR a T4 data exposure (KB-003) is suspected. - **P2** \u2014 A production system is degraded (>20% slower than baseline) OR a customer-paying integration is failing for a Helios enterprise customer. If a ticket is logged as P3 but exhibits P1/P2 symptoms, the on-call analyst must reprioritise before routing. Do not wait for triage. ## Contaminated tickets When a customer's ticket body contains a credential, MFA seed, or other T4 value (see KB-003), the analyst must: 1. Mark the ticket **contaminated** in the action log (`extra.contaminated=true`). 2. Redact the value with `[REDACTED-T4]` before any reply. 3. Notify the security on-call within 60 minutes. 4. Force a credential rotation on the affected account. The contamination flag must not be cleared without security review. ## On-call escalation paths After-hours escalation paths are listed in KB-014 (Escalation Matrix). The current after-hours specialist groups",
+      "hyq": [],
+      "embedding_rows": [
+        7
+      ]
+    },
+    {
+      "chunk_id": "KB-005#n1",
+      "doc_id": "KB-005",
+      "doc_title": "After-Hours Support Coverage Policy",
+      "doc_type": "policy",
+      "section_heading": "window 1",
+      "text": "with `[REDACTED-T4]` before any reply. 3. Notify the security on-call within 60 minutes. 4. Force a credential rotation on the affected account. The contamination flag must not be cleared without security review. ## On-call escalation paths After-hours escalation paths are listed in KB-014 (Escalation Matrix). The current after-hours specialist groups are: `identity_security`, `network_infra`, and `application_engineering`. `billing_finance` and `data_analytics` are NA-Day only.",
+      "hyq": [],
+      "embedding_rows": [
+        8
+      ]
+    },
+    {
+      "chunk_id": "KB-006#n0",
+      "doc_id": "KB-006",
+      "doc_title": "AuriLite Identity Provider \u2014 Vendor Contract Summary",
+      "doc_type": "vendor_contract",
+      "section_heading": "window 0",
+      "text": "# AuriLite IDP \u2014 Vendor Contract Summary This is a summary of the active AuriLite IDP master services agreement (MSA-AURI-2024-014, signed 2024-08-01, renewed 2026-08-01 for two years). The full PDF lives in Vendor Vault at `vendors/aurilite/MSA-2024-014.pdf`. ## Key contract terms - **Term**: 2026-08-01 through 2028-07-31. - **Auto-renewal**: 12 months, opt-out window 60 days before term end. - **Annual fee**: $412,000 USD, billed quarterly. - **Seat cap**: 4,500 active identities (current usage: 3,820 as of 2026-Q1). - **Overage rate**: $9.20 per seat per month, billed in arrears. ## Support tier - **Tier**: Premium 24/7. - **Severity-1 first response**: 15 minutes. - **Severity-2 first response**: 1 hour during business hours, 4 hours after-hours. - **Support hotline**: +1-415-555-0148 (PIN: stored in Vendor Vault). - **Account manager**: Priya Sundar \u2014 `priya.sundar@aurilite.example`. ## Service-level commitments (SLA) - **Authentication availability**: 99.95% monthly, measured at the `/oauth2/token` endpoint. - **Push-MFA delivery**: 99.5% of pushes delivered within 5 seconds. - **SLA credits**: 10% of monthly fee per 0.1 percentage point below the 99.95% target, capped at one full month's fee. ## Data processing addendum (DPA) - **Data residency**: EU customer data is pinned to `eu-west-3` region by contract. T3 data may not cross regions without written approval. - **Breach notification SLA**: AuriLite must notify Helios within 24 hours of suspected breach; Helios must notify enterprise customers within 60 minutes per KB-005. - **Sub-processor list**: refreshed quarterly at `aurilite.com/legal/subprocessors`. ## Known operational caveats - AuriLite pushes a mandatory minor release on the first Tuesday of every month at 02:00 UTC. Pre-prod has historically been broken for 3\u20136 hours after these pushes; do not schedule customer-facing identity changes on the first Tuesday. - The \"Magic Link\" feature is **not enabled** for Helios \u2014 it conflicts with the Tier-1 password reset SOP (KB-001).",
+      "hyq": [],
+      "embedding_rows": [
+        9
+      ]
+    },
+    {
+      "chunk_id": "KB-007#n0",
+      "doc_id": "KB-007",
+      "doc_title": "MeshGuard VPN \u2014 Vendor Contract Summary",
+      "doc_type": "vendor_contract",
+      "section_heading": "window 0",
+      "text": "# MeshGuard VPN \u2014 Vendor Contract Summary ## Contract - **Vendor**: MeshGuard Networks, Inc. - **Agreement**: MSA-MSG-2023-007, signed 2023-09-15. - **Term**: 2023-10-01 through 2026-09-30. **Renewal decision due 2026-07-31.** - **Annual fee**: $148,000 USD, billed annually in advance. - **Tunnel cap**: 800 concurrent tunnels (current 95th percentile usage: 612). ## Support tier - **Tier**: Standard business hours (08:00\u201318:00 PT, M\u2013F). - **After-hours severity-1**: paid add-on, $1,200 per incident. - **Severity-1 first response**: 4 hours business hours, best-effort after-hours. - **Support contact**: support@meshguard.example, ticket portal `support.meshguard.example`. - **TAM**: Hassan Olin, weekly office hours Tuesdays 16:00 UTC. ## Maintenance windows - **Scheduled maintenance**: every Sunday 02:00\u201304:00 UTC. - **Emergency maintenance**: vendor may take the gateway offline with 60 minutes' notice; notifications land in `#network-alerts` Slack. - **VPN client auto-update**: monthly on the 15th at 03:00 client local time. Auto-update has caused tunnel-drop regressions twice in the past 18 months (KB-012 references one of them). ## Operational caveats - `MeshGuard Connect 3.4.6` and earlier have a known regression on macOS 15.3+ \u2014 see KB-002 for the workaround. The fix is in `3.4.7`. - The gateway does not support DTLS \u2014 falling back to TLS adds ~120ms latency that affects voice/video calls. Tickets reporting Zoom jitter while on VPN are usually this; not a Zoom problem. - The gateway logs the **source NAT** address only, not the per-user internal IP, so incident forensics requires correlating with the IDP session log within 24 hours (after which IDP rotates). ## Renewal posture (as of 2026-02-28) The Network team is evaluating two alternatives (BastionRoute and ZephyrNet) ahead of the 2026-07-31 renewal decision. Do not commit to new MeshGuard-specific integrations until after that decision.",
+      "hyq": [],
+      "embedding_rows": [
+        10
+      ]
+    },
+    {
+      "chunk_id": "KB-008#n0",
+      "doc_id": "KB-008",
+      "doc_title": "QuotidianPay Billing Platform \u2014 Vendor Contract Summary",
+      "doc_type": "vendor_contract",
+      "section_heading": "window 0",
+      "text": "# QuotidianPay \u2014 Vendor Contract Summary QuotidianPay hosts the Helios Billing System and acts as the merchant of record for customer invoices in the EU and APAC. ## Contract - **Vendor**: QuotidianPay Holdings, Ltd. (Ireland). - **Agreement**: MSA-QP-2022-031, signed 2022-04-11. - **Term**: rolling 24-month, current term ends 2026-11-30. - **Annual fee**: 0.6% of processed GMV plus $48,000 platform fee. - **Transaction fee**: 2.4% + \u20ac0.18 per EU card transaction, 2.9% + $0.30 per US card transaction. ## Support - **Tier**: Enterprise 24/5 (M\u2013F UTC). - **Sev-1 first response**: 30 minutes. - **Support email**: enterprise-support@quotidianpay.example. - **Engineering escalation**: paid; $400 per escalation. - **TAM**: Lena Kowalski. ## SLA - **API availability**: 99.9% monthly across `/v1/invoice` and `/v1/charge`. - **Payout latency**: T+2 business days (EU), T+3 business days (US). - **Refund latency**: T+5 business days for credit card refunds. ## Operational caveats - QuotidianPay does **not** generate invoices for amounts below \u20ac1.00 / $1.00; below-threshold charges accumulate and bill at the end of the customer's billing cycle. Customers occasionally raise \"missing invoice\" tickets \u2014 see KB-013 RCA for the export bug that masked this in 2025-11. - The CSV export from the QuotidianPay console truncates `customer_id` to 32 characters as of release 8.4. Helios customer IDs are 36 chars (UUID-style) \u2014 collisions are rare but happen at the 1-in-10K rate in the export. - Tax computation is delegated to a sub-processor (StratoTax). When StratoTax is degraded, QuotidianPay falls back to a hard-coded local rate that is often wrong for non-US jurisdictions. ## Compliance - PCI DSS Level 1 (attestation 2025-09-18 in Vendor Vault). - SOC 2 Type II \u2014 annual, current report dated 2025-07-30. - Card data tokenised at QuotidianPay; Helios never stores PANs.",
+      "hyq": [],
+      "embedding_rows": [
+        11
+      ]
+    },
+    {
+      "chunk_id": "KB-009#n0",
+      "doc_id": "KB-009",
+      "doc_title": "Customer Portal \u2014 Operations Runbook",
+      "doc_type": "runbook",
+      "section_heading": "window 0",
+      "text": "# Customer Portal \u2014 Operations Runbook The Customer Portal (`portal.helios.com`) is the primary external surface for Helios customers. It is a Next.js 14 app, deployed on the Helios Platform (Kubernetes), and uses AuriLite IDP for sign-in. ## Health endpoints - `https://portal.helios.com/healthz` \u2014 liveness, returns 200 if the pod is alive (does not check downstreams). - `https://portal.helios.com/api/ready` \u2014 readiness, returns 200 only if the IDP, CRM, and database are reachable. - Grafana dashboard: `grafana.helios.internal/d/portal-ops`. ## Known issues (read these BEFORE creating a new ticket) ### Issue 1 \u2014 SSO redirect loop after IDP minor release **Symptom**: User signs in, lands on `/auth/callback`, immediately redirected back to `/login`. Loop continues until the browser cookie limit is hit. **Root cause**: AuriLite occasionally rotates the issuer URL on minor releases. The portal's cached OIDC discovery document goes stale. **Fix**: Restart the portal deployment to force OIDC discovery refresh. `kubectl -n portal rollout restart deploy/portal-web`. **Tier-1 customer guidance**: ask the user to retry in a private window. Most users will be unaffected once the rollout completes (~3 minutes). ### Issue 2 \u2014 Portal returns \"We're sorry\" page after a search **Symptom**: Search query returns the generic 500 page; no other portal function is affected. **Root cause**: The portal's search uses Elasticsearch via a sidecar. Sidecar OOMs every ~14 days because of a leaked compiled query cache. **Fix**: Pending engineering fix (ticket APP-2391). Until then, the nightly cron at 04:00 UTC restarts the sidecar; out-of-cycle OOMs need a manual restart by the on-call engineer. ### Issue 3 \u2014 File upload silently fails for files >50MB **Symptom**: Customer clicks **Upload**, sees a spinner forever, no error message. Network panel shows `413 Payload Too Large`. **Root cause**: The portal's nginx ingress has `client_max_body_size 50m` hard-coded. **Fix**: There is no fix planned \u2014 the 50MB limit is intentional. The",
+      "hyq": [],
+      "embedding_rows": [
+        12
+      ]
+    },
+    {
+      "chunk_id": "KB-009#n1",
+      "doc_id": "KB-009",
+      "doc_title": "Customer Portal \u2014 Operations Runbook",
+      "doc_type": "runbook",
+      "section_heading": "window 1",
+      "text": "3 \u2014 File upload silently fails for files >50MB **Symptom**: Customer clicks **Upload**, sees a spinner forever, no error message. Network panel shows `413 Payload Too Large`. **Root cause**: The portal's nginx ingress has `client_max_body_size 50m` hard-coded. **Fix**: There is no fix planned \u2014 the 50MB limit is intentional. The portal needs a frontend error toast; ticket UI-1042 tracks this. **Tier-1 customer guidance**: ask the user to compress the file or split it. ## Common false alarms - **\"Portal is down\"** at the start of every Sunday \u2014 this is the MeshGuard maintenance window (KB-007). External customers are not affected; only employees on VPN. - **\"Two-factor not working\"** between 02:00\u201305:00 UTC on the first Tuesday of the month \u2014 this is the AuriLite mandatory release window (KB-006).",
+      "hyq": [],
+      "embedding_rows": [
+        13
+      ]
+    },
+    {
+      "chunk_id": "KB-010#n0",
+      "doc_id": "KB-010",
+      "doc_title": "Analytics Dashboard \u2014 Operations Runbook",
+      "doc_type": "runbook",
+      "section_heading": "window 0",
+      "text": "# Analytics Dashboard \u2014 Operations Runbook The Analytics Dashboard (`analytics.helios.internal`) is a Metabase deployment fronted by a custom permissions layer (`helios-analytics-shim`). Source data comes from the Helios warehouse (`snowflake://helios.data`), which is loaded nightly from CRM, Billing System, and Inventory App. ## Health and freshness - Dashboard liveness: `analytics.helios.internal/api/health` \u2192 200. - Warehouse freshness: tagged in the `staging.run_log` table \u2014 the `last_complete_at` column should be within 6 hours. - Loader pipeline: `dbt-cloud` job `helios-warehouse-nightly`, scheduled 03:00 UTC daily, average runtime 78 minutes. ## Known issues ### Issue 1 \u2014 \"Yesterday\" filter is wrong for APAC users **Symptom**: A user in Sydney pulling the \"yesterday\" view at 10:00 local time sees no data because the warehouse hasn't finished loading. **Root cause**: The nightly loader runs in UTC; APAC business hours start before it completes. **Fix**: Tell users in APAC to pull \"2 days ago\" until the warehouse freshness SLA improves. Engineering work to switch to streaming ingestion is scheduled for Q3 2026. ### Issue 2 \u2014 Dashboard shows stale row counts after CRM bulk import **Symptom**: After a CRM admin runs a bulk import, the dashboard's CRM row counts lag by up to 24 hours. **Root cause**: The CRM bulk import skips the change-data-capture stream the loader subscribes to; only the next full snapshot picks up the new rows. **Fix**: CRM admins must notify Data Platform (`#data-platform-help` Slack) before any bulk import so an out-of-cycle warehouse refresh can be scheduled. ### Issue 3 \u2014 \"Permission denied\" on a dashboard the user used to access **Symptom**: User reports a previously-accessible dashboard now returns \"Permission denied.\" **Root cause**: The `helios-analytics-shim` reads permissions from the IDP group list, which is cached for 6 hours. A recent group change has not yet refreshed. **Fix**: Tier-1 can force a permissions refresh by visiting `analytics.helios.internal/admin/refresh-perms/{username}` (requires the `analytics-admin`",
+      "hyq": [],
+      "embedding_rows": [
+        14
+      ]
+    },
+    {
+      "chunk_id": "KB-010#n1",
+      "doc_id": "KB-010",
+      "doc_title": "Analytics Dashboard \u2014 Operations Runbook",
+      "doc_type": "runbook",
+      "section_heading": "window 1",
+      "text": "to access **Symptom**: User reports a previously-accessible dashboard now returns \"Permission denied.\" **Root cause**: The `helios-analytics-shim` reads permissions from the IDP group list, which is cached for 6 hours. A recent group change has not yet refreshed. **Fix**: Tier-1 can force a permissions refresh by visiting `analytics.helios.internal/admin/refresh-perms/{username}` (requires the `analytics-admin` IDP group). If the issue persists past one refresh, escalate to `data_analytics`. ## Common false alarms - **\"Numbers don't match my exported CSV\"** \u2014 the dashboard rounds at display time, the CSV does not. Cross-check using the underlying SQL. - **\"Dashboard is slow\"** between 03:00\u201304:30 UTC \u2014 this is the nightly loader contending for warehouse credits. Will self-resolve.",
+      "hyq": [],
+      "embedding_rows": [
+        15
+      ]
+    },
+    {
+      "chunk_id": "KB-011#n0",
+      "doc_id": "KB-011",
+      "doc_title": "MFA Troubleshooting \u2014 Tier-1 Runbook (Internal-Only)",
+      "doc_type": "runbook",
+      "section_heading": "window 0",
+      "text": "# MFA Troubleshooting \u2014 Tier-1 Runbook This runbook covers MFA failures that are **not** in the public FAQ (FAQ-002 covers basic \"MFA code not received\"). Use this when the public FAQ doesn't resolve the issue. ## Decision tree 1. Does the user have a Yubikey enrolled? - **Yes** \u2192 try Yubikey before any SMS/push fallback (see \u00a71). - **No** \u2192 check push-MFA enrollment status (see \u00a72). 2. Did the user recently change phones or SIM? - **Yes** \u2192 SMS path is broken; treat as a fresh MFA enrollment (see \u00a73). - **No** \u2192 continue. 3. Is the user reporting \"push never arrives\"? - **Yes** \u2192 see \u00a74 (push-MFA delivery). - **No** \u2192 see \u00a75 (code wrong / TOTP drift). ## \u00a71 \u2014 Yubikey path If the Yubikey blinks but the IDP shows no event: - The Yubikey's NFC interface may be in `OTP-only` mode. Ask the user to switch to `FIDO2` via the YubiKey Manager app. - USB-C-to-Lightning adaptors do not pass FIDO2 \u2014 the user must use the Yubikey's native connector. ## \u00a72 \u2014 Push-MFA enrolment If the user has the AuriLite app installed but no push prompt arrives: - Verify the device shows up in `idp.helios.internal/admin/users/{id}` under **Registered Factors**. - If the device is listed but stale (last-seen > 30 days), de-register the factor and re-enrol from scratch. - AuriLite limits one push factor per device \u2014 if the user reinstalled the app, the old factor must be removed first. ## \u00a73 \u2014 Phone or SIM change - Confirm via the manager Slack DM (per KB-001). - Update the phone number in the IDP under the user's profile **before** triggering an MFA reseed. The reseed sends an SMS to the *new* number. - Do not rely on the user's response by email \u2014 phone-change tickets are a common",
+      "hyq": [],
+      "embedding_rows": [
+        16
+      ]
+    },
+    {
+      "chunk_id": "KB-011#n1",
+      "doc_id": "KB-011",
+      "doc_title": "MFA Troubleshooting \u2014 Tier-1 Runbook (Internal-Only)",
+      "doc_type": "runbook",
+      "section_heading": "window 1",
+      "text": "Confirm via the manager Slack DM (per KB-001). - Update the phone number in the IDP under the user's profile **before** triggering an MFA reseed. The reseed sends an SMS to the *new* number. - Do not rely on the user's response by email \u2014 phone-change tickets are a common phishing vector. ## \u00a74 \u2014 Push delivery problems Push delivery problems are usually one of: - The device has push notifications disabled at the OS level (especially iOS Focus modes). - The AuriLite app was force-quit and is not in the background; iOS silences push until the app is reopened once. - The corporate Wi-Fi blocks APNs/FCM on guest SSIDs. Ask the user to test on cellular. ## \u00a75 \u2014 TOTP drift / wrong code - Confirm the device clock is on NTP \u2014 TOTP drifts by ~1 minute per month on unsynced devices. - Codes display for 30 seconds but only the *current* window is valid; the previous 30s code is rejected after a +/-1 grace window. - If multiple users in the same office report drift on the same day, suspect a captive-portal NTP block \u2014 escalate to `network_infra`. ## When to escalate Escalate to `identity_security` when: - The Yubikey path fails despite \u00a71 checks. - More than one user reports the same MFA symptom in the same hour (potential AuriLite incident \u2014 check status.aurilite.example). - The user's account shows recent failed logins from unfamiliar IPs \u2014 this is a security event, not just MFA.",
+      "hyq": [],
+      "embedding_rows": [
+        17
+      ]
+    },
+    {
+      "chunk_id": "KB-012#n0",
+      "doc_id": "KB-012",
+      "doc_title": "RCA \u2014 VPN Outage 2025-09-14",
+      "doc_type": "rca",
+      "section_heading": "window 0",
+      "text": "# Post-Incident Review \u2014 VPN Outage 2025-09-14 ## TL;DR A MeshGuard client auto-update pushed at 03:00 UTC on Sunday 2025-09-14 contained a regression that dropped tunnels on any client running macOS 14.6+ after the first Wi-Fi network change. ~340 employees were unable to reach internal services for ~6 hours, of which 2 hours fell inside the NA-Day shift. ## Timeline (UTC) - **03:00** \u2014 MeshGuard pushes client `3.4.6` via auto-update. - **05:12** \u2014 First ticket arrives from a Berlin employee (TKT-12041): \"VPN drops every 60 seconds on my Mac.\" - **06:30** \u2014 `network_infra` on-call observes a pattern; opens INC-2025-09-14-001 at P2. - **08:15** \u2014 Volume hits 90+ open tickets; incident upgraded to P1. - **09:40** \u2014 MeshGuard support confirms regression; promises hotfix `3.4.7`. - **11:55** \u2014 Hotfix `3.4.7` published. - **13:00** \u2014 Helios pushes hotfix via MDM (KB-004); residual ticket arrivals taper. ## Root cause `MeshGuard Connect 3.4.6` shipped with a refactor of the `network-monitor` daemon that incorrectly invalidated the tunnel session key on every `kSCNetworkReachabilityFlagsTransientConnection` event, which fires on every Wi-Fi roam. macOS-only because the daemon's Linux and Windows builds use a different event API. ## What went well - The Sunday 02:00\u201304:00 UTC window is exactly intended to absorb this kind of vendor push \u2014 most users were asleep. - The MDM-driven hotfix push reached 92% of impacted devices within 4 hours of release. ## What went badly - Helios had no canary path for MeshGuard client updates. We rely on the vendor's QA, and on this occasion the vendor had no macOS network-roaming test in CI. - The auto-update default in our managed `MeshGuard Connect` profile was `auto`. After this incident it has been changed to `staged-canary` (50 employees first, the rest 24 hours later). ## Action items | # | Owner | Action | Status |",
+      "hyq": [],
+      "embedding_rows": [
+        18
+      ]
+    },
+    {
+      "chunk_id": "KB-012#n1",
+      "doc_id": "KB-012",
+      "doc_title": "RCA \u2014 VPN Outage 2025-09-14",
+      "doc_type": "rca",
+      "section_heading": "window 1",
+      "text": "the vendor had no macOS network-roaming test in CI. - The auto-update default in our managed `MeshGuard Connect` profile was `auto`. After this incident it has been changed to `staged-canary` (50 employees first, the rest 24 hours later). ## Action items | # | Owner | Action | Status | | --- | --- | --- | --- | | 1 | Network Infra | Switch client auto-update to `staged-canary` | Done 2025-09-20 | | 2 | Workplace IT | Add a macOS roaming test to the BYOD/MDM matrix | Done 2025-11-04 | | 3 | Network Infra | Press MeshGuard for a per-platform release notes feed | In progress | | 4 | Procurement | Factor MeshGuard QA gaps into 2026 renewal eval | Done 2026-02-28 (KB-007) | ## Lessons for Tier-1 Tickets describing \"VPN drops every 60 seconds on Mac\" within ~24 hours of a MeshGuard client release are almost always vendor regressions. Check `status.meshguard.example` and the `#network-alerts` Slack before spending time on the user's network configuration.",
+      "hyq": [],
+      "embedding_rows": [
+        19
+      ]
+    },
+    {
+      "chunk_id": "KB-013#n0",
+      "doc_id": "KB-013",
+      "doc_title": "RCA \u2014 Billing Export Bug 2025-11-22",
+      "doc_type": "rca",
+      "section_heading": "window 0",
+      "text": "# Post-Incident Review \u2014 Billing Export Bug 2025-11-22 ## TL;DR Between 2025-11-01 and 2025-11-22, the QuotidianPay CSV invoice export silently truncated 318 customer records to 32 characters of customer_id, causing 12 enterprise customer reports to misallocate roughly $48K of revenue. The bug was a vendor regression in QuotidianPay release 8.4. Helios's downstream Analytics Dashboard pipeline did not detect the collision because its data quality check only flagged `null` customer IDs, not duplicates. ## Timeline - **2025-11-04** \u2014 QuotidianPay release 8.4 deployed. - **2025-11-18** \u2014 Finance Operations notices invoice totals don't match the Analytics Dashboard quarterly view. Initial assumption: warehouse load lag. - **2025-11-22** \u2014 Finance Ops files TKT-15883 against the data_analytics team after deeper investigation rules out warehouse lag. - **2025-11-23** \u2014 `data_analytics` specialist (Erin Rao) traces the problem to truncated IDs in the QuotidianPay export. - **2025-11-25** \u2014 Helios files vendor escalation; QuotidianPay confirms the regression. - **2025-12-08** \u2014 QuotidianPay 8.4.3 fixes the truncation. - **2025-12-12** \u2014 Helios re-runs the export and corrects the affected enterprise customer reports. ## Root cause Two failures combined: 1. **Vendor regression**: QuotidianPay 8.4 changed an internal `customer_id` column from `varchar(36)` to `varchar(32)` while keeping the API schema unchanged. Vendor truncated silently rather than erroring on overflow. 2. **Helios data quality check was too narrow**: The Analytics Dashboard load only validated that `customer_id IS NOT NULL`. Truncated IDs that collided with other valid 32-char prefixes passed the check while pointing to the wrong customer. ## Customer impact - 12 enterprise customers received incorrect revenue reports for 2025-11. - All 12 were notified within 60 minutes of confirmation per KB-005 contamination procedure (the report misallocation was treated as a T3 exposure between customer accounts). - Revenue corrections totalling $48,221 were issued in the 2025-12 billing cycle. ## What went well - KB-005's 60-minute disclosure clock",
+      "hyq": [],
+      "embedding_rows": [
+        20
+      ]
+    },
+    {
+      "chunk_id": "KB-013#n1",
+      "doc_id": "KB-013",
+      "doc_title": "RCA \u2014 Billing Export Bug 2025-11-22",
+      "doc_type": "rca",
+      "section_heading": "window 1",
+      "text": "reports for 2025-11. - All 12 were notified within 60 minutes of confirmation per KB-005 contamination procedure (the report misallocation was treated as a T3 exposure between customer accounts). - Revenue corrections totalling $48,221 were issued in the 2025-12 billing cycle. ## What went well - KB-005's 60-minute disclosure clock was triggered correctly. - Erin Rao traced the root cause within 24 hours of the ticket landing in `data_analytics`. ## What went badly - The bug ran for three weeks before Finance Ops noticed. - The \"totals don't match\" signal was initially dismissed as warehouse lag \u2014 there was no fast way to distinguish lag from a data-integrity issue. ## Action items | # | Owner | Action | Status | | --- | --- | --- | --- | | 1 | Data Platform | Add duplicate-customer-id check to nightly load | Done 2025-12-04 | | 2 | Finance Ops | Add row-count sanity check to month-end close | Done 2026-01-15 | | 3 | Vendor Mgmt | Add API schema diff check to QuotidianPay release notes review | Done 2026-01-22 | | 4 | Vendor Mgmt | Push QuotidianPay for stricter overflow handling | Open \u2014 vendor declined | ## Lessons for Tier-1 Tickets mentioning \"wrong customer on invoice\" or \"two invoices look identical\" should be escalated to `billing_finance` immediately, not routed through Tier-1 FAQ matching. The category looks deceptively simple but the root cause is often vendor-side.",
+      "hyq": [],
+      "embedding_rows": [
+        21
+      ]
+    },
+    {
+      "chunk_id": "KB-014#n0",
+      "doc_id": "KB-014",
+      "doc_title": "Specialist Escalation Matrix & On-Call Rota",
+      "doc_type": "reference",
+      "section_heading": "window 0",
+      "text": "# Specialist Escalation Matrix & On-Call Rota This matrix tells Tier-1 which specialist group owns which ticket category, and the on-call contact path for after-hours. ## Category \u2192 Specialist group | Ticket category | Primary group | Secondary group | After-hours? | | --- | --- | --- | --- | | `login_access` | `identity_security` | `application_engineering` | Yes | | `password_reset` | `identity_security` | \u2014 | Yes | | `billing_account` | `billing_finance` | \u2014 | No (NA-Day only) | | `software_bug` | `application_engineering` | (system owner) | Yes | | `hardware_issue` | `hardware_field` | \u2014 | No (NA-Day only) | | `network_connectivity` | `network_infra` | \u2014 | Yes | | `email_calendar` | `identity_security` | \u2014 | Yes | | `data_reporting` | `data_analytics` | (system owner) | No (NA-Day only) | | `security_request` | `identity_security` | \u2014 | Yes (P1/P2 only) | | `other` | `application_engineering` | \u2014 | NA-Day only | A ticket whose primary group is unavailable (PTO, no on-call) escalates to the secondary group. If neither is available, the support lead (Maya Chen) is paged. ## On-call rota (April\u2013May 2026) | Group | Week of 2026-04-29 | Week of 2026-05-06 | | --- | --- | --- | | `identity_security` | Tomo Yamada (SP-002) | Lin Walsh (SP-006) | | `network_infra` | Olu Chen (SP-004) | Sana Kapoor (SP-009) | | `application_engineering` | Hassan Vega (SP-008) | Hassan Vega (SP-008) | | `data_analytics` | Erin Rao (SP-007) | Tomo Vega (SP-005) | | `billing_finance` | Theo Eskola (SP-010) | Theo Eskola (SP-010) | Updates land in `#support-oncall` Slack at 22:00 UTC every Sunday. ## Paging paths - **P1** \u2014 PagerDuty service `helios-support-p1`. SLA: 5-minute acknowledgement. - **P2** \u2014 PagerDuty service `helios-support-p2`. SLA: 15-minute acknowledgement during business hours, 30 minutes after-hours. - **P3 / P4** \u2014 Ticket queue",
+      "hyq": [],
+      "embedding_rows": [
+        22
+      ]
+    },
+    {
+      "chunk_id": "KB-014#n1",
+      "doc_id": "KB-014",
+      "doc_title": "Specialist Escalation Matrix & On-Call Rota",
+      "doc_type": "reference",
+      "section_heading": "window 1",
+      "text": "(SP-010) | Theo Eskola (SP-010) | Updates land in `#support-oncall` Slack at 22:00 UTC every Sunday. ## Paging paths - **P1** \u2014 PagerDuty service `helios-support-p1`. SLA: 5-minute acknowledgement. - **P2** \u2014 PagerDuty service `helios-support-p2`. SLA: 15-minute acknowledgement during business hours, 30 minutes after-hours. - **P3 / P4** \u2014 Ticket queue only, no page. - **Security exposure (T3/T4)** \u2014 PagerDuty service `helios-secops` AND the security on-call DM (`@secops-oncall`). ## Cross-team contacts | Need | Who | Where | | --- | --- | --- | | Manager verification for password reset | Employee's BambooHR manager | Slack DM | | AuriLite vendor escalation | Priya Sundar | KB-006 | | MeshGuard vendor escalation | Hassan Olin | KB-007 | | QuotidianPay vendor escalation | Lena Kowalski | KB-008 | | Legal review of a customer-facing reply | Legal on-call rota | `#legal-help` | | Public communications (status page) | Comms on-call | `#comms-oncall` | ## Loop prevention reminder Per the workflow rule, a ticket can be reopened at most once before being closed as `unresolved`. The reopen-then-second-reject path always involves the same specialist group as the first investigation, unless the second rejection introduces a new root cause indication.",
+      "hyq": [],
+      "embedding_rows": [
+        23
+      ]
+    },
+    {
+      "chunk_id": "KB-015#n0",
+      "doc_id": "KB-015",
+      "doc_title": "Change Calendar \u2014 2026 Q2",
+      "doc_type": "change_calendar",
+      "section_heading": "window 0",
+      "text": "# Change Calendar \u2014 2026 Q2 (April\u2013June) The change calendar is the authoritative source for planned outages and upgrades. When a customer's symptom timing aligns with a scheduled window, Tier-1 should reference the calendar before deep-dive troubleshooting. ## Recurring windows | Window | When | Affects | | --- | --- | --- | | MeshGuard VPN maintenance | Every Sunday 02:00\u201304:00 UTC | VPN tunnels | | AuriLite IDP minor release | First Tuesday of month, 02:00 UTC | Auth, SSO redirects | | Warehouse loader | Daily 03:00\u201304:30 UTC | Analytics Dashboard freshness | | QuotidianPay maintenance | Last Friday of month, 22:00\u201323:00 UTC | Billing System | ## Scheduled changes ### April 2026 - **2026-04-12 (Sun) 02:00\u201304:30 UTC** \u2014 Customer Portal database failover drill. Read-only mode for ~10 minutes mid-window. - **2026-04-19 (Sun) 03:00\u201304:00 UTC** \u2014 Identity Provider TLS cert rotation. SSO clients with cached discovery docs may need a refresh (see KB-009 Issue 1). - **2026-04-30 (Wed) 23:00 UTC** \u2014 CRM bulk import: 18,000 records from a sales-data refresh. Analytics Dashboard counts will lag for ~24 hours (KB-010 Issue 2). ### May 2026 - **2026-05-03 (Sun) 02:00\u201306:00 UTC** \u2014 Helios Kubernetes platform upgrade. Customer Portal expected to roll for ~6 minutes during the window; Analytics Dashboard rolls for ~3 minutes. - **2026-05-10 (Sun) 02:00\u201304:00 UTC** \u2014 Routine MeshGuard maintenance, no extra scope. - **2026-05-12 (Tue) 02:00\u201305:00 UTC** \u2014 AuriLite May minor release (extended window \u2014 vendor advised possible 3-hour pre-prod outage). - **2026-05-19 (Tue) 14:00\u201315:00 UTC** \u2014 Analytics Dashboard upgrade to Metabase 0.50. New permission caching behaviour (KB-010 Issue 3 cache window reduced from 6 hours to 1 hour). - **2026-05-29 (Fri) 22:00\u201323:00 UTC** \u2014 QuotidianPay monthly maintenance. ### June 2026 - **2026-06-07 (Sun) 02:00\u201306:00 UTC** \u2014 Customer Portal upgrade to Next.js 14.3. Expect a 15-minute",
+      "hyq": [],
+      "embedding_rows": [
+        24
+      ]
+    },
+    {
+      "chunk_id": "KB-015#n1",
+      "doc_id": "KB-015",
+      "doc_title": "Change Calendar \u2014 2026 Q2",
+      "doc_type": "change_calendar",
+      "section_heading": "window 1",
+      "text": "\u2014 Analytics Dashboard upgrade to Metabase 0.50. New permission caching behaviour (KB-010 Issue 3 cache window reduced from 6 hours to 1 hour). - **2026-05-29 (Fri) 22:00\u201323:00 UTC** \u2014 QuotidianPay monthly maintenance. ### June 2026 - **2026-06-07 (Sun) 02:00\u201306:00 UTC** \u2014 Customer Portal upgrade to Next.js 14.3. Expect a 15-minute read-only window mid-upgrade. - **2026-06-15 (Mon) 09:00 UTC** \u2014 Inventory App scheduled outage for Postgres major version upgrade (13 \u2192 16). Expected duration 90 minutes. - **2026-06-30 (Tue) 02:00 UTC** \u2014 Final IDP minor before July renewal decision window. ## Change-freeze periods - **2026-05-20 \u2192 2026-05-22** \u2014 End-of-month financial close. No changes to Billing System or Analytics Dashboard. - **2026-06-26 \u2192 2026-06-30** \u2014 Half-year close. Same scope as above plus CRM. ## How to use this calendar If a customer reports an issue and the timing falls inside a window above, the first reply should reference the change rather than starting a root-cause investigation. Example template: > \"Thanks for the report. We're currently in a scheduled maintenance > window for {system} (see {KB-id}). We expect normal operation by > {time UTC}. We'll reach back out if anything changes.\"",
+      "hyq": [],
+      "embedding_rows": [
+        25
+      ]
+    },
+    {
+      "chunk_id": "KB-016#n0",
+      "doc_id": "KB-016",
+      "doc_title": "Employee Handbook \u2014 IT Support Section (Excerpt)",
+      "doc_type": "handbook",
+      "section_heading": "window 0",
+      "text": "# Employee Handbook \u2014 IT Support (Excerpt from \u00a77) This excerpt is taken from \u00a77 of the Helios employee handbook. The full handbook is in BambooHR under **Documents \u2192 Handbook 2026**. ## \u00a77.1 \u2014 When to file an IT ticket File a ticket at `support.helios.internal` for any of the following: - You cannot sign in to a Helios system. - A Helios system is behaving unexpectedly (errors, missing data, slowness). - You need access to a new system, dataset, or VPN profile. - You need a new laptop, peripheral, or accessory. - You suspect a security issue \u2014 phishing, lost device, suspicious email. **Do not** file an IT ticket for: - Personal device support (use your device manufacturer's support). - Software not on the Helios approved list (use Workplace IT for an exception request first). - Time-off questions (those go to People Ops). ## \u00a77.2 \u2014 Response time expectations Helios commits to the following first-response targets, measured from ticket submission: | Priority | First response | Resolution target | | --- | --- | --- | | P1 (system down) | 15 minutes | 4 hours | | P2 (degraded) | 1 hour business / 4 hours after-hours | 1 business day | | P3 (single user impacted) | 4 business hours | 3 business days | | P4 (cosmetic, request) | 1 business day | 5 business days | If a ticket has not received first response within the window above, escalate by replying to the ticket with the literal text `ESCALATE`. This pages the support lead. ## \u00a77.3 \u2014 What to include in a ticket To shorten resolution time, include: 1. What you tried to do. 2. What happened (paste the exact error message if there is one). 3. What you expected. 4. Your laptop OS version (for",
+      "hyq": [],
+      "embedding_rows": [
+        26
+      ]
+    },
+    {
+      "chunk_id": "KB-016#n1",
+      "doc_id": "KB-016",
+      "doc_title": "Employee Handbook \u2014 IT Support Section (Excerpt)",
+      "doc_type": "handbook",
+      "section_heading": "window 1",
+      "text": "literal text `ESCALATE`. This pages the support lead. ## \u00a77.3 \u2014 What to include in a ticket To shorten resolution time, include: 1. What you tried to do. 2. What happened (paste the exact error message if there is one). 3. What you expected. 4. Your laptop OS version (for software issues) or your location (for network issues). 5. A screenshot if helpful \u2014 but **never paste passwords, MFA codes, API keys, or other credentials** into a ticket (see KB-003). Tickets that look like phishing-induced credential resets receive extra scrutiny. Do not be offended if Tier-1 asks you to verify via Slack with your manager \u2014 it is part of the standard procedure (KB-001). ## \u00a77.4 \u2014 Self-service Several common needs can be self-served: - **Password reset**: `idp.helios.internal/reset` (requires a Yubikey or push MFA). - **Approved software install**: `apps.helios.internal/catalog`. - **VPN client install**: `apps.helios.internal/catalog/meshguard`. The self-service tools are preferred \u2014 they bypass the queue and deliver in under 5 minutes. ## \u00a77.5 \u2014 IT support hours See KB-005 for the full coverage policy. The short version: - **Business hours** (region-local): tickets of any priority are picked up within the SLA in \u00a77.2. - **After-hours**: P1 and P2 only. P3/P4 land in the overnight queue and are picked up at the start of the next business-day shift. For genuine emergencies outside business hours, use the global P1 hotline at the number listed in the BambooHR contact directory.",
+      "hyq": [],
+      "embedding_rows": [
+        27
+      ]
+    },
+    {
+      "chunk_id": "KB-017#n0",
+      "doc_id": "KB-017",
+      "doc_title": "Inventory App \u2014 User Manual (Internal Edition v3.2)",
+      "doc_type": "user_manual",
+      "section_heading": "window 0",
+      "text": "# Inventory App \u2014 User Manual (v3.2) The Inventory App is the home-grown stock-tracking tool used by the Helios Operations team. It runs at `inventory.helios.internal` and is NOT customer-facing. ## Getting started 1. Sign in with your Helios SSO at `inventory.helios.internal`. You must be a member of the IDP group `ops-inventory-users` to see anything beyond the login screen \u2014 membership is requested through your manager. 2. The landing page is **My Locations**. Locations you \"own\" appear first; you can pin/unpin any location with the star icon. 3. Use the search box (or `\u2318K`) to jump to a SKU, location, or shipment number. ## Screen reference ### Stock View The default screen for a location. Shows on-hand counts grouped by **bin** (the physical shelf identifier). Bins are colour-coded: | Colour | Meaning | | --- | --- | | Green | On hand \u2265 reorder point | | Yellow | On hand < reorder point but > zero | | Red | On hand = 0 | | Grey | SKU disabled at this location | Hover any cell to see the last-counted timestamp; clicking opens the **Movement Log**. ### Movement Log A chronological list of every adjustment to a SKU at a location: receipts, picks, transfers, cycle counts, and write-offs. Every row is attributed to a user (SSO identity) and a reason code. Reason codes that begin with `Z-` are reserved for admin overrides and trigger an audit notification. ### Cycle Count Used during the monthly physical count. Two-pane layout \u2014 left pane is the system count, right pane is your physical tally. Discrepancies of more than 5 units (or any non-zero discrepancy for restricted SKUs flagged with the lock icon) require a second-person sign-off before they post. ### Shipments The Shipments tab shows inbound and outbound moves. Use **Receive**",
+      "hyq": [],
+      "embedding_rows": [
+        28
+      ]
+    },
+    {
+      "chunk_id": "KB-017#n1",
+      "doc_id": "KB-017",
+      "doc_title": "Inventory App \u2014 User Manual (Internal Edition v3.2)",
+      "doc_type": "user_manual",
+      "section_heading": "window 1",
+      "text": "\u2014 left pane is the system count, right pane is your physical tally. Discrepancies of more than 5 units (or any non-zero discrepancy for restricted SKUs flagged with the lock icon) require a second-person sign-off before they post. ### Shipments The Shipments tab shows inbound and outbound moves. Use **Receive** to post an inbound shipment; the app expects the shipment number from the carrier label and validates against the purchase order. ## Common settings - **Default location**: Profile \u2192 Preferences \u2192 Default Location. Defaults to the location matching your office in BambooHR. - **Notification rules**: Profile \u2192 Notifications. You can subscribe to \"Reorder point crossed\" or \"Restricted SKU adjusted\" alerts at any location you own. - **Dark mode**: keyboard shortcut `Shift+D`. ## Known quirks (v3.2) - The CSV export of the Movement Log is capped at 10,000 rows. For larger pulls, use the dataset query in the Analytics Dashboard (KB-010) \u2014 `analytics_models.inventory_movements`. - The mobile (responsive) view does not show the Reason Code dropdown on shipments \u2014 use a laptop for any adjustment. - Cycle Count occasionally double-counts a SKU if the same bin appears twice in the location's bin map. Workaround: re-run the cycle count for that bin only. Engineering fix tracked as `INV-882`. ## Where to get help - In-app help: `?` icon in the top right opens the help panel. - Operations help channel: `#ops-inventory-help` in Slack. - IT support: file a ticket under category `software_bug` with system `Inventory App` if the app itself is broken (see KB-010 for the related Analytics dashboard runbook).",
+      "hyq": [],
+      "embedding_rows": [
+        29
+      ]
+    },
+    {
+      "chunk_id": "KB-018#n0",
+      "doc_id": "KB-018",
+      "doc_title": "MeshGuard Connect \u2014 Vendor Admin Manual Excerpt (v3.4)",
+      "doc_type": "vendor_manual",
+      "section_heading": "window 0",
+      "text": "# MeshGuard Connect \u2014 Admin Manual (Chapter 9 Excerpt) This is an internal-use excerpt from the MeshGuard Connect 3.4 admin manual. Quoted under our MSA. Do not redistribute outside Helios. ## Chapter 9 \u2014 Diagnostic Reference ### 9.1 Client error codes | Code | Meaning | Typical cause | Resolution | | --- | --- | --- | --- | | `ERR_HANDSHAKE_DRIFT` | Clock skew > 30s vs gateway NTP | Local NTP drift or VM paused | Force `ntpdate` and retry | | `ERR_CERT_REVOKED` | Profile certificate revoked | Manual revocation or expiry | Re-issue per KB-002 | | `ERR_CERT_UNKNOWN_CA` | Helios root CA missing | New device, BYOD enrolment skipped | Re-run MDM enrolment (KB-004) | | `ERR_PROFILE_MISMATCH` | Profile not authorised for this gateway | Trying to use a contractor profile against a vendor gateway | Confirm correct profile in KB-002 | | `ERR_NO_ROUTE` | Tunnel established but no route returned | Misconfigured ACL on gateway | Specialist escalation | | `ERR_DTLS_NEGOTIATE` | Falling back to TLS | Carrier blocks UDP 4500 | Expected; user can ignore | | `ERR_LICENSE_EXHAUSTED` | Concurrent tunnel cap hit | All 800 tunnels in use | Page network on-call | ### 9.2 Gateway-side log fields The gateway emits one log line per session event. Fields, in order: 1. `timestamp` \u2014 RFC3339 UTC. 2. `gateway_id` \u2014 one of `vpn-gw-1`, `vpn-gw-2`, `vpn-gw-3`. 3. `session_id` \u2014 opaque, used for correlation. 4. `user_cert_cn` \u2014 the certificate common name (= IDP username). 5. `event` \u2014 one of `connect`, `disconnect`, `roam`, `keepalive`, `error`. 6. `client_version` \u2014 e.g., `3.4.7-macos`. 7. `client_ip` \u2014 public IP of the client (post-NAT). 8. `error_code` \u2014 populated only on `event=error`. Note that the per-user *internal* IP is **not** logged at the gateway \u2014 the source-NAT IP is what appears. To correlate forensically, join",
+      "hyq": [],
+      "embedding_rows": [
+        30
+      ]
+    },
+    {
+      "chunk_id": "KB-018#n1",
+      "doc_id": "KB-018",
+      "doc_title": "MeshGuard Connect \u2014 Vendor Admin Manual Excerpt (v3.4)",
+      "doc_type": "vendor_manual",
+      "section_heading": "window 1",
+      "text": "of `connect`, `disconnect`, `roam`, `keepalive`, `error`. 6. `client_version` \u2014 e.g., `3.4.7-macos`. 7. `client_ip` \u2014 public IP of the client (post-NAT). 8. `error_code` \u2014 populated only on `event=error`. Note that the per-user *internal* IP is **not** logged at the gateway \u2014 the source-NAT IP is what appears. To correlate forensically, join on `session_id` against the IDP session log (KB-007 \u00a7\"Operational caveats\"). ### 9.3 Recommended client deployment modes The vendor recommends one of: - **`auto`** \u2014 Auto-update on release. Not recommended for fleets > 50. Helios uses this only on the canary group. - **`staged-canary`** \u2014 10% canary for 24h, then full fleet. Helios default since 2025-09-20 (KB-012). - **`pinned`** \u2014 Pinned to a specific minor version. Use only when troubleshooting a vendor regression. ### 9.4 Tunnel limits and license model Each concurrent tunnel consumes one license. The license is released either by clean disconnect or after a 4-minute idle timeout. A user with two devices simultaneously connected counts as **two** tunnels, not one. The gateway returns `ERR_LICENSE_EXHAUSTED` when the global cap is hit. Helios's contracted cap is 800; the 95th percentile observed usage in 2026-Q1 is 612. See KB-007 for the renewal posture. ### 9.5 Operational warnings (vendor) > \"The Keep-Alive option in client profile settings must be enabled for > any deployment that crosses cellular \u2194 Wi-Fi network boundaries. > Failure to enable Keep-Alive on macOS 14.6+ will produce session drops > on every network change.\" \u2014 MeshGuard Connect Admin Manual 3.4, \u00a79.5 (This is the warning that Helios's 2025-09 RCA flagged as missing from the QA test matrix \u2014 see KB-012.)",
+      "hyq": [],
+      "embedding_rows": [
+        31
+      ]
+    }
+  ],
+  "embeddings_file": "naive_embeddings.npy"
+}

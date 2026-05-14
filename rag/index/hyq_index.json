@@ -1,0 +1,2232 @@
+{
+  "schema_version": 1,
+  "mode": "hyq",
+  "embed_model": "api-tgpt-embeddings",
+  "built_at": "2026-05-14T04:10:57+00:00",
+  "chunks": [
+    {
+      "chunk_id": "KB-001#0",
+      "doc_id": "KB-001",
+      "doc_title": "Tier-1 Password Reset Standard Operating Procedure",
+      "doc_type": "sop",
+      "section_heading": "<intro>",
+      "text": "# Tier-1 Password Reset SOP\n\nThis is the verification-first procedure every Tier-1 support analyst must\nfollow before resetting a password for any employee or customer-facing\naccount. It supersedes the prior 2024 SOP (which allowed email-based\nverification).",
+      "hyq": [
+        "What is the standard procedure for Tier-1 support analysts to reset passwords?",
+        "How do Tier-1 support analysts verify identity before resetting a password?",
+        "What is the current SOP for password resets that Tier-1 analysts must follow?",
+        "Is there a new procedure for Tier-1 support analysts to reset passwords?",
+        "What procedure superseded the 2024 SOP for password resets?"
+      ],
+      "embedding_rows": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ]
+    },
+    {
+      "chunk_id": "KB-001#1",
+      "doc_id": "KB-001",
+      "doc_title": "Tier-1 Password Reset Standard Operating Procedure",
+      "doc_type": "sop",
+      "section_heading": "Identity verification (required before any reset)",
+      "text": "## Identity verification (required before any reset)\n\nA Tier-1 analyst must complete **one** of the following checks before\ntriggering a reset in the Identity Provider admin console. Email-based\nself-attestation is no longer acceptable.\n\n1. **Slack manager DM** \u2014 Confirm the request via Slack DM with the\n   employee's direct manager as listed in BambooHR. The manager must reply\n   with the literal string `APPROVED: <ticket_id>` within 30 minutes.\n2. **Video callback** \u2014 Place a Zoom callback to the number on file in\n   BambooHR and visually confirm the requester matches their badge photo.\n3. **Yubikey challenge** \u2014 For accounts already enrolled in hardware MFA,\n   trigger a Yubikey challenge through the Identity Provider self-service\n   portal at `idp.helios.internal/reset`.\n\nFor customer (non-employee) accounts, only option 3 applies. Tier-1 must\nnot reset customer credentials by phone \u2014 escalate to the Identity & Security\nspecialist group via the escalation matrix (KB-014).",
+      "hyq": [
+        "What are the acceptable methods for verifying a user's identity before resetting their password?",
+        "How do I verify the identity of a customer who needs a password reset?",
+        "Can I reset a customer's password over the phone?",
+        "What do I need to do to verify an employee's identity using Slack?",
+        "What if an employee is enrolled in hardware MFA - how can I verify their identity for a password reset?"
+      ],
+      "embedding_rows": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ]
+    },
+    {
+      "chunk_id": "KB-001#2",
+      "doc_id": "KB-001",
+      "doc_title": "Tier-1 Password Reset Standard Operating Procedure",
+      "doc_type": "sop",
+      "section_heading": "Reset procedure",
+      "text": "## Reset procedure\n\n1. Open the IDP admin console at `idp.helios.internal/admin`.\n2. Search by employee ID (preferred) or username.\n3. Choose **Force credential rotation**, NOT **Manual password set** \u2014\n   the latter bypasses the audit log and triggers a SOC alert.\n4. The user receives a one-time reset link valid for 60 minutes.\n5. Record the ticket id in the **Reason** field. Free-text reasons are\n   pulled into the weekly SOC review.",
+      "hyq": [
+        "What steps do I need to take to reset an employee's password?",
+        "How do I ensure that a password reset is properly audited and tracked?",
+        "What is the difference between Force credential rotation and Manual password set in the IDP admin console?",
+        "How long is the one-time reset link valid for?",
+        "What information should I record in the Reason field during a password reset?"
+      ],
+      "embedding_rows": [
+        10,
+        11,
+        12,
+        13,
+        14
+      ]
+    },
+    {
+      "chunk_id": "KB-001#3",
+      "doc_id": "KB-001",
+      "doc_title": "Tier-1 Password Reset Standard Operating Procedure",
+      "doc_type": "sop",
+      "section_heading": "Time targets",
+      "text": "## Time targets\n\n- Verification: 15 minutes.\n- Reset execution: 5 minutes.\n- Total target: under 25 minutes from ticket assignment.\n\nTickets exceeding 25 minutes auto-flag for support-lead review (Maya Chen,\nAPAC-Day, or her delegate).",
+      "hyq": [
+        "What is the target time for verification during a Tier-1 password reset?",
+        "How long do I have to execute a password reset after verification?",
+        "What is the total time target for completing a Tier-1 password reset from ticket assignment?",
+        "What happens if a Tier-1 password reset ticket takes longer than 25 minutes to complete?",
+        "Who reviews tickets that exceed the 25-minute time target for password resets?"
+      ],
+      "embedding_rows": [
+        15,
+        16,
+        17,
+        18,
+        19
+      ]
+    },
+    {
+      "chunk_id": "KB-001#4",
+      "doc_id": "KB-001",
+      "doc_title": "Tier-1 Password Reset Standard Operating Procedure",
+      "doc_type": "sop",
+      "section_heading": "Common failure modes",
+      "text": "## Common failure modes\n\n- Manager DM goes unanswered within 30 minutes \u2192 escalate to the manager's\n  manager; do not reset on partial approval.\n- BambooHR shows the employee as on leave \u2192 verify with the People team\n  before resetting; off-boarded users must not be reset under any\n  circumstances (route to security_request).\n- User claims they \"already tried\" the self-service portal but no event\n  appears in the IDP audit log \u2192 suspect phishing or impersonation; flag\n  the ticket and notify the security on-call.",
+      "hyq": [
+        "What should I do if a manager's DM goes unanswered within 30 minutes during a password reset process?",
+        "How should I handle a password reset request for an employee who is shown as on leave in BambooHR?",
+        "What if a user claims they've already tried the self-service portal but there's no record of it in the IDP audit log?",
+        "Can I reset a user's password if they're on leave according to BambooHR?",
+        "What steps should I take if I suspect phishing or impersonation during a password reset request?"
+      ],
+      "embedding_rows": [
+        20,
+        21,
+        22,
+        23,
+        24
+      ]
+    },
+    {
+      "chunk_id": "KB-002#0",
+      "doc_id": "KB-002",
+      "doc_title": "VPN Access Provisioning Policy",
+      "doc_type": "policy",
+      "section_heading": "<intro>",
+      "text": "# VPN Access Provisioning Policy\n\nAll remote access to Helios production networks is brokered through the\nMeshGuard VPN gateway cluster (`vpn-gw-{1,2,3}.helios.internal`). This\npolicy defines who can request which VPN profile, the approval chain, and\nthe maximum certificate lifetime.",
+      "hyq": [
+        "Who can request VPN access to Helios production networks?",
+        "What is the gateway cluster used for remote access to Helios production networks?",
+        "How is remote access to Helios production networks managed?",
+        "What is the role of the MeshGuard VPN gateway cluster in remote access?",
+        "Which VPN gateway cluster is used for remote access to Helios production networks?"
+      ],
+      "embedding_rows": [
+        25,
+        26,
+        27,
+        28,
+        29
+      ]
+    },
+    {
+      "chunk_id": "KB-002#1",
+      "doc_id": "KB-002",
+      "doc_title": "VPN Access Provisioning Policy",
+      "doc_type": "policy",
+      "section_heading": "VPN profile catalogue",
+      "text": "## VPN profile catalogue\n\n| Profile | Audience | Cert lifetime | Approver |\n| --- | --- | --- | --- |\n| `vpn-employee` | Full-time staff | 90 days | Manager + Network on-call |\n| `vpn-contractor` | Contractors (W-9 or W-8) | 30 days | Security on-call |\n| `vpn-vendor` | External vendor support engineers | 7 days | Network lead + CISO delegate |\n| `vpn-emergency` | Major-incident pages, oncall break-glass | 24 hours | CISO or IR commander |\n\nThe `vpn-emergency` profile is provisioned only during an active P1 or P2\nincident and is automatically revoked when the incident is closed in\nPagerDuty. Profiles `vpn-vendor` and `vpn-emergency` are logged to the SOC\nSIEM in addition to the standard MeshGuard audit log.",
+      "hyq": [
+        "What is the certificate lifetime for the vpn-employee profile?",
+        "Who approves the vpn-contractor profile?",
+        "What is the audience for the vpn-vendor profile?",
+        "How long is the vpn-emergency profile provisioned for?",
+        "Who approves the vpn-employee profile?"
+      ],
+      "embedding_rows": [
+        30,
+        31,
+        32,
+        33,
+        34
+      ]
+    },
+    {
+      "chunk_id": "KB-002#2",
+      "doc_id": "KB-002",
+      "doc_title": "VPN Access Provisioning Policy",
+      "doc_type": "policy",
+      "section_heading": "Provisioning steps (Tier-1 cannot do these)",
+      "text": "## Provisioning steps (Tier-1 cannot do these)\n\nVPN access provisioning is **specialist-only**. Tier-1 analysts triaging a\nticket that requests VPN access must escalate to `network_infra` with the\nfollowing collected:\n\n1. Employee ID and BambooHR confirmation that the employee is in an\n   active status.\n2. Manager name and Slack handle (required for `vpn-employee`).\n3. Requested profile.\n4. Business justification (one or two sentences).\n5. Whether the requester already has a Yubikey enrolled \u2014 if not, the\n   Identity & Security specialist must enroll one before the VPN profile\n   is issued.",
+      "hyq": [
+        "Who is allowed to provision VPN access?",
+        "What information must be collected by Tier-1 analysts before escalating a VPN access request?",
+        "What is required before a VPN profile can be issued to a requester without a Yubikey?",
+        "Who should Tier-1 analysts escalate VPN access requests to?",
+        "What is needed to confirm an employee's status when requesting VPN access?"
+      ],
+      "embedding_rows": [
+        35,
+        36,
+        37,
+        38,
+        39
+      ]
+    },
+    {
+      "chunk_id": "KB-002#3",
+      "doc_id": "KB-002",
+      "doc_title": "VPN Access Provisioning Policy",
+      "doc_type": "policy",
+      "section_heading": "Common quirks",
+      "text": "## Common quirks\n\n- The MeshGuard client (`MeshGuard Connect 3.4.x`) requires the system\n  clock to be within 30 seconds of NTP. Out-of-skew clients fail with\n  `ERR_HANDSHAKE_DRIFT` and not the more obvious certificate error.\n- macOS 15.3 introduced a regression where the VPN tunnel drops on Wi-Fi\n  network change. The MeshGuard-published fix is to enable the\n  **Keep-Alive** option in profile settings; the fix is rolled into\n  client `3.4.7` and later.\n- Split-tunnel is disabled by policy for `vpn-vendor` and `vpn-emergency`.\n  Any vendor reporting access issues to non-Helios sites is expected \u2014 do\n  not change the tunnel mode.",
+      "hyq": [
+        "Why does the MeshGuard client fail with ERR_HANDSHAKE_DRIFT?",
+        "What is the workaround for the VPN tunnel dropping on Wi-Fi network change in macOS 15.3?",
+        "Is split-tunnel enabled for all VPN connections?",
+        "Why does the MeshGuard client require the system clock to be in sync?",
+        "How can I fix the VPN tunnel drop issue on macOS 15.3 with MeshGuard client?"
+      ],
+      "embedding_rows": [
+        40,
+        41,
+        42,
+        43,
+        44
+      ]
+    },
+    {
+      "chunk_id": "KB-002#4",
+      "doc_id": "KB-002",
+      "doc_title": "VPN Access Provisioning Policy",
+      "doc_type": "policy",
+      "section_heading": "Revocation",
+      "text": "## Revocation\n\nRevocation is automatic on the cert lifetime above, or immediate via the\nMeshGuard admin console under **Profiles \u2192 Revoke**. Revoked certs cannot\nbe re-issued \u2014 a new request must be filed.",
+      "hyq": [
+        "How do I revoke a certificate immediately?",
+        "Can revoked certificates be re-issued?",
+        "What happens to a certificate when it reaches its lifetime?",
+        "How can I revoke a certificate using the MeshGuard admin console?",
+        "Is revocation of certificates done manually or automatically?"
+      ],
+      "embedding_rows": [
+        45,
+        46,
+        47,
+        48,
+        49
+      ]
+    },
+    {
+      "chunk_id": "KB-003#0",
+      "doc_id": "KB-003",
+      "doc_title": "Helios Data Classification Policy",
+      "doc_type": "policy",
+      "section_heading": "<intro>",
+      "text": "# Data Classification Policy\n\nHelios classifies every piece of data into one of four tiers. The tier\ndetermines who can access the data, how it must be stored, and what\nsupport analysts can include in a ticket response.\n\n| Tier | Label | Examples | May appear in ticket reply? |\n| --- | --- | --- | --- |\n| T1 | Public | Marketing pages, public docs | Yes |\n| T2 | Internal | Org charts, runbooks, this policy | Yes, to employee requesters only |\n| T3 | Confidential | Customer PII, billing details, ticket bodies | Only the requester's own data |\n| T4 | Restricted | Credentials, encryption keys, payroll, audit findings | **Never** in a ticket reply |",
+      "hyq": [
+        "What are the different tiers of data classification used by Helios?",
+        "How is data classified in Helios?",
+        "Can support analysts include confidential customer data in a ticket response?",
+        "What type of data can be included in a ticket reply to an employee requester?",
+        "Can I include encryption keys in a ticket reply to a customer?"
+      ],
+      "embedding_rows": [
+        50,
+        51,
+        52,
+        53,
+        54
+      ]
+    },
+    {
+      "chunk_id": "KB-003#1",
+      "doc_id": "KB-003",
+      "doc_title": "Helios Data Classification Policy",
+      "doc_type": "policy",
+      "section_heading": "Rules for support analysts",
+      "text": "## Rules for support analysts\n\n1. **Never paste a T4 value into a ticket reply.** This includes API keys,\n   password hashes, MFA seeds, and the contents of the IDP `secrets`\n   table. If a customer pastes one in their ticket, treat the ticket as\n   contaminated \u2014 see KB-005 \u00a73.\n2. T3 data from one customer must never be referenced when replying to a\n   different customer, even as an example.\n3. Internal runbooks (T2) can be summarised in replies to *employee*\n   requesters but not to external customers.\n4. When in doubt, escalate to `identity_security` before sending the\n   reply. The reviewer is paid to read your draft.",
+      "hyq": [
+        "What should I do if a customer pastes a T4 value into their ticket?",
+        "Can I use T3 data from one customer as an example when replying to a different customer?",
+        "Are internal runbooks allowed to be shared with external customers?",
+        "What should I do if I'm unsure about the sensitivity of data in a reply?",
+        "Can I summarize internal runbooks in replies to employee requesters?"
+      ],
+      "embedding_rows": [
+        55,
+        56,
+        57,
+        58,
+        59
+      ]
+    },
+    {
+      "chunk_id": "KB-003#2",
+      "doc_id": "KB-003",
+      "doc_title": "Helios Data Classification Policy",
+      "doc_type": "policy",
+      "section_heading": "Storage rules",
+      "text": "## Storage rules\n\n- T3 and T4 data must live in systems explicitly listed in the\n  `data_locations.csv` register. Local CSV exports to laptops are not\n  permitted.\n- T4 data must be encrypted at rest with the Helios KMS key\n  (`alias/helios-t4-2026`). Manual rotation cadence: 180 days. The\n  rotation playbook lives in the security wiki under\n  `Security \u2192 KMS \u2192 Tier-4 Rotation`.",
+      "hyq": [
+        "Where must T3 and T4 data be stored?",
+        "Can I export T3 or T4 data to a local CSV file on my laptop?",
+        "How should T4 data be protected when it's stored?",
+        "What is the encryption key used for T4 data at rest?",
+        "How often does the T4 encryption key need to be rotated?"
+      ],
+      "embedding_rows": [
+        60,
+        61,
+        62,
+        63,
+        64
+      ]
+    },
+    {
+      "chunk_id": "KB-003#3",
+      "doc_id": "KB-003",
+      "doc_title": "Helios Data Classification Policy",
+      "doc_type": "policy",
+      "section_heading": "Reporting suspected exposures",
+      "text": "## Reporting suspected exposures\n\nSuspected T3 or T4 exposures must be reported to the security on-call via\nPagerDuty within 60 minutes of discovery \u2014 see KB-014 for the\nescalation matrix. The 60-minute window is contractual under the AuriLite\nIDP DPA (KB-006) and several enterprise customer contracts.",
+      "hyq": [
+        "What should I do if I suspect a T3 or T4 exposure?",
+        "Who should I report suspected T3 or T4 exposures to?",
+        "How quickly do I need to report a suspected T4 exposure?",
+        "What is the deadline for reporting suspected T3 or T4 exposures to security on-call?",
+        "Why is there a 60-minute window for reporting suspected exposures?"
+      ],
+      "embedding_rows": [
+        65,
+        66,
+        67,
+        68,
+        69
+      ]
+    },
+    {
+      "chunk_id": "KB-004#0",
+      "doc_id": "KB-004",
+      "doc_title": "BYOD Mobile Device Policy",
+      "doc_type": "policy",
+      "section_heading": "<intro>",
+      "text": "# BYOD Mobile Device Policy\n\nHelios allows employees to use a personal phone or tablet for work email\nand authenticator apps, subject to enrolment in the Workplace IT MDM\nprofile (`helios-byod-mdm.mobileconfig`).",
+      "hyq": [
+        "Can I use my personal phone for work email?",
+        "What is required to use my personal device for work?",
+        "Do I need to enrol my device in the MDM profile to access work email?",
+        "Can I use a tablet for work if it's my personal device?",
+        "What MDM profile do I need to enrol in to use my personal device for work?"
+      ],
+      "embedding_rows": [
+        70,
+        71,
+        72,
+        73,
+        74
+      ]
+    },
+    {
+      "chunk_id": "KB-004#1",
+      "doc_id": "KB-004",
+      "doc_title": "BYOD Mobile Device Policy",
+      "doc_type": "policy",
+      "section_heading": "What enrolment does",
+      "text": "## What enrolment does\n\n- Installs the Helios root CA so email and intranet sites validate.\n- Installs the Helios certificate for the AuriLite IDP push-MFA app.\n- Enforces a minimum 6-digit passcode and 10-minute auto-lock.\n- Enables remote wipe of the work profile **only** (not the device).\n  Personal photos, contacts, and apps outside the work profile are not\n  affected.",
+      "hyq": [
+        "What happens to my device when it is enrolled in the BYOD program?",
+        "Does enrolling my device install any certificates?",
+        "What kind of passcode requirements are enforced during enrolment?",
+        "Can my personal data be wiped during the enrolment process?",
+        "What actions can be taken remotely after my device is enrolled?"
+      ],
+      "embedding_rows": [
+        75,
+        76,
+        77,
+        78,
+        79
+      ]
+    },
+    {
+      "chunk_id": "KB-004#2",
+      "doc_id": "KB-004",
+      "doc_title": "BYOD Mobile Device Policy",
+      "doc_type": "policy",
+      "section_heading": "What enrolment does NOT do",
+      "text": "## What enrolment does NOT do\n\n- It does not give Helios access to personal SMS, call logs, location,\n  microphone, or camera. The MDM agent reports only: device model, OS\n  version, jailbreak status, and the inventory of Helios-managed apps.\n- It does not permit Helios to remotely lock the entire device.",
+      "hyq": [
+        "Does enrolment allow Helios to access my personal SMS messages?",
+        "Can Helios remotely lock my entire device after enrolment?",
+        "Does device enrolment give Helios access to my location data?",
+        "Will enrolment allow Helios to use my device's microphone or camera?",
+        "Does Helios have access to my call logs after I enrol my device?"
+      ],
+      "embedding_rows": [
+        80,
+        81,
+        82,
+        83,
+        84
+      ]
+    },
+    {
+      "chunk_id": "KB-004#3",
+      "doc_id": "KB-004",
+      "doc_title": "BYOD Mobile Device Policy",
+      "doc_type": "policy",
+      "section_heading": "Eligibility",
+      "text": "## Eligibility\n\n- Employees in a `support_analyst` or higher role can enroll.\n- Contractors can enroll only with manager + Security on-call approval.\n- Devices below the minimum supported OS (iOS 17, Android 13) are not\n  eligible. The Workplace IT team will not troubleshoot mail issues on\n  unsupported OS versions.",
+      "hyq": [
+        "Can I enroll my device in the BYOD program if I'm a support analyst?",
+        "Are contractors allowed to enroll their devices without any additional approval?",
+        "What are the minimum supported OS versions for BYOD devices?",
+        "Can I still get help with mail issues on my device if it's running an unsupported OS?",
+        "What role requirements must be met for an employee to enroll in the BYOD program?"
+      ],
+      "embedding_rows": [
+        85,
+        86,
+        87,
+        88,
+        89
+      ]
+    },
+    {
+      "chunk_id": "KB-004#4",
+      "doc_id": "KB-004",
+      "doc_title": "BYOD Mobile Device Policy",
+      "doc_type": "policy",
+      "section_heading": "Common support issues",
+      "text": "## Common support issues\n\n- **Push MFA stops working after OS upgrade.** Re-enroll the device in\n  MDM; the AuriLite push token is rebuilt on first launch after\n  re-enrolment.\n- **Mail no longer syncs after password change.** The native iOS Mail app\n  caches the old token; remove and re-add the account.\n- **\"Cannot verify server identity\" on first launch.** The Helios root CA\n  was not installed \u2014 re-run the MDM enrolment.",
+      "hyq": [
+        "Why does push MFA stop working after I upgrade my mobile device's operating system?",
+        "What do I do if my email stops syncing after I change my password?",
+        "How do I resolve the 'Cannot verify server identity' error when setting up my device?",
+        "Why is my MFA not pushing notifications after I updated my phone's OS?",
+        "What should I do if my iOS Mail app isn't syncing after a password change?"
+      ],
+      "embedding_rows": [
+        90,
+        91,
+        92,
+        93,
+        94
+      ]
+    },
+    {
+      "chunk_id": "KB-004#5",
+      "doc_id": "KB-004",
+      "doc_title": "BYOD Mobile Device Policy",
+      "doc_type": "policy",
+      "section_heading": "Off-boarding",
+      "text": "## Off-boarding\n\nWhen an employee leaves Helios, the MDM profile is removed automatically\nwithin 30 minutes of their IDP account deactivation. This wipes only the\nwork profile.",
+      "hyq": [
+        "What happens to the MDM profile when an employee leaves Helios?",
+        "How long does it take for the MDM profile to be removed after an employee's IDP account is deactivated?",
+        "What is wiped from the mobile device when an employee leaves Helios?",
+        "Does the personal profile on a BYOD device get wiped when an employee leaves the company?",
+        "What happens to the work profile on a mobile device when an employee's IDP account is deactivated?"
+      ],
+      "embedding_rows": [
+        95,
+        96,
+        97,
+        98,
+        99
+      ]
+    },
+    {
+      "chunk_id": "KB-005#0",
+      "doc_id": "KB-005",
+      "doc_title": "After-Hours Support Coverage Policy",
+      "doc_type": "policy",
+      "section_heading": "<intro>",
+      "text": "# After-Hours Support Coverage Policy\n\nDefines which tickets receive after-hours attention and which wait for\nthe next business-day shift.",
+      "hyq": [
+        "What is the policy for handling support tickets after business hours?",
+        "Which tickets get attention outside of regular business hours?",
+        "Do all support tickets receive immediate attention after hours?",
+        "How are support tickets prioritized when it's outside of business hours?",
+        "What happens to support tickets submitted after business hours, do they get addressed right away?"
+      ],
+      "embedding_rows": [
+        100,
+        101,
+        102,
+        103,
+        104
+      ]
+    },
+    {
+      "chunk_id": "KB-005#1",
+      "doc_id": "KB-005",
+      "doc_title": "After-Hours Support Coverage Policy",
+      "doc_type": "policy",
+      "section_heading": "Coverage windows by shift",
+      "text": "## Coverage windows by shift\n\n| Shift | Hours (UTC) | Coverage |\n| --- | --- | --- |\n| NA-Day | 14:00\u201322:00 | All tickets, all priorities |\n| NA-Evening | 22:00\u201306:00 | P1 + P2 only; P3/P4 queue to NA-Day |\n| EU-Day | 07:00\u201315:00 | All tickets, all priorities |\n| APAC-Day | 00:00\u201308:00 | All tickets, all priorities |\n\nA ticket arriving during a \"P1+P2 only\" window with a lower priority is\nparked in the **Overnight Queue** and surfaces at the start of the next\nNA-Day shift. The orchestrator's `next_action` field will still indicate\nthe correct downstream skill \u2014 the queue is a scheduling concept layered\non top of the workflow.",
+      "hyq": [
+        "What are the coverage hours for the NA-Day shift?",
+        "Which tickets are covered during the NA-Evening shift?",
+        "What happens to a P3 ticket that arrives during the NA-Evening shift?",
+        "What is the coverage window for the APAC-Day shift?",
+        "How are lower-priority tickets handled during a P1+P2 only coverage window?"
+      ],
+      "embedding_rows": [
+        105,
+        106,
+        107,
+        108,
+        109
+      ]
+    },
+    {
+      "chunk_id": "KB-005#2",
+      "doc_id": "KB-005",
+      "doc_title": "After-Hours Support Coverage Policy",
+      "doc_type": "policy",
+      "section_heading": "Definition of P1 / P2 (this overrides any vendor SLA)",
+      "text": "## Definition of P1 / P2 (this overrides any vendor SLA)\n\n- **P1** \u2014 A production system is down for more than 10% of users, OR a\n  T4 data exposure (KB-003) is suspected.\n- **P2** \u2014 A production system is degraded (>20% slower than baseline)\n  OR a customer-paying integration is failing for a Helios enterprise\n  customer.\n\nIf a ticket is logged as P3 but exhibits P1/P2 symptoms, the on-call\nanalyst must reprioritise before routing. Do not wait for triage.",
+      "hyq": [
+        "What constitutes a P1 priority issue in our after-hours support coverage?",
+        "How do we define a P2 priority issue for production systems?",
+        "What should an on-call analyst do if a P3 ticket shows P1 or P2 symptoms?",
+        "Can a production system be considered P1 if it's down for less than 10% of users?",
+        "What is the criteria for a customer-paying integration failure to be classified as P2?"
+      ],
+      "embedding_rows": [
+        110,
+        111,
+        112,
+        113,
+        114
+      ]
+    },
+    {
+      "chunk_id": "KB-005#3",
+      "doc_id": "KB-005",
+      "doc_title": "After-Hours Support Coverage Policy",
+      "doc_type": "policy",
+      "section_heading": "Contaminated tickets",
+      "text": "## Contaminated tickets\n\nWhen a customer's ticket body contains a credential, MFA seed, or other\nT4 value (see KB-003), the analyst must:\n\n1. Mark the ticket **contaminated** in the action log\n   (`extra.contaminated=true`).\n2. Redact the value with `[REDACTED-T4]` before any reply.\n3. Notify the security on-call within 60 minutes.\n4. Force a credential rotation on the affected account.\n\nThe contamination flag must not be cleared without security review.",
+      "hyq": [
+        "What should I do if a customer's ticket contains a credential that should not be shared?",
+        "How do I handle a ticket that has sensitive information like an MFA seed in the body?",
+        "What are the steps to take when a ticket is marked as contaminated?",
+        "Who should I notify if I find a contaminated ticket that needs security attention?",
+        "Can I clear the contamination flag on a ticket without security review?"
+      ],
+      "embedding_rows": [
+        115,
+        116,
+        117,
+        118,
+        119
+      ]
+    },
+    {
+      "chunk_id": "KB-005#4",
+      "doc_id": "KB-005",
+      "doc_title": "After-Hours Support Coverage Policy",
+      "doc_type": "policy",
+      "section_heading": "On-call escalation paths",
+      "text": "## On-call escalation paths\n\nAfter-hours escalation paths are listed in KB-014 (Escalation Matrix).\nThe current after-hours specialist groups are: `identity_security`,\n`network_infra`, and `application_engineering`. `billing_finance` and\n`data_analytics` are NA-Day only.",
+      "hyq": [
+        "What are the after-hours escalation paths for support?",
+        "Where can I find the current after-hours escalation matrix?",
+        "Which specialist groups are available after hours?",
+        "Are there any specialist groups that are only available during business days?",
+        "What are the names of the specialist groups that provide 24/7 support?"
+      ],
+      "embedding_rows": [
+        120,
+        121,
+        122,
+        123,
+        124
+      ]
+    },
+    {
+      "chunk_id": "KB-006#0",
+      "doc_id": "KB-006",
+      "doc_title": "AuriLite Identity Provider \u2014 Vendor Contract Summary",
+      "doc_type": "vendor_contract",
+      "section_heading": "<intro>",
+      "text": "# AuriLite IDP \u2014 Vendor Contract Summary\n\nThis is a summary of the active AuriLite IDP master services agreement\n(MSA-AURI-2024-014, signed 2024-08-01, renewed 2026-08-01 for two years).\nThe full PDF lives in Vendor Vault at `vendors/aurilite/MSA-2024-014.pdf`.",
+      "hyq": [
+        "What is the current master services agreement for AuriLite IDP?",
+        "Where can I find the full PDF of the AuriLite IDP contract?",
+        "When was the AuriLite IDP master services agreement last renewed?",
+        "What is the contract number for the AuriLite IDP master services agreement?",
+        "When was the AuriLite IDP master services agreement signed?"
+      ],
+      "embedding_rows": [
+        125,
+        126,
+        127,
+        128,
+        129
+      ]
+    },
+    {
+      "chunk_id": "KB-006#1",
+      "doc_id": "KB-006",
+      "doc_title": "AuriLite Identity Provider \u2014 Vendor Contract Summary",
+      "doc_type": "vendor_contract",
+      "section_heading": "Key contract terms",
+      "text": "## Key contract terms\n\n- **Term**: 2026-08-01 through 2028-07-31.\n- **Auto-renewal**: 12 months, opt-out window 60 days before term end.\n- **Annual fee**: $412,000 USD, billed quarterly.\n- **Seat cap**: 4,500 active identities (current usage: 3,820 as of 2026-Q1).\n- **Overage rate**: $9.20 per seat per month, billed in arrears.",
+      "hyq": [
+        "What is the term length of our contract with AuriLite Identity Provider?",
+        "How much do we pay per seat per month if we exceed the seat cap?",
+        "What is the annual fee for using AuriLite Identity Provider?",
+        "How often is the annual fee billed?",
+        "What happens to the contract at the end of the term if no action is taken?"
+      ],
+      "embedding_rows": [
+        130,
+        131,
+        132,
+        133,
+        134
+      ]
+    },
+    {
+      "chunk_id": "KB-006#2",
+      "doc_id": "KB-006",
+      "doc_title": "AuriLite Identity Provider \u2014 Vendor Contract Summary",
+      "doc_type": "vendor_contract",
+      "section_heading": "Support tier",
+      "text": "## Support tier\n\n- **Tier**: Premium 24/7.\n- **Severity-1 first response**: 15 minutes.\n- **Severity-2 first response**: 1 hour during business hours, 4 hours\n  after-hours.\n- **Support hotline**: +1-415-555-0148 (PIN: stored in Vendor Vault).\n- **Account manager**: Priya Sundar \u2014 `priya.sundar@aurilite.example`.",
+      "hyq": [
+        "What is the support tier for AuriLite Identity Provider?",
+        "How quickly will I get a first response for a Severity-1 issue?",
+        "What is the phone number for the support hotline?",
+        "Who is my account manager for AuriLite Identity Provider?",
+        "What is the expected first response time for a Severity-2 issue during business hours?"
+      ],
+      "embedding_rows": [
+        135,
+        136,
+        137,
+        138,
+        139
+      ]
+    },
+    {
+      "chunk_id": "KB-006#3",
+      "doc_id": "KB-006",
+      "doc_title": "AuriLite Identity Provider \u2014 Vendor Contract Summary",
+      "doc_type": "vendor_contract",
+      "section_heading": "Service-level commitments (SLA)",
+      "text": "## Service-level commitments (SLA)\n\n- **Authentication availability**: 99.95% monthly, measured at the\n  `/oauth2/token` endpoint.\n- **Push-MFA delivery**: 99.5% of pushes delivered within 5 seconds.\n- **SLA credits**: 10% of monthly fee per 0.1 percentage point below the\n  99.95% target, capped at one full month's fee.",
+      "hyq": [
+        "What is the expected monthly availability for authentication in AuriLite Identity Provider?",
+        "How is authentication availability measured in AuriLite Identity Provider?",
+        "What is the service level commitment for Push-MFA delivery in terms of speed?",
+        "How are SLA credits calculated and capped in AuriLite Identity Provider?",
+        "What happens if the authentication availability target is not met, and how are credits applied?"
+      ],
+      "embedding_rows": [
+        140,
+        141,
+        142,
+        143,
+        144
+      ]
+    },
+    {
+      "chunk_id": "KB-006#4",
+      "doc_id": "KB-006",
+      "doc_title": "AuriLite Identity Provider \u2014 Vendor Contract Summary",
+      "doc_type": "vendor_contract",
+      "section_heading": "Data processing addendum (DPA)",
+      "text": "## Data processing addendum (DPA)\n\n- **Data residency**: EU customer data is pinned to `eu-west-3` region by\n  contract. T3 data may not cross regions without written approval.\n- **Breach notification SLA**: AuriLite must notify Helios within 24\n  hours of suspected breach; Helios must notify enterprise customers\n  within 60 minutes per KB-005.\n- **Sub-processor list**: refreshed quarterly at\n  `aurilite.com/legal/subprocessors`.",
+      "hyq": [
+        "Where is EU customer data stored?",
+        "What is the breach notification SLA for AuriLite to notify Helios?",
+        "How often is the sub-processor list updated?",
+        "Can T3 data be processed across different regions without approval?",
+        "How quickly must Helios notify enterprise customers in case of a breach?"
+      ],
+      "embedding_rows": [
+        145,
+        146,
+        147,
+        148,
+        149
+      ]
+    },
+    {
+      "chunk_id": "KB-006#5",
+      "doc_id": "KB-006",
+      "doc_title": "AuriLite Identity Provider \u2014 Vendor Contract Summary",
+      "doc_type": "vendor_contract",
+      "section_heading": "Known operational caveats",
+      "text": "## Known operational caveats\n\n- AuriLite pushes a mandatory minor release on the first Tuesday of\n  every month at 02:00 UTC. Pre-prod has historically been broken for\n  3\u20136 hours after these pushes; do not schedule customer-facing\n  identity changes on the first Tuesday.\n- The \"Magic Link\" feature is **not enabled** for Helios \u2014 it conflicts\n  with the Tier-1 password reset SOP (KB-001).",
+      "hyq": [
+        "What are the potential issues with AuriLite releases on the first Tuesday of every month?",
+        "Is it safe to schedule customer-facing identity changes on the first Tuesday of the month?",
+        "Why is the 'Magic Link' feature not available for Helios users?",
+        "What time do AuriLite minor releases typically occur?",
+        "How long is the pre-prod environment usually broken after an AuriLite release?"
+      ],
+      "embedding_rows": [
+        150,
+        151,
+        152,
+        153,
+        154
+      ]
+    },
+    {
+      "chunk_id": "KB-007#0",
+      "doc_id": "KB-007",
+      "doc_title": "MeshGuard VPN \u2014 Vendor Contract Summary",
+      "doc_type": "vendor_contract",
+      "section_heading": "<intro>",
+      "text": "# MeshGuard VPN \u2014 Vendor Contract Summary",
+      "hyq": [
+        "What is the contract summary for MeshGuard VPN?",
+        "Can I find a summary of the MeshGuard VPN vendor contract here?",
+        "What are the key points of the MeshGuard VPN vendor agreement?",
+        "Where can I find information about the MeshGuard VPN contract?",
+        "What does the MeshGuard VPN vendor contract entail?"
+      ],
+      "embedding_rows": [
+        155,
+        156,
+        157,
+        158,
+        159
+      ]
+    },
+    {
+      "chunk_id": "KB-007#1",
+      "doc_id": "KB-007",
+      "doc_title": "MeshGuard VPN \u2014 Vendor Contract Summary",
+      "doc_type": "vendor_contract",
+      "section_heading": "Contract",
+      "text": "## Contract\n\n- **Vendor**: MeshGuard Networks, Inc.\n- **Agreement**: MSA-MSG-2023-007, signed 2023-09-15.\n- **Term**: 2023-10-01 through 2026-09-30. **Renewal decision due\n  2026-07-31.**\n- **Annual fee**: $148,000 USD, billed annually in advance.\n- **Tunnel cap**: 800 concurrent tunnels (current 95th percentile usage:\n  612).",
+      "hyq": [
+        "Who is the vendor for the MeshGuard VPN service?",
+        "What is the term of the MeshGuard VPN contract?",
+        "When do we need to make a decision about renewing the MeshGuard VPN contract?",
+        "What is the annual fee for the MeshGuard VPN service?",
+        "What is the concurrent tunnel capacity under the MeshGuard VPN contract?"
+      ],
+      "embedding_rows": [
+        160,
+        161,
+        162,
+        163,
+        164
+      ]
+    },
+    {
+      "chunk_id": "KB-007#2",
+      "doc_id": "KB-007",
+      "doc_title": "MeshGuard VPN \u2014 Vendor Contract Summary",
+      "doc_type": "vendor_contract",
+      "section_heading": "Support tier",
+      "text": "## Support tier\n\n- **Tier**: Standard business hours (08:00\u201318:00 PT, M\u2013F).\n- **After-hours severity-1**: paid add-on, $1,200 per incident.\n- **Severity-1 first response**: 4 hours business hours, best-effort\n  after-hours.\n- **Support contact**: support@meshguard.example, ticket portal\n  `support.meshguard.example`.\n- **TAM**: Hassan Olin, weekly office hours Tuesdays 16:00 UTC.",
+      "hyq": [
+        "What are the business hours for standard support?",
+        "How much does it cost to handle a severity-1 incident after hours?",
+        "What is the first response time for severity-1 incidents during business hours?",
+        "Who is the technical account manager for MeshGuard VPN?",
+        "How do I contact support for MeshGuard VPN issues?"
+      ],
+      "embedding_rows": [
+        165,
+        166,
+        167,
+        168,
+        169
+      ]
+    },
+    {
+      "chunk_id": "KB-007#3",
+      "doc_id": "KB-007",
+      "doc_title": "MeshGuard VPN \u2014 Vendor Contract Summary",
+      "doc_type": "vendor_contract",
+      "section_heading": "Maintenance windows",
+      "text": "## Maintenance windows\n\n- **Scheduled maintenance**: every Sunday 02:00\u201304:00 UTC.\n- **Emergency maintenance**: vendor may take the gateway offline with\n  60 minutes' notice; notifications land in `#network-alerts` Slack.\n- **VPN client auto-update**: monthly on the 15th at 03:00 client local\n  time. Auto-update has caused tunnel-drop regressions twice in the\n  past 18 months (KB-012 references one of them).",
+      "hyq": [
+        "What is the schedule for maintenance windows for the MeshGuard VPN?",
+        "When do emergency maintenance notifications get posted?",
+        "How often does the VPN client auto-update?",
+        "What is the typical schedule for scheduled maintenance of the MeshGuard VPN?",
+        "How much notice is given before emergency maintenance takes the gateway offline?"
+      ],
+      "embedding_rows": [
+        170,
+        171,
+        172,
+        173,
+        174
+      ]
+    },
+    {
+      "chunk_id": "KB-007#4",
+      "doc_id": "KB-007",
+      "doc_title": "MeshGuard VPN \u2014 Vendor Contract Summary",
+      "doc_type": "vendor_contract",
+      "section_heading": "Operational caveats",
+      "text": "## Operational caveats\n\n- `MeshGuard Connect 3.4.6` and earlier have a known regression on macOS\n  15.3+ \u2014 see KB-002 for the workaround. The fix is in `3.4.7`.\n- The gateway does not support DTLS \u2014 falling back to TLS adds ~120ms\n  latency that affects voice/video calls. Tickets reporting Zoom\n  jitter while on VPN are usually this; not a Zoom problem.\n- The gateway logs the **source NAT** address only, not the per-user\n  internal IP, so incident forensics requires correlating with the IDP\n  session log within 24 hours (after which IDP rotates).",
+      "hyq": [
+        "What is the issue with MeshGuard Connect 3.4.6 and earlier on macOS 15.3+?",
+        "Is there a workaround for the macOS issue in MeshGuard Connect 3.4.6 and earlier?",
+        "Why do voice and video calls experience latency when using the gateway?",
+        "What is the cause of reported Zoom jitter issues while on VPN?",
+        "How do I investigate an incident when the gateway logs only show the source NAT address?"
+      ],
+      "embedding_rows": [
+        175,
+        176,
+        177,
+        178,
+        179
+      ]
+    },
+    {
+      "chunk_id": "KB-007#5",
+      "doc_id": "KB-007",
+      "doc_title": "MeshGuard VPN \u2014 Vendor Contract Summary",
+      "doc_type": "vendor_contract",
+      "section_heading": "Renewal posture (as of 2026-02-28)",
+      "text": "## Renewal posture (as of 2026-02-28)\n\nThe Network team is evaluating two alternatives (BastionRoute and\nZephyrNet) ahead of the 2026-07-31 renewal decision. Do not commit to\nnew MeshGuard-specific integrations until after that decision.",
+      "hyq": [
+        "What is the current renewal posture for MeshGuard VPN as of 2026-02-28?",
+        "Are there any plans to commit to new MeshGuard-specific integrations before July 2026?",
+        "What alternatives are being evaluated for potential use instead of MeshGuard VPN?",
+        "When will the renewal decision for MeshGuard VPN be made?",
+        "Should I proceed with integrating MeshGuard with other systems at this time?"
+      ],
+      "embedding_rows": [
+        180,
+        181,
+        182,
+        183,
+        184
+      ]
+    },
+    {
+      "chunk_id": "KB-008#0",
+      "doc_id": "KB-008",
+      "doc_title": "QuotidianPay Billing Platform \u2014 Vendor Contract Summary",
+      "doc_type": "vendor_contract",
+      "section_heading": "<intro>",
+      "text": "# QuotidianPay \u2014 Vendor Contract Summary\n\nQuotidianPay hosts the Helios Billing System and acts as the merchant of\nrecord for customer invoices in the EU and APAC.",
+      "hyq": [
+        "Who hosts the Helios Billing System?",
+        "What is QuotidianPay's role in customer invoices in the EU and APAC?",
+        "Who acts as the merchant of record for customer invoices in the EU and APAC?",
+        "Where does QuotidianPay act as the merchant of record for customer invoices?",
+        "What billing system does QuotidianPay host?"
+      ],
+      "embedding_rows": [
+        185,
+        186,
+        187,
+        188,
+        189
+      ]
+    },
+    {
+      "chunk_id": "KB-008#1",
+      "doc_id": "KB-008",
+      "doc_title": "QuotidianPay Billing Platform \u2014 Vendor Contract Summary",
+      "doc_type": "vendor_contract",
+      "section_heading": "Contract",
+      "text": "## Contract\n\n- **Vendor**: QuotidianPay Holdings, Ltd. (Ireland).\n- **Agreement**: MSA-QP-2022-031, signed 2022-04-11.\n- **Term**: rolling 24-month, current term ends 2026-11-30.\n- **Annual fee**: 0.6% of processed GMV plus $48,000 platform fee.\n- **Transaction fee**: 2.4% + \u20ac0.18 per EU card transaction, 2.9% + $0.30\n  per US card transaction.",
+      "hyq": [
+        "Who is the vendor for the QuotidianPay Billing Platform?",
+        "What is the current term end date for our contract with QuotidianPay?",
+        "What is the annual fee structure for using the QuotidianPay Billing Platform?",
+        "What are the transaction fees for EU and US card transactions?",
+        "What is the agreement number for our contract with QuotidianPay Holdings, Ltd.?"
+      ],
+      "embedding_rows": [
+        190,
+        191,
+        192,
+        193,
+        194
+      ]
+    },
+    {
+      "chunk_id": "KB-008#2",
+      "doc_id": "KB-008",
+      "doc_title": "QuotidianPay Billing Platform \u2014 Vendor Contract Summary",
+      "doc_type": "vendor_contract",
+      "section_heading": "Support",
+      "text": "## Support\n\n- **Tier**: Enterprise 24/5 (M\u2013F UTC).\n- **Sev-1 first response**: 30 minutes.\n- **Support email**: enterprise-support@quotidianpay.example.\n- **Engineering escalation**: paid; $400 per escalation.\n- **TAM**: Lena Kowalski.",
+      "hyq": [
+        "What is the support tier for QuotidianPay Billing Platform?",
+        "How quickly can I expect a first response for a Sev-1 issue?",
+        "What is the email address for support?",
+        "How much does it cost to escalate an issue to engineering?",
+        "Who is my Technical Account Manager?"
+      ],
+      "embedding_rows": [
+        195,
+        196,
+        197,
+        198,
+        199
+      ]
+    },
+    {
+      "chunk_id": "KB-008#3",
+      "doc_id": "KB-008",
+      "doc_title": "QuotidianPay Billing Platform \u2014 Vendor Contract Summary",
+      "doc_type": "vendor_contract",
+      "section_heading": "SLA",
+      "text": "## SLA\n\n- **API availability**: 99.9% monthly across `/v1/invoice` and\n  `/v1/charge`.\n- **Payout latency**: T+2 business days (EU), T+3 business days (US).\n- **Refund latency**: T+5 business days for credit card refunds.",
+      "hyq": [
+        "What is the expected API availability for /v1/invoice and /v1/charge endpoints?",
+        "How long does it take for payouts to be processed in the EU?",
+        "What is the refund latency for credit card refunds?",
+        "What is the monthly API availability target for our platform?",
+        "How long does it take for payouts to be processed in the US?"
+      ],
+      "embedding_rows": [
+        200,
+        201,
+        202,
+        203,
+        204
+      ]
+    },
+    {
+      "chunk_id": "KB-008#4",
+      "doc_id": "KB-008",
+      "doc_title": "QuotidianPay Billing Platform \u2014 Vendor Contract Summary",
+      "doc_type": "vendor_contract",
+      "section_heading": "Operational caveats",
+      "text": "## Operational caveats\n\n- QuotidianPay does **not** generate invoices for amounts below \u20ac1.00 /\n  $1.00; below-threshold charges accumulate and bill at the end of the\n  customer's billing cycle. Customers occasionally raise \"missing\n  invoice\" tickets \u2014 see KB-013 RCA for the export bug that masked\n  this in 2025-11.\n- The CSV export from the QuotidianPay console truncates `customer_id`\n  to 32 characters as of release 8.4. Helios customer IDs are 36 chars\n  (UUID-style) \u2014 collisions are rare but happen at the 1-in-10K rate\n  in the export.\n- Tax computation is delegated to a sub-processor (StratoTax). When\n  StratoTax is degraded, QuotidianPay falls back to a hard-coded local\n  rate that is often wrong for non-US jurisdictions.",
+      "hyq": [
+        "What happens to charges below \u20ac1.00 in the QuotidianPay Billing Platform?",
+        "Why do customers sometimes report missing invoices for small charges?",
+        "What is the issue with exporting customer IDs from the QuotidianPay console as a CSV?",
+        "How does QuotidianPay handle tax computation when StratoTax is not functioning properly?",
+        "What is the character limit for customer IDs when exported from the QuotidianPay console?"
+      ],
+      "embedding_rows": [
+        205,
+        206,
+        207,
+        208,
+        209
+      ]
+    },
+    {
+      "chunk_id": "KB-008#5",
+      "doc_id": "KB-008",
+      "doc_title": "QuotidianPay Billing Platform \u2014 Vendor Contract Summary",
+      "doc_type": "vendor_contract",
+      "section_heading": "Compliance",
+      "text": "## Compliance\n\n- PCI DSS Level 1 (attestation 2025-09-18 in Vendor Vault).\n- SOC 2 Type II \u2014 annual, current report dated 2025-07-30.\n- Card data tokenised at QuotidianPay; Helios never stores PANs.",
+      "hyq": [
+        "What level of PCI DSS compliance has QuotidianPay achieved?",
+        "Where can I find the PCI DSS attestation for QuotidianPay?",
+        "Does QuotidianPay store cardholder data in its system?",
+        "What type of SOC report does QuotidianPay have, and how often is it updated?",
+        "Is QuotidianPay's SOC 2 report current, and what is the date of the latest report?"
+      ],
+      "embedding_rows": [
+        210,
+        211,
+        212,
+        213,
+        214
+      ]
+    },
+    {
+      "chunk_id": "KB-009#0",
+      "doc_id": "KB-009",
+      "doc_title": "Customer Portal \u2014 Operations Runbook",
+      "doc_type": "runbook",
+      "section_heading": "<intro>",
+      "text": "# Customer Portal \u2014 Operations Runbook\n\nThe Customer Portal (`portal.helios.com`) is the primary external surface\nfor Helios customers. It is a Next.js 14 app, deployed on the Helios\nPlatform (Kubernetes), and uses AuriLite IDP for sign-in.",
+      "hyq": [
+        "What is the primary external surface for Helios customers?",
+        "Where is the Customer Portal deployed?",
+        "What technology is used for sign-in to the Customer Portal?",
+        "What type of application is the Customer Portal?",
+        "What platform is the Customer Portal deployed on?"
+      ],
+      "embedding_rows": [
+        215,
+        216,
+        217,
+        218,
+        219
+      ]
+    },
+    {
+      "chunk_id": "KB-009#1",
+      "doc_id": "KB-009",
+      "doc_title": "Customer Portal \u2014 Operations Runbook",
+      "doc_type": "runbook",
+      "section_heading": "Health endpoints",
+      "text": "## Health endpoints\n\n- `https://portal.helios.com/healthz` \u2014 liveness, returns 200 if the pod\n  is alive (does not check downstreams).\n- `https://portal.helios.com/api/ready` \u2014 readiness, returns 200 only if\n  the IDP, CRM, and database are reachable.\n- Grafana dashboard: `grafana.helios.internal/d/portal-ops`.",
+      "hyq": [
+        "What URL can I use to check if the Customer Portal pod is alive?",
+        "How do I check if the IDP, CRM, and database are reachable in the Customer Portal?",
+        "What is the health endpoint for liveness in the Customer Portal?",
+        "Where can I find a dashboard to monitor the Customer Portal's operations?",
+        "What URL can I use to check the readiness of the Customer Portal's dependencies?"
+      ],
+      "embedding_rows": [
+        220,
+        221,
+        222,
+        223,
+        224
+      ]
+    },
+    {
+      "chunk_id": "KB-009#2",
+      "doc_id": "KB-009",
+      "doc_title": "Customer Portal \u2014 Operations Runbook",
+      "doc_type": "runbook",
+      "section_heading": "Known issues (read these BEFORE creating a new ticket)",
+      "text": "## Known issues (read these BEFORE creating a new ticket)\n\n### Issue 1 \u2014 SSO redirect loop after IDP minor release\n\n**Symptom**: User signs in, lands on `/auth/callback`, immediately\nredirected back to `/login`. Loop continues until the browser cookie\nlimit is hit.\n\n**Root cause**: AuriLite occasionally rotates the issuer URL on minor\nreleases. The portal's cached OIDC discovery document goes stale.\n\n**Fix**: Restart the portal deployment to force OIDC discovery refresh.\n`kubectl -n portal rollout restart deploy/portal-web`.\n\n**Tier-1 customer guidance**: ask the user to retry in a private\nwindow. Most users will be unaffected once the rollout completes\n(~3 minutes).\n\n### Issue 2 \u2014 Portal returns \"We're sorry\" page after a search\n\n**Symptom**: Search query returns the generic 500 page; no other portal\nfunction is affected.\n\n**Root cause**: The portal's search uses Elasticsearch via a sidecar.\nSidecar OOMs every ~14 days because of a leaked compiled query cache.\n\n**Fix**: Pending engineering fix (ticket APP-2391). Until then, the\nnightly cron at 04:00 UTC restarts the sidecar; out-of-cycle OOMs need\na manual restart by the on-call engineer.\n\n### Issue 3 \u2014 File upload silently fails for files >50MB\n\n**Symptom**: Customer clicks **Upload**, sees a spinner forever, no\nerror message. Network panel shows `413 Payload Too Large`.\n\n**Root cause**: The portal's nginx ingress has `client_max_body_size 50m`\nhard-coded.\n\n**Fix**: There is no fix planned \u2014 the 50MB limit is intentional. The\nportal needs a frontend error toast; ticket UI-1042 tracks this.\n\n**Tier-1 customer guidance**: ask the user to compress the file or\nsplit it.",
+      "hyq": [
+        "Why does a user get stuck in a login redirect loop after signing in?",
+        "What causes the portal to return a 'We're sorry' page after a search?",
+        "Why do file uploads silently fail for files larger than 50MB?",
+        "How can I resolve a situation where a user is experiencing a login redirect loop?",
+        "What is the solution for the 'We're sorry' page error that appears after a search query?"
+      ],
+      "embedding_rows": [
+        225,
+        226,
+        227,
+        228,
+        229
+      ]
+    },
+    {
+      "chunk_id": "KB-009#3",
+      "doc_id": "KB-009",
+      "doc_title": "Customer Portal \u2014 Operations Runbook",
+      "doc_type": "runbook",
+      "section_heading": "Common false alarms",
+      "text": "## Common false alarms\n\n- **\"Portal is down\"** at the start of every Sunday \u2014 this is the\n  MeshGuard maintenance window (KB-007). External customers are not\n  affected; only employees on VPN.\n- **\"Two-factor not working\"** between 02:00\u201305:00 UTC on the first\n  Tuesday of the month \u2014 this is the AuriLite mandatory release\n  window (KB-006).",
+      "hyq": [
+        "Why is the portal down every Sunday?",
+        "What causes two-factor authentication issues between 02:00\u201305:00 UTC on the first Tuesday of the month?",
+        "Is the portal down for external customers on Sundays?",
+        "Why do employees on VPN experience portal downtime at the start of every Sunday?",
+        "Are there any scheduled maintenance windows that might cause two-factor authentication problems?"
+      ],
+      "embedding_rows": [
+        230,
+        231,
+        232,
+        233,
+        234
+      ]
+    },
+    {
+      "chunk_id": "KB-010#0",
+      "doc_id": "KB-010",
+      "doc_title": "Analytics Dashboard \u2014 Operations Runbook",
+      "doc_type": "runbook",
+      "section_heading": "<intro>",
+      "text": "# Analytics Dashboard \u2014 Operations Runbook\n\nThe Analytics Dashboard (`analytics.helios.internal`) is a Metabase\ndeployment fronted by a custom permissions layer (`helios-analytics-shim`).\nSource data comes from the Helios warehouse (`snowflake://helios.data`),\nwhich is loaded nightly from CRM, Billing System, and Inventory App.",
+      "hyq": [
+        "What is the Analytics Dashboard and how is it deployed?",
+        "Where does the source data for the Analytics Dashboard come from?",
+        "How often is the data loaded into the Helios warehouse?",
+        "What systems are the data loaded from into the Helios warehouse?",
+        "What is the custom permissions layer used for in the Analytics Dashboard?"
+      ],
+      "embedding_rows": [
+        235,
+        236,
+        237,
+        238,
+        239
+      ]
+    },
+    {
+      "chunk_id": "KB-010#1",
+      "doc_id": "KB-010",
+      "doc_title": "Analytics Dashboard \u2014 Operations Runbook",
+      "doc_type": "runbook",
+      "section_heading": "Health and freshness",
+      "text": "## Health and freshness\n\n- Dashboard liveness: `analytics.helios.internal/api/health` \u2192 200.\n- Warehouse freshness: tagged in the `staging.run_log` table \u2014 the\n  `last_complete_at` column should be within 6 hours.\n- Loader pipeline: `dbt-cloud` job `helios-warehouse-nightly`, scheduled\n  03:00 UTC daily, average runtime 78 minutes.",
+      "hyq": [
+        "How do I check if the Analytics Dashboard is live?",
+        "What is the expected freshness of the warehouse data?",
+        "How often does the loader pipeline run and what is its average runtime?",
+        "What endpoint can I use to verify the dashboard's health?",
+        "How recent should the last complete log be in the staging run log table?"
+      ],
+      "embedding_rows": [
+        240,
+        241,
+        242,
+        243,
+        244
+      ]
+    },
+    {
+      "chunk_id": "KB-010#2",
+      "doc_id": "KB-010",
+      "doc_title": "Analytics Dashboard \u2014 Operations Runbook",
+      "doc_type": "runbook",
+      "section_heading": "Known issues",
+      "text": "## Known issues\n\n### Issue 1 \u2014 \"Yesterday\" filter is wrong for APAC users\n\n**Symptom**: A user in Sydney pulling the \"yesterday\" view at 10:00 local\ntime sees no data because the warehouse hasn't finished loading.\n\n**Root cause**: The nightly loader runs in UTC; APAC business hours\nstart before it completes.\n\n**Fix**: Tell users in APAC to pull \"2 days ago\" until the warehouse\nfreshness SLA improves. Engineering work to switch to streaming ingestion\nis scheduled for Q3 2026.\n\n### Issue 2 \u2014 Dashboard shows stale row counts after CRM bulk import\n\n**Symptom**: After a CRM admin runs a bulk import, the dashboard's CRM\nrow counts lag by up to 24 hours.\n\n**Root cause**: The CRM bulk import skips the change-data-capture stream\nthe loader subscribes to; only the next full snapshot picks up the new\nrows.\n\n**Fix**: CRM admins must notify Data Platform (`#data-platform-help`\nSlack) before any bulk import so an out-of-cycle warehouse refresh can\nbe scheduled.\n\n### Issue 3 \u2014 \"Permission denied\" on a dashboard the user used to access\n\n**Symptom**: User reports a previously-accessible dashboard now returns\n\"Permission denied.\"\n\n**Root cause**: The `helios-analytics-shim` reads permissions from the\nIDP group list, which is cached for 6 hours. A recent group change has\nnot yet refreshed.\n\n**Fix**: Tier-1 can force a permissions refresh by visiting\n`analytics.helios.internal/admin/refresh-perms/{username}` (requires the\n`analytics-admin` IDP group). If the issue persists past one refresh,\nescalate to `data_analytics`.",
+      "hyq": [
+        "Why does the 'yesterday' filter not work correctly for users in APAC?",
+        "What happens to the dashboard's CRM row counts after a bulk import from CRM?",
+        "Why am I getting a 'Permission denied' error on a dashboard I used to have access to?",
+        "How can I get the dashboard to show the correct data for yesterday if I'm in APAC?",
+        "What can I do if I'm a CRM admin and I need to run a bulk import without delaying the dashboard's data?"
+      ],
+      "embedding_rows": [
+        245,
+        246,
+        247,
+        248,
+        249
+      ]
+    },
+    {
+      "chunk_id": "KB-010#3",
+      "doc_id": "KB-010",
+      "doc_title": "Analytics Dashboard \u2014 Operations Runbook",
+      "doc_type": "runbook",
+      "section_heading": "Common false alarms",
+      "text": "## Common false alarms\n\n- **\"Numbers don't match my exported CSV\"** \u2014 the dashboard rounds at\n  display time, the CSV does not. Cross-check using the underlying SQL.\n- **\"Dashboard is slow\"** between 03:00\u201304:30 UTC \u2014 this is the nightly\n  loader contending for warehouse credits. Will self-resolve.",
+      "hyq": [
+        "Why do the numbers on the dashboard not match the numbers in my exported CSV?",
+        "What can I do about the dashboard being slow between 03:00\u201304:30 UTC?",
+        "Why is the dashboard slow at a specific time every night?",
+        "How can I verify the accuracy of the numbers on the dashboard versus my exported CSV?",
+        "Will the dashboard performance issue between 03:00\u201304:30 UTC resolve on its own?"
+      ],
+      "embedding_rows": [
+        250,
+        251,
+        252,
+        253,
+        254
+      ]
+    },
+    {
+      "chunk_id": "KB-011#0",
+      "doc_id": "KB-011",
+      "doc_title": "MFA Troubleshooting \u2014 Tier-1 Runbook (Internal-Only)",
+      "doc_type": "runbook",
+      "section_heading": "<intro>",
+      "text": "# MFA Troubleshooting \u2014 Tier-1 Runbook\n\nThis runbook covers MFA failures that are **not** in the public FAQ\n(FAQ-002 covers basic \"MFA code not received\"). Use this when the\npublic FAQ doesn't resolve the issue.",
+      "hyq": [
+        "What should I do if the public MFA FAQ didn't resolve the issue?",
+        "How do I troubleshoot MFA failures that aren't covered in the public FAQ?",
+        "What is the process for handling MFA issues that require Tier-1 support?",
+        "Where can I find guidance on resolving complex MFA problems?",
+        "What runbook should I use for MFA troubleshooting beyond the basic code receipt issues?"
+      ],
+      "embedding_rows": [
+        255,
+        256,
+        257,
+        258,
+        259
+      ]
+    },
+    {
+      "chunk_id": "KB-011#1",
+      "doc_id": "KB-011",
+      "doc_title": "MFA Troubleshooting \u2014 Tier-1 Runbook (Internal-Only)",
+      "doc_type": "runbook",
+      "section_heading": "Decision tree",
+      "text": "## Decision tree\n\n1. Does the user have a Yubikey enrolled?\n   - **Yes** \u2192 try Yubikey before any SMS/push fallback (see \u00a71).\n   - **No** \u2192 check push-MFA enrollment status (see \u00a72).\n\n2. Did the user recently change phones or SIM?\n   - **Yes** \u2192 SMS path is broken; treat as a fresh MFA enrollment (see \u00a73).\n   - **No** \u2192 continue.\n\n3. Is the user reporting \"push never arrives\"?\n   - **Yes** \u2192 see \u00a74 (push-MFA delivery).\n   - **No** \u2192 see \u00a75 (code wrong / TOTP drift).",
+      "hyq": [
+        "Does the user have a Yubikey enrolled?",
+        "Did the user recently change phones or SIM?",
+        "Is the user reporting that the push never arrives?",
+        "What if the user's Yubikey is not enrolled?",
+        "What should we do if the user recently changed their phone or SIM?"
+      ],
+      "embedding_rows": [
+        260,
+        261,
+        262,
+        263,
+        264
+      ]
+    },
+    {
+      "chunk_id": "KB-011#2",
+      "doc_id": "KB-011",
+      "doc_title": "MFA Troubleshooting \u2014 Tier-1 Runbook (Internal-Only)",
+      "doc_type": "runbook",
+      "section_heading": "\u00a71 \u2014 Yubikey path",
+      "text": "## \u00a71 \u2014 Yubikey path\n\nIf the Yubikey blinks but the IDP shows no event:\n- The Yubikey's NFC interface may be in `OTP-only` mode. Ask the user to\n  switch to `FIDO2` via the YubiKey Manager app.\n- USB-C-to-Lightning adaptors do not pass FIDO2 \u2014 the user must use the\n  Yubikey's native connector.",
+      "hyq": [
+        "Why does the Yubikey blink but the IDP show no event?",
+        "How do I troubleshoot a Yubikey that blinks but isn't recognized?",
+        "What mode should the Yubikey's NFC interface be in for FIDO2 to work?",
+        "Why can't I use a USB-C-to-Lightning adaptor with my Yubikey for FIDO2?",
+        "How can I get my Yubikey to work with FIDO2 if it's in OTP-only mode?"
+      ],
+      "embedding_rows": [
+        265,
+        266,
+        267,
+        268,
+        269
+      ]
+    },
+    {
+      "chunk_id": "KB-011#3",
+      "doc_id": "KB-011",
+      "doc_title": "MFA Troubleshooting \u2014 Tier-1 Runbook (Internal-Only)",
+      "doc_type": "runbook",
+      "section_heading": "\u00a72 \u2014 Push-MFA enrolment",
+      "text": "## \u00a72 \u2014 Push-MFA enrolment\n\nIf the user has the AuriLite app installed but no push prompt arrives:\n- Verify the device shows up in `idp.helios.internal/admin/users/{id}`\n  under **Registered Factors**.\n- If the device is listed but stale (last-seen > 30 days), de-register\n  the factor and re-enrol from scratch.\n- AuriLite limits one push factor per device \u2014 if the user reinstalled\n  the app, the old factor must be removed first.",
+      "hyq": [
+        "Why doesn't the push prompt arrive on the user's device when they have the AuriLite app installed?",
+        "How do I verify if the user's device is registered for push-MFA?",
+        "What should I do if the user's device is listed as stale under Registered Factors?",
+        "Can a user have multiple push factors on the same device?",
+        "What if the user reinstalled the AuriLite app and now they're not getting push prompts?"
+      ],
+      "embedding_rows": [
+        270,
+        271,
+        272,
+        273,
+        274
+      ]
+    },
+    {
+      "chunk_id": "KB-011#4",
+      "doc_id": "KB-011",
+      "doc_title": "MFA Troubleshooting \u2014 Tier-1 Runbook (Internal-Only)",
+      "doc_type": "runbook",
+      "section_heading": "\u00a73 \u2014 Phone or SIM change",
+      "text": "## \u00a73 \u2014 Phone or SIM change\n\n- Confirm via the manager Slack DM (per KB-001).\n- Update the phone number in the IDP under the user's profile **before**\n  triggering an MFA reseed. The reseed sends an SMS to the *new* number.\n- Do not rely on the user's response by email \u2014 phone-change tickets are\n  a common phishing vector.",
+      "hyq": [
+        "What should I do to verify a phone or SIM change for a user?",
+        "How do I update a user's phone number for MFA before triggering a reseed?",
+        "Can I rely on the user's email response to confirm a phone number change?",
+        "What happens if I don't update the phone number in the IDP before triggering an MFA reseed?",
+        "Where should I confirm a phone or SIM change with the user's manager?"
+      ],
+      "embedding_rows": [
+        275,
+        276,
+        277,
+        278,
+        279
+      ]
+    },
+    {
+      "chunk_id": "KB-011#5",
+      "doc_id": "KB-011",
+      "doc_title": "MFA Troubleshooting \u2014 Tier-1 Runbook (Internal-Only)",
+      "doc_type": "runbook",
+      "section_heading": "\u00a74 \u2014 Push delivery problems",
+      "text": "## \u00a74 \u2014 Push delivery problems\n\nPush delivery problems are usually one of:\n- The device has push notifications disabled at the OS level (especially\n  iOS Focus modes).\n- The AuriLite app was force-quit and is not in the background; iOS\n  silences push until the app is reopened once.\n- The corporate Wi-Fi blocks APNs/FCM on guest SSIDs. Ask the user to\n  test on cellular.",
+      "hyq": [
+        "Why isn't my MFA push notification working on my iOS device?",
+        "Can Wi-Fi connectivity issues cause push delivery problems?",
+        "How do I troubleshoot push notification issues on my mobile device?",
+        "Why does my AuriLite app only receive push notifications after I reopen it on iOS?",
+        "Is it possible that my company's guest Wi-Fi is blocking my MFA push notifications?"
+      ],
+      "embedding_rows": [
+        280,
+        281,
+        282,
+        283,
+        284
+      ]
+    },
+    {
+      "chunk_id": "KB-011#6",
+      "doc_id": "KB-011",
+      "doc_title": "MFA Troubleshooting \u2014 Tier-1 Runbook (Internal-Only)",
+      "doc_type": "runbook",
+      "section_heading": "\u00a75 \u2014 TOTP drift / wrong code",
+      "text": "## \u00a75 \u2014 TOTP drift / wrong code\n\n- Confirm the device clock is on NTP \u2014 TOTP drifts by ~1 minute per\n  month on unsynced devices.\n- Codes display for 30 seconds but only the *current* window is valid;\n  the previous 30s code is rejected after a +/-1 grace window.\n- If multiple users in the same office report drift on the same day,\n  suspect a captive-portal NTP block \u2014 escalate to `network_infra`.",
+      "hyq": [
+        "Why is my TOTP code not working even though I'm entering it correctly?",
+        "How often does the TOTP code change and what happens if I'm late entering it?",
+        "What could be causing multiple users in the office to experience TOTP drift on the same day?",
+        "Is it possible that my device's clock is causing issues with my TOTP code?",
+        "Why was my previous 30-second TOTP code rejected even though I entered it during the current window?"
+      ],
+      "embedding_rows": [
+        285,
+        286,
+        287,
+        288,
+        289
+      ]
+    },
+    {
+      "chunk_id": "KB-011#7",
+      "doc_id": "KB-011",
+      "doc_title": "MFA Troubleshooting \u2014 Tier-1 Runbook (Internal-Only)",
+      "doc_type": "runbook",
+      "section_heading": "When to escalate",
+      "text": "## When to escalate\n\nEscalate to `identity_security` when:\n- The Yubikey path fails despite \u00a71 checks.\n- More than one user reports the same MFA symptom in the same hour\n  (potential AuriLite incident \u2014 check status.aurilite.example).\n- The user's account shows recent failed logins from unfamiliar IPs \u2014\n  this is a security event, not just MFA.",
+      "hyq": [
+        "What should I do if the Yubikey path fails after performing the initial checks?",
+        "When should I escalate an MFA issue to the identity_security team?",
+        "How do I handle multiple users reporting the same MFA symptom within an hour?",
+        "What if a user's account shows recent failed logins from unfamiliar IPs - is this an MFA issue?",
+        "Should I escalate to identity_security if I suspect an AuriLite incident?"
+      ],
+      "embedding_rows": [
+        290,
+        291,
+        292,
+        293,
+        294
+      ]
+    },
+    {
+      "chunk_id": "KB-012#0",
+      "doc_id": "KB-012",
+      "doc_title": "RCA \u2014 VPN Outage 2025-09-14",
+      "doc_type": "rca",
+      "section_heading": "<intro>",
+      "text": "# Post-Incident Review \u2014 VPN Outage 2025-09-14",
+      "hyq": [
+        "What caused the VPN outage on September 14, 2025?",
+        "Was there a post-incident review of the VPN outage that occurred on September 14, 2025?",
+        "What steps were taken to address the VPN outage on September 14, 2025?",
+        "What was the impact of the VPN outage on September 14, 2025?",
+        "Are there any lessons learned or recommendations from the VPN outage on September 14, 2025?"
+      ],
+      "embedding_rows": [
+        295,
+        296,
+        297,
+        298,
+        299
+      ]
+    },
+    {
+      "chunk_id": "KB-012#1",
+      "doc_id": "KB-012",
+      "doc_title": "RCA \u2014 VPN Outage 2025-09-14",
+      "doc_type": "rca",
+      "section_heading": "TL;DR",
+      "text": "## TL;DR\n\nA MeshGuard client auto-update pushed at 03:00 UTC on Sunday\n2025-09-14 contained a regression that dropped tunnels on any client\nrunning macOS 14.6+ after the first Wi-Fi network change. ~340 employees\nwere unable to reach internal services for ~6 hours, of which 2 hours\nfell inside the NA-Day shift.",
+      "hyq": [
+        "What caused the VPN outage on September 14, 2025?",
+        "How many employees were affected by the VPN outage?",
+        "For how long were internal services unreachable for the affected employees?",
+        "What was the specific issue with the MeshGuard client auto-update?",
+        "What operating system and version were impacted by the regression in the MeshGuard client?"
+      ],
+      "embedding_rows": [
+        300,
+        301,
+        302,
+        303,
+        304
+      ]
+    },
+    {
+      "chunk_id": "KB-012#2",
+      "doc_id": "KB-012",
+      "doc_title": "RCA \u2014 VPN Outage 2025-09-14",
+      "doc_type": "rca",
+      "section_heading": "Timeline (UTC)",
+      "text": "## Timeline (UTC)\n\n- **03:00** \u2014 MeshGuard pushes client `3.4.6` via auto-update.\n- **05:12** \u2014 First ticket arrives from a Berlin employee\n  (TKT-12041): \"VPN drops every 60 seconds on my Mac.\"\n- **06:30** \u2014 `network_infra` on-call observes a pattern; opens\n  INC-2025-09-14-001 at P2.\n- **08:15** \u2014 Volume hits 90+ open tickets; incident upgraded to P1.\n- **09:40** \u2014 MeshGuard support confirms regression; promises\n  hotfix `3.4.7`.\n- **11:55** \u2014 Hotfix `3.4.7` published.\n- **13:00** \u2014 Helios pushes hotfix via MDM (KB-004); residual ticket\n  arrivals taper.",
+      "hyq": [
+        "What time was the MeshGuard client auto-update pushed out?",
+        "When did the first ticket about the VPN outage arrive?",
+        "At what time was the incident upgraded to P1?",
+        "When was the hotfix for the VPN outage published?",
+        "What time was the hotfix pushed via MDM?"
+      ],
+      "embedding_rows": [
+        305,
+        306,
+        307,
+        308,
+        309
+      ]
+    },
+    {
+      "chunk_id": "KB-012#3",
+      "doc_id": "KB-012",
+      "doc_title": "RCA \u2014 VPN Outage 2025-09-14",
+      "doc_type": "rca",
+      "section_heading": "Root cause",
+      "text": "## Root cause\n\n`MeshGuard Connect 3.4.6` shipped with a refactor of the\n`network-monitor` daemon that incorrectly invalidated the tunnel session\nkey on every `kSCNetworkReachabilityFlagsTransientConnection` event,\nwhich fires on every Wi-Fi roam. macOS-only because the daemon's Linux\nand Windows builds use a different event API.",
+      "hyq": [
+        "What was the main reason for the VPN outage on September 14, 2025?",
+        "Why did the tunnel session key get invalidated on every Wi-Fi roam?",
+        "Was the issue with the network-monitor daemon present on all operating systems?",
+        "What version of MeshGuard Connect was responsible for the outage?",
+        "Why was the issue only affecting macOS users and not Linux or Windows users?"
+      ],
+      "embedding_rows": [
+        310,
+        311,
+        312,
+        313,
+        314
+      ]
+    },
+    {
+      "chunk_id": "KB-012#4",
+      "doc_id": "KB-012",
+      "doc_title": "RCA \u2014 VPN Outage 2025-09-14",
+      "doc_type": "rca",
+      "section_heading": "What went well",
+      "text": "## What went well\n\n- The Sunday 02:00\u201304:00 UTC window is exactly intended to absorb this\n  kind of vendor push \u2014 most users were asleep.\n- The MDM-driven hotfix push reached 92% of impacted devices within 4\n  hours of release.",
+      "hyq": [
+        "Was the maintenance window suitable for handling the vendor push?",
+        "How effective was the MDM-driven hotfix push in reaching impacted devices?",
+        "Did most users experience the VPN outage during a time when they were likely to be inactive?",
+        "What percentage of impacted devices received the hotfix within a few hours of its release?",
+        "Was the timing of the vendor push aligned with our maintenance schedule?"
+      ],
+      "embedding_rows": [
+        315,
+        316,
+        317,
+        318,
+        319
+      ]
+    },
+    {
+      "chunk_id": "KB-012#5",
+      "doc_id": "KB-012",
+      "doc_title": "RCA \u2014 VPN Outage 2025-09-14",
+      "doc_type": "rca",
+      "section_heading": "What went badly",
+      "text": "## What went badly\n\n- Helios had no canary path for MeshGuard client updates. We rely on\n  the vendor's QA, and on this occasion the vendor had no macOS\n  network-roaming test in CI.\n- The auto-update default in our managed `MeshGuard Connect` profile\n  was `auto`. After this incident it has been changed to\n  `staged-canary` (50 employees first, the rest 24 hours later).",
+      "hyq": [
+        "Was there a canary path for MeshGuard client updates in Helios prior to the VPN outage?",
+        "What was the default setting for auto-updates in the managed MeshGuard Connect profile before the incident?",
+        "Why did the vendor's QA not catch the issue with the macOS network-roaming test?",
+        "What changes have been made to the auto-update setting in the managed MeshGuard Connect profile after the incident?",
+        "Was the vendor's QA process relied upon for testing MeshGuard client updates on macOS?"
+      ],
+      "embedding_rows": [
+        320,
+        321,
+        322,
+        323,
+        324
+      ]
+    },
+    {
+      "chunk_id": "KB-012#6",
+      "doc_id": "KB-012",
+      "doc_title": "RCA \u2014 VPN Outage 2025-09-14",
+      "doc_type": "rca",
+      "section_heading": "Action items",
+      "text": "## Action items\n\n| # | Owner | Action | Status |\n| --- | --- | --- | --- |\n| 1 | Network Infra | Switch client auto-update to `staged-canary` | Done 2025-09-20 |\n| 2 | Workplace IT | Add a macOS roaming test to the BYOD/MDM matrix | Done 2025-11-04 |\n| 3 | Network Infra | Press MeshGuard for a per-platform release notes feed | In progress |\n| 4 | Procurement | Factor MeshGuard QA gaps into 2026 renewal eval | Done 2026-02-28 (KB-007) |",
+      "hyq": [
+        "What is the status of switching the client auto-update to `staged-canary`?",
+        "Who is responsible for adding a macOS roaming test to the BYOD/MDM matrix?",
+        "What action is Network Infra taking regarding MeshGuard?",
+        "Has the MeshGuard QA gaps been factored into the 2026 renewal evaluation?",
+        "What is the current status of action item #3 regarding MeshGuard?"
+      ],
+      "embedding_rows": [
+        325,
+        326,
+        327,
+        328,
+        329
+      ]
+    },
+    {
+      "chunk_id": "KB-012#7",
+      "doc_id": "KB-012",
+      "doc_title": "RCA \u2014 VPN Outage 2025-09-14",
+      "doc_type": "rca",
+      "section_heading": "Lessons for Tier-1",
+      "text": "## Lessons for Tier-1\n\nTickets describing \"VPN drops every 60 seconds on Mac\" within ~24 hours\nof a MeshGuard client release are almost always vendor regressions. Check\n`status.meshguard.example` and the `#network-alerts` Slack before\nspending time on the user's network configuration.",
+      "hyq": [
+        "What is the typical cause of VPN drops every 60 seconds on Mac within 24 hours of a MeshGuard client release?",
+        "How can I quickly determine if a VPN issue on Mac is related to a MeshGuard client release?",
+        "What should I check before investigating a user's network configuration for VPN issues?",
+        "What are the common indicators that a VPN issue is a vendor regression?",
+        "Where can I find information about the status of MeshGuard and network alerts?"
+      ],
+      "embedding_rows": [
+        330,
+        331,
+        332,
+        333,
+        334
+      ]
+    },
+    {
+      "chunk_id": "KB-013#0",
+      "doc_id": "KB-013",
+      "doc_title": "RCA \u2014 Billing Export Bug 2025-11-22",
+      "doc_type": "rca",
+      "section_heading": "<intro>",
+      "text": "# Post-Incident Review \u2014 Billing Export Bug 2025-11-22",
+      "hyq": [
+        "What happened with the billing export on November 22, 2025?",
+        "Can you provide a review of the incident that occurred with billing exports on 2025-11-22?",
+        "What was the cause of the billing export bug that occurred on November 22, 2025?",
+        "What steps were taken to address the billing export issue on 2025-11-22?",
+        "Is there a post-incident review available for the billing export bug that happened on 2025-11-22?"
+      ],
+      "embedding_rows": [
+        335,
+        336,
+        337,
+        338,
+        339
+      ]
+    },
+    {
+      "chunk_id": "KB-013#1",
+      "doc_id": "KB-013",
+      "doc_title": "RCA \u2014 Billing Export Bug 2025-11-22",
+      "doc_type": "rca",
+      "section_heading": "TL;DR",
+      "text": "## TL;DR\n\nBetween 2025-11-01 and 2025-11-22, the QuotidianPay CSV invoice export\nsilently truncated 318 customer records to 32 characters of customer_id,\ncausing 12 enterprise customer reports to misallocate roughly $48K of\nrevenue. The bug was a vendor regression in QuotidianPay release 8.4.\nHelios's downstream Analytics Dashboard pipeline did not detect the\ncollision because its data quality check only flagged `null` customer\nIDs, not duplicates.",
+      "hyq": [
+        "What was the cause of the billing export bug that occurred between 2025-11-01 and 2025-11-22?",
+        "How many customer records were affected by the QuotidianPay CSV invoice export bug?",
+        "What was the impact of the bug on enterprise customer reports?",
+        "Why didn't the Analytics Dashboard pipeline detect the data collision?",
+        "What release of QuotidianPay introduced the bug that caused the billing export issue?"
+      ],
+      "embedding_rows": [
+        340,
+        341,
+        342,
+        343,
+        344
+      ]
+    },
+    {
+      "chunk_id": "KB-013#2",
+      "doc_id": "KB-013",
+      "doc_title": "RCA \u2014 Billing Export Bug 2025-11-22",
+      "doc_type": "rca",
+      "section_heading": "Timeline",
+      "text": "## Timeline\n\n- **2025-11-04** \u2014 QuotidianPay release 8.4 deployed.\n- **2025-11-18** \u2014 Finance Operations notices invoice totals don't\n  match the Analytics Dashboard quarterly view. Initial assumption:\n  warehouse load lag.\n- **2025-11-22** \u2014 Finance Ops files TKT-15883 against the data_analytics\n  team after deeper investigation rules out warehouse lag.\n- **2025-11-23** \u2014 `data_analytics` specialist (Erin Rao) traces the\n  problem to truncated IDs in the QuotidianPay export.\n- **2025-11-25** \u2014 Helios files vendor escalation; QuotidianPay confirms\n  the regression.\n- **2025-12-08** \u2014 QuotidianPay 8.4.3 fixes the truncation.\n- **2025-12-12** \u2014 Helios re-runs the export and corrects the\n  affected enterprise customer reports.",
+      "hyq": [
+        "When was the QuotidianPay release 8.4 deployed?",
+        "What date did Finance Operations notice invoice totals didn't match the Analytics Dashboard?",
+        "Who traced the problem to truncated IDs in the QuotidianPay export?",
+        "When was the QuotidianPay 8.4.3 fix released?",
+        "On what date did Helios re-run the export and correct the affected enterprise customer reports?"
+      ],
+      "embedding_rows": [
+        345,
+        346,
+        347,
+        348,
+        349
+      ]
+    },
+    {
+      "chunk_id": "KB-013#3",
+      "doc_id": "KB-013",
+      "doc_title": "RCA \u2014 Billing Export Bug 2025-11-22",
+      "doc_type": "rca",
+      "section_heading": "Root cause",
+      "text": "## Root cause\n\nTwo failures combined:\n\n1. **Vendor regression**: QuotidianPay 8.4 changed an internal\n   `customer_id` column from `varchar(36)` to `varchar(32)` while keeping\n   the API schema unchanged. Vendor truncated silently rather than\n   erroring on overflow.\n2. **Helios data quality check was too narrow**: The Analytics Dashboard\n   load only validated that `customer_id IS NOT NULL`. Truncated IDs\n   that collided with other valid 32-char prefixes passed the check\n   while pointing to the wrong customer.",
+      "hyq": [
+        "What was the root cause of the Billing Export Bug that occurred on 2025-11-22?",
+        "Why did the data quality check in Helios not catch the issue with customer IDs?",
+        "What change did QuotidianPay make in version 8.4 that contributed to the bug?",
+        "How did the change in QuotidianPay's internal customer_id column affect the data in Helios?",
+        "Why were truncated customer IDs not detected by the Analytics Dashboard's load validation?"
+      ],
+      "embedding_rows": [
+        350,
+        351,
+        352,
+        353,
+        354
+      ]
+    },
+    {
+      "chunk_id": "KB-013#4",
+      "doc_id": "KB-013",
+      "doc_title": "RCA \u2014 Billing Export Bug 2025-11-22",
+      "doc_type": "rca",
+      "section_heading": "Customer impact",
+      "text": "## Customer impact\n\n- 12 enterprise customers received incorrect revenue reports for\n  2025-11.\n- All 12 were notified within 60 minutes of confirmation per KB-005\n  contamination procedure (the report misallocation was treated as a T3\n  exposure between customer accounts).\n- Revenue corrections totalling $48,221 were issued in the 2025-12\n  billing cycle.",
+      "hyq": [
+        "How many enterprise customers were affected by the billing export bug?",
+        "What was the total amount of revenue corrections issued to affected customers?",
+        "In which billing cycle were the revenue corrections issued?",
+        "How quickly were affected customers notified after confirmation of the issue?",
+        "How many customers received incorrect revenue reports for November 2025?"
+      ],
+      "embedding_rows": [
+        355,
+        356,
+        357,
+        358,
+        359
+      ]
+    },
+    {
+      "chunk_id": "KB-013#5",
+      "doc_id": "KB-013",
+      "doc_title": "RCA \u2014 Billing Export Bug 2025-11-22",
+      "doc_type": "rca",
+      "section_heading": "What went well",
+      "text": "## What went well\n\n- KB-005's 60-minute disclosure clock was triggered correctly.\n- Erin Rao traced the root cause within 24 hours of the ticket landing\n  in `data_analytics`.",
+      "hyq": [
+        "Was the disclosure clock for KB-005 triggered correctly?",
+        "How quickly did Erin Rao identify the root cause of the issue?",
+        "Did Erin Rao find the root cause of the billing export bug within a day?",
+        "Was the 60-minute disclosure clock for KB-005 triggered on time?",
+        "How long did it take Erin Rao to trace the root cause of the ticket?"
+      ],
+      "embedding_rows": [
+        360,
+        361,
+        362,
+        363,
+        364
+      ]
+    },
+    {
+      "chunk_id": "KB-013#6",
+      "doc_id": "KB-013",
+      "doc_title": "RCA \u2014 Billing Export Bug 2025-11-22",
+      "doc_type": "rca",
+      "section_heading": "What went badly",
+      "text": "## What went badly\n\n- The bug ran for three weeks before Finance Ops noticed.\n- The \"totals don't match\" signal was initially dismissed as warehouse\n  lag \u2014 there was no fast way to distinguish lag from a data-integrity\n  issue.",
+      "hyq": [
+        "How long did the billing export bug go unnoticed?",
+        "Why was the 'totals don't match' signal initially dismissed?",
+        "Was there a way to quickly identify the data-integrity issue?",
+        "How did Finance Ops initially interpret the 'totals don't match' signal?",
+        "How long did it take for Finance Ops to notice the bug?"
+      ],
+      "embedding_rows": [
+        365,
+        366,
+        367,
+        368,
+        369
+      ]
+    },
+    {
+      "chunk_id": "KB-013#7",
+      "doc_id": "KB-013",
+      "doc_title": "RCA \u2014 Billing Export Bug 2025-11-22",
+      "doc_type": "rca",
+      "section_heading": "Action items",
+      "text": "## Action items\n\n| # | Owner | Action | Status |\n| --- | --- | --- | --- |\n| 1 | Data Platform | Add duplicate-customer-id check to nightly load | Done 2025-12-04 |\n| 2 | Finance Ops | Add row-count sanity check to month-end close | Done 2026-01-15 |\n| 3 | Vendor Mgmt | Add API schema diff check to QuotidianPay release notes review | Done 2026-01-22 |\n| 4 | Vendor Mgmt | Push QuotidianPay for stricter overflow handling | Open \u2014 vendor declined |",
+      "hyq": [
+        "What is the status of the action item to add a duplicate-customer-id check to the nightly load?",
+        "Who is responsible for adding a row-count sanity check to the month-end close process?",
+        "What actions have been completed regarding the billing export bug?",
+        "What is the current status of pushing QuotidianPay for stricter overflow handling?",
+        "Who owns the action item to add an API schema diff check to QuotidianPay release notes review?"
+      ],
+      "embedding_rows": [
+        370,
+        371,
+        372,
+        373,
+        374
+      ]
+    },
+    {
+      "chunk_id": "KB-013#8",
+      "doc_id": "KB-013",
+      "doc_title": "RCA \u2014 Billing Export Bug 2025-11-22",
+      "doc_type": "rca",
+      "section_heading": "Lessons for Tier-1",
+      "text": "## Lessons for Tier-1\n\nTickets mentioning \"wrong customer on invoice\" or \"two invoices look\nidentical\" should be escalated to `billing_finance` immediately, not\nrouted through Tier-1 FAQ matching. The category looks deceptively\nsimple but the root cause is often vendor-side.",
+      "hyq": [
+        "What should I do with tickets that mention wrong customer on invoice?",
+        "How should I handle tickets saying two invoices look identical?",
+        "Should I route tickets about incorrect invoice customers through Tier-1 FAQ matching?",
+        "What is the recommended course of action for invoices with identical information?",
+        "Who should I escalate tickets about incorrect invoices to immediately?"
+      ],
+      "embedding_rows": [
+        375,
+        376,
+        377,
+        378,
+        379
+      ]
+    },
+    {
+      "chunk_id": "KB-014#0",
+      "doc_id": "KB-014",
+      "doc_title": "Specialist Escalation Matrix & On-Call Rota",
+      "doc_type": "reference",
+      "section_heading": "<intro>",
+      "text": "# Specialist Escalation Matrix & On-Call Rota\n\nThis matrix tells Tier-1 which specialist group owns which ticket\ncategory, and the on-call contact path for after-hours.",
+      "hyq": [
+        "Which specialist group is responsible for a specific ticket category?",
+        "How do I escalate a ticket to the right specialist group?",
+        "What is the on-call contact path for after-hours support?",
+        "Who do I contact for help with a ticket outside of regular hours?",
+        "How can I determine which specialist group owns a particular ticket?"
+      ],
+      "embedding_rows": [
+        380,
+        381,
+        382,
+        383,
+        384
+      ]
+    },
+    {
+      "chunk_id": "KB-014#1",
+      "doc_id": "KB-014",
+      "doc_title": "Specialist Escalation Matrix & On-Call Rota",
+      "doc_type": "reference",
+      "section_heading": "Category \u2192 Specialist group",
+      "text": "## Category \u2192 Specialist group\n\n| Ticket category | Primary group | Secondary group | After-hours? |\n| --- | --- | --- | --- |\n| `login_access` | `identity_security` | `application_engineering` | Yes |\n| `password_reset` | `identity_security` | \u2014 | Yes |\n| `billing_account` | `billing_finance` | \u2014 | No (NA-Day only) |\n| `software_bug` | `application_engineering` | (system owner) | Yes |\n| `hardware_issue` | `hardware_field` | \u2014 | No (NA-Day only) |\n| `network_connectivity` | `network_infra` | \u2014 | Yes |\n| `email_calendar` | `identity_security` | \u2014 | Yes |\n| `data_reporting` | `data_analytics` | (system owner) | No (NA-Day only) |\n| `security_request` | `identity_security` | \u2014 | Yes (P1/P2 only) |\n| `other` | `application_engineering` | \u2014 | NA-Day only |\n\nA ticket whose primary group is unavailable (PTO, no on-call) escalates\nto the secondary group. If neither is available, the support lead\n(Maya Chen) is paged.",
+      "hyq": [
+        "What happens to a ticket when its primary group is unavailable?",
+        "Which group handles login access issues after hours?",
+        "Who do I contact if neither the primary nor secondary group is available for a ticket?",
+        "What is the secondary group for software bug tickets?",
+        "Which group handles password reset issues?"
+      ],
+      "embedding_rows": [
+        385,
+        386,
+        387,
+        388,
+        389
+      ]
+    },
+    {
+      "chunk_id": "KB-014#2",
+      "doc_id": "KB-014",
+      "doc_title": "Specialist Escalation Matrix & On-Call Rota",
+      "doc_type": "reference",
+      "section_heading": "On-call rota (April\u2013May 2026)",
+      "text": "## On-call rota (April\u2013May 2026)\n\n| Group | Week of 2026-04-29 | Week of 2026-05-06 |\n| --- | --- | --- |\n| `identity_security` | Tomo Yamada (SP-002) | Lin Walsh (SP-006) |\n| `network_infra` | Olu Chen (SP-004) | Sana Kapoor (SP-009) |\n| `application_engineering` | Hassan Vega (SP-008) | Hassan Vega (SP-008) |\n| `data_analytics` | Erin Rao (SP-007) | Tomo Vega (SP-005) |\n| `billing_finance` | Theo Eskola (SP-010) | Theo Eskola (SP-010) |\n\nUpdates land in `#support-oncall` Slack at 22:00 UTC every Sunday.",
+      "hyq": [
+        "Who is on-call for the identity_security group during the week of 2026-04-29?",
+        "What are the dates covered by the on-call rota for April and May 2026?",
+        "Who will be on-call for application_engineering during the weeks of 2026-04-29 and 2026-05-06?",
+        "How are updates to the on-call rota communicated to the team?",
+        "Who is on-call for data_analytics during the week of 2026-05-06?"
+      ],
+      "embedding_rows": [
+        390,
+        391,
+        392,
+        393,
+        394
+      ]
+    },
+    {
+      "chunk_id": "KB-014#3",
+      "doc_id": "KB-014",
+      "doc_title": "Specialist Escalation Matrix & On-Call Rota",
+      "doc_type": "reference",
+      "section_heading": "Paging paths",
+      "text": "## Paging paths\n\n- **P1** \u2014 PagerDuty service `helios-support-p1`. SLA: 5-minute\n  acknowledgement.\n- **P2** \u2014 PagerDuty service `helios-support-p2`. SLA: 15-minute\n  acknowledgement during business hours, 30 minutes after-hours.\n- **P3 / P4** \u2014 Ticket queue only, no page.\n- **Security exposure (T3/T4)** \u2014 PagerDuty service `helios-secops`\n  AND the security on-call DM (`@secops-oncall`).",
+      "hyq": [
+        "What is the PagerDuty service for P1 incidents?",
+        "What is the SLA for P2 incidents during business hours?",
+        "How are P3 and P4 incidents handled?",
+        "What is the procedure for security exposure incidents classified as T3 or T4?",
+        "What are the SLA requirements for P1 incidents?"
+      ],
+      "embedding_rows": [
+        395,
+        396,
+        397,
+        398,
+        399
+      ]
+    },
+    {
+      "chunk_id": "KB-014#4",
+      "doc_id": "KB-014",
+      "doc_title": "Specialist Escalation Matrix & On-Call Rota",
+      "doc_type": "reference",
+      "section_heading": "Cross-team contacts",
+      "text": "## Cross-team contacts\n\n| Need | Who | Where |\n| --- | --- | --- |\n| Manager verification for password reset | Employee's BambooHR manager | Slack DM |\n| AuriLite vendor escalation | Priya Sundar | KB-006 |\n| MeshGuard vendor escalation | Hassan Olin | KB-007 |\n| QuotidianPay vendor escalation | Lena Kowalski | KB-008 |\n| Legal review of a customer-facing reply | Legal on-call rota | `#legal-help` |\n| Public communications (status page) | Comms on-call | `#comms-oncall` |",
+      "hyq": [
+        "Who do I contact for manager verification for a password reset?",
+        "Where can I find information on escalating issues with AuriLite?",
+        "Who is the point of contact for Legal review of customer-facing replies?",
+        "How do I get in touch with someone for public communications on the status page?",
+        "Who should I escalate MeshGuard vendor issues to?"
+      ],
+      "embedding_rows": [
+        400,
+        401,
+        402,
+        403,
+        404
+      ]
+    },
+    {
+      "chunk_id": "KB-014#5",
+      "doc_id": "KB-014",
+      "doc_title": "Specialist Escalation Matrix & On-Call Rota",
+      "doc_type": "reference",
+      "section_heading": "Loop prevention reminder",
+      "text": "## Loop prevention reminder\n\nPer the workflow rule, a ticket can be reopened at most once before\nbeing closed as `unresolved`. The reopen-then-second-reject path always\ninvolves the same specialist group as the first investigation, unless\nthe second rejection introduces a new root cause indication.",
+      "hyq": [
+        "What happens if a ticket is reopened and then rejected again?",
+        "Can a ticket be reopened more than once before being closed?",
+        "Does the specialist group change when a ticket is reopened and rejected again?",
+        "Under what condition can the specialist group change during a second rejection?",
+        "How many times can a ticket be reopened before it's closed as unresolved?"
+      ],
+      "embedding_rows": [
+        405,
+        406,
+        407,
+        408,
+        409
+      ]
+    },
+    {
+      "chunk_id": "KB-015#0",
+      "doc_id": "KB-015",
+      "doc_title": "Change Calendar \u2014 2026 Q2",
+      "doc_type": "change_calendar",
+      "section_heading": "<intro>",
+      "text": "# Change Calendar \u2014 2026 Q2 (April\u2013June)\n\nThe change calendar is the authoritative source for planned outages and\nupgrades. When a customer's symptom timing aligns with a scheduled\nwindow, Tier-1 should reference the calendar before deep-dive\ntroubleshooting.",
+      "hyq": [
+        "What is the purpose of the change calendar?",
+        "How should Tier-1 agents approach troubleshooting when a customer's symptom timing matches a scheduled window?",
+        "What is the authoritative source for planned outages and upgrades?",
+        "What should I check before doing deep-dive troubleshooting if a customer's issue aligns with a scheduled maintenance window?",
+        "Where can I find information about planned outages and upgrades for 2026 Q2?"
+      ],
+      "embedding_rows": [
+        410,
+        411,
+        412,
+        413,
+        414
+      ]
+    },
+    {
+      "chunk_id": "KB-015#1",
+      "doc_id": "KB-015",
+      "doc_title": "Change Calendar \u2014 2026 Q2",
+      "doc_type": "change_calendar",
+      "section_heading": "Recurring windows",
+      "text": "## Recurring windows\n\n| Window | When | Affects |\n| --- | --- | --- |\n| MeshGuard VPN maintenance | Every Sunday 02:00\u201304:00 UTC | VPN tunnels |\n| AuriLite IDP minor release | First Tuesday of month, 02:00 UTC | Auth, SSO redirects |\n| Warehouse loader | Daily 03:00\u201304:30 UTC | Analytics Dashboard freshness |\n| QuotidianPay maintenance | Last Friday of month, 22:00\u201323:00 UTC | Billing System |",
+      "hyq": [
+        "What is the schedule for MeshGuard VPN maintenance?",
+        "When does the AuriLite IDP minor release occur?",
+        "How often is the Warehouse loader executed?",
+        "What is the maintenance window for QuotidianPay at the end of the month?",
+        "What time is the daily Warehouse loader run?"
+      ],
+      "embedding_rows": [
+        415,
+        416,
+        417,
+        418,
+        419
+      ]
+    },
+    {
+      "chunk_id": "KB-015#2",
+      "doc_id": "KB-015",
+      "doc_title": "Change Calendar \u2014 2026 Q2",
+      "doc_type": "change_calendar",
+      "section_heading": "Scheduled changes",
+      "text": "## Scheduled changes\n\n### April 2026\n\n- **2026-04-12 (Sun) 02:00\u201304:30 UTC** \u2014 Customer Portal database\n  failover drill. Read-only mode for ~10 minutes mid-window.\n- **2026-04-19 (Sun) 03:00\u201304:00 UTC** \u2014 Identity Provider TLS cert\n  rotation. SSO clients with cached discovery docs may need a refresh\n  (see KB-009 Issue 1).\n- **2026-04-30 (Wed) 23:00 UTC** \u2014 CRM bulk import: 18,000 records\n  from a sales-data refresh. Analytics Dashboard counts will lag for\n  ~24 hours (KB-010 Issue 2).\n\n### May 2026\n\n- **2026-05-03 (Sun) 02:00\u201306:00 UTC** \u2014 Helios Kubernetes platform\n  upgrade. Customer Portal expected to roll for ~6 minutes during the\n  window; Analytics Dashboard rolls for ~3 minutes.\n- **2026-05-10 (Sun) 02:00\u201304:00 UTC** \u2014 Routine MeshGuard maintenance,\n  no extra scope.\n- **2026-05-12 (Tue) 02:00\u201305:00 UTC** \u2014 AuriLite May minor release\n  (extended window \u2014 vendor advised possible 3-hour pre-prod outage).\n- **2026-05-19 (Tue) 14:00\u201315:00 UTC** \u2014 Analytics Dashboard upgrade to\n  Metabase 0.50. New permission caching behaviour (KB-010 Issue 3\n  cache window reduced from 6 hours to 1 hour).\n- **2026-05-29 (Fri) 22:00\u201323:00 UTC** \u2014 QuotidianPay monthly maintenance.\n\n### June 2026\n\n- **2026-06-07 (Sun) 02:00\u201306:00 UTC** \u2014 Customer Portal upgrade to\n  Next.js 14.3. Expect a 15-minute read-only window mid-upgrade.\n- **2026-06-15 (Mon) 09:00 UTC** \u2014 Inventory App scheduled outage for\n  Postgres major version upgrade (13 \u2192 16). Expected duration 90\n  minutes.\n- **2026-06-30 (Tue) 02:00 UTC** \u2014 Final IDP minor before July renewal\n  decision window.",
+      "hyq": [
+        "What changes are scheduled for April 2026?",
+        "Will the Customer Portal be available during the database failover drill on April 12, 2026?",
+        "What is happening with the Identity Provider on April 19, 2026?",
+        "How long will the Analytics Dashboard counts be inaccurate on April 30, 2026?",
+        "What is the expected duration of the Inventory App scheduled outage on June 15, 2026?"
+      ],
+      "embedding_rows": [
+        420,
+        421,
+        422,
+        423,
+        424
+      ]
+    },
+    {
+      "chunk_id": "KB-015#3",
+      "doc_id": "KB-015",
+      "doc_title": "Change Calendar \u2014 2026 Q2",
+      "doc_type": "change_calendar",
+      "section_heading": "Change-freeze periods",
+      "text": "## Change-freeze periods\n\n- **2026-05-20 \u2192 2026-05-22** \u2014 End-of-month financial close. No\n  changes to Billing System or Analytics Dashboard.\n- **2026-06-26 \u2192 2026-06-30** \u2014 Half-year close. Same scope as above\n  plus CRM.",
+      "hyq": [
+        "What are the change-freeze periods for 2026 Q2?",
+        "When is the end-of-month financial close and what systems are affected?",
+        "What is the scope of changes frozen during the half-year close?",
+        "Are there any changes allowed on 2026-05-21?",
+        "What systems are impacted during the 2026-06-26 to 2026-06-30 change-freeze period?"
+      ],
+      "embedding_rows": [
+        425,
+        426,
+        427,
+        428,
+        429
+      ]
+    },
+    {
+      "chunk_id": "KB-015#4",
+      "doc_id": "KB-015",
+      "doc_title": "Change Calendar \u2014 2026 Q2",
+      "doc_type": "change_calendar",
+      "section_heading": "How to use this calendar",
+      "text": "## How to use this calendar\n\nIf a customer reports an issue and the timing falls inside a window\nabove, the first reply should reference the change rather than starting\na root-cause investigation. Example template:\n\n> \"Thanks for the report. We're currently in a scheduled maintenance\n> window for {system} (see {KB-id}). We expect normal operation by\n> {time UTC}. We'll reach back out if anything changes.\"",
+      "hyq": [
+        "What should I do if a customer reports an issue during a scheduled maintenance window?",
+        "How do I respond to a customer when their issue falls within a change window?",
+        "What is the recommended template for replying to customers during scheduled maintenance?",
+        "How do I inform customers of a scheduled maintenance window that may be causing their issue?",
+        "What should I include in my initial response to a customer reporting an issue during a change window?"
+      ],
+      "embedding_rows": [
+        430,
+        431,
+        432,
+        433,
+        434
+      ]
+    },
+    {
+      "chunk_id": "KB-016#0",
+      "doc_id": "KB-016",
+      "doc_title": "Employee Handbook \u2014 IT Support Section (Excerpt)",
+      "doc_type": "handbook",
+      "section_heading": "<intro>",
+      "text": "# Employee Handbook \u2014 IT Support (Excerpt from \u00a77)\n\nThis excerpt is taken from \u00a77 of the Helios employee handbook. The full\nhandbook is in BambooHR under **Documents \u2192 Handbook 2026**.",
+      "hyq": [
+        "Where can I find the full employee handbook?",
+        "What section of the handbook does this information come from?",
+        "How do I access the employee handbook online?",
+        "What is the document ID for the IT Support section of the handbook?",
+        "Where is the IT Support section of the employee handbook located?"
+      ],
+      "embedding_rows": [
+        435,
+        436,
+        437,
+        438,
+        439
+      ]
+    },
+    {
+      "chunk_id": "KB-016#1",
+      "doc_id": "KB-016",
+      "doc_title": "Employee Handbook \u2014 IT Support Section (Excerpt)",
+      "doc_type": "handbook",
+      "section_heading": "\u00a77.1 \u2014 When to file an IT ticket",
+      "text": "## \u00a77.1 \u2014 When to file an IT ticket\n\nFile a ticket at `support.helios.internal` for any of the following:\n\n- You cannot sign in to a Helios system.\n- A Helios system is behaving unexpectedly (errors, missing data,\n  slowness).\n- You need access to a new system, dataset, or VPN profile.\n- You need a new laptop, peripheral, or accessory.\n- You suspect a security issue \u2014 phishing, lost device, suspicious\n  email.\n\n**Do not** file an IT ticket for:\n\n- Personal device support (use your device manufacturer's support).\n- Software not on the Helios approved list (use Workplace IT for an\n  exception request first).\n- Time-off questions (those go to People Ops).",
+      "hyq": [
+        "What should I do if I'm having trouble logging in to a Helios system?",
+        "How do I request access to a new dataset or VPN profile?",
+        "What if I think there's a security issue with my email or device?",
+        "Who should I contact if I need a new laptop or computer accessory?",
+        "Can I file an IT ticket for help with my personal phone or tablet?"
+      ],
+      "embedding_rows": [
+        440,
+        441,
+        442,
+        443,
+        444
+      ]
+    },
+    {
+      "chunk_id": "KB-016#2",
+      "doc_id": "KB-016",
+      "doc_title": "Employee Handbook \u2014 IT Support Section (Excerpt)",
+      "doc_type": "handbook",
+      "section_heading": "\u00a77.2 \u2014 Response time expectations",
+      "text": "## \u00a77.2 \u2014 Response time expectations\n\nHelios commits to the following first-response targets, measured from\nticket submission:\n\n| Priority | First response | Resolution target |\n| --- | --- | --- |\n| P1 (system down) | 15 minutes | 4 hours |\n| P2 (degraded) | 1 hour business / 4 hours after-hours | 1 business day |\n| P3 (single user impacted) | 4 business hours | 3 business days |\n| P4 (cosmetic, request) | 1 business day | 5 business days |\n\nIf a ticket has not received first response within the window above,\nescalate by replying to the ticket with the literal text `ESCALATE`.\nThis pages the support lead.",
+      "hyq": [
+        "What is the expected response time for a P1 ticket?",
+        "How long does it take to get a first response for a P3 priority ticket?",
+        "What should I do if I don't receive a response to my ticket within the expected time frame?",
+        "What are the resolution targets for P2 priority tickets?",
+        "How long does it take to resolve a P4 priority ticket on average?"
+      ],
+      "embedding_rows": [
+        445,
+        446,
+        447,
+        448,
+        449
+      ]
+    },
+    {
+      "chunk_id": "KB-016#3",
+      "doc_id": "KB-016",
+      "doc_title": "Employee Handbook \u2014 IT Support Section (Excerpt)",
+      "doc_type": "handbook",
+      "section_heading": "\u00a77.3 \u2014 What to include in a ticket",
+      "text": "## \u00a77.3 \u2014 What to include in a ticket\n\nTo shorten resolution time, include:\n\n1. What you tried to do.\n2. What happened (paste the exact error message if there is one).\n3. What you expected.\n4. Your laptop OS version (for software issues) or your location (for\n   network issues).\n5. A screenshot if helpful \u2014 but **never paste passwords, MFA codes,\n   API keys, or other credentials** into a ticket (see KB-003).\n\nTickets that look like phishing-induced credential resets receive\nextra scrutiny. Do not be offended if Tier-1 asks you to verify via\nSlack with your manager \u2014 it is part of the standard procedure\n(KB-001).",
+      "hyq": [
+        "What information should I include in an IT support ticket to help resolve the issue quickly?",
+        "Do I need to include my laptop's OS version in a software issue ticket?",
+        "What should I do if I'm asked to verify my identity via Slack with my manager during the ticket resolution process?",
+        "Should I paste error messages into an IT support ticket?",
+        "What types of information should I avoid pasting into an IT support ticket?"
+      ],
+      "embedding_rows": [
+        450,
+        451,
+        452,
+        453,
+        454
+      ]
+    },
+    {
+      "chunk_id": "KB-016#4",
+      "doc_id": "KB-016",
+      "doc_title": "Employee Handbook \u2014 IT Support Section (Excerpt)",
+      "doc_type": "handbook",
+      "section_heading": "\u00a77.4 \u2014 Self-service",
+      "text": "## \u00a77.4 \u2014 Self-service\n\nSeveral common needs can be self-served:\n\n- **Password reset**: `idp.helios.internal/reset` (requires a Yubikey\n  or push MFA).\n- **Approved software install**: `apps.helios.internal/catalog`.\n- **VPN client install**: `apps.helios.internal/catalog/meshguard`.\n\nThe self-service tools are preferred \u2014 they bypass the queue and\ndeliver in under 5 minutes.",
+      "hyq": [
+        "How do I reset my password if I've forgotten it?",
+        "Where can I find approved software to install on my computer?",
+        "How can I install the VPN client on my device?",
+        "What is the fastest way to get a common IT task done?",
+        "Can I install software on my computer without submitting a support ticket?"
+      ],
+      "embedding_rows": [
+        455,
+        456,
+        457,
+        458,
+        459
+      ]
+    },
+    {
+      "chunk_id": "KB-016#5",
+      "doc_id": "KB-016",
+      "doc_title": "Employee Handbook \u2014 IT Support Section (Excerpt)",
+      "doc_type": "handbook",
+      "section_heading": "\u00a77.5 \u2014 IT support hours",
+      "text": "## \u00a77.5 \u2014 IT support hours\n\nSee KB-005 for the full coverage policy. The short version:\n\n- **Business hours** (region-local): tickets of any priority are picked\n  up within the SLA in \u00a77.2.\n- **After-hours**: P1 and P2 only. P3/P4 land in the overnight queue\n  and are picked up at the start of the next business-day shift.\n\nFor genuine emergencies outside business hours, use the global P1\nhotline at the number listed in the BambooHR contact directory.",
+      "hyq": [
+        "What IT support is available outside of regular business hours?",
+        "How are IT tickets prioritized and handled after business hours?",
+        "What should I do if I have a genuine IT emergency outside of business hours?",
+        "Are all IT tickets picked up immediately during business hours?",
+        "What happens to lower-priority IT tickets that are submitted after business hours?"
+      ],
+      "embedding_rows": [
+        460,
+        461,
+        462,
+        463,
+        464
+      ]
+    },
+    {
+      "chunk_id": "KB-017#0",
+      "doc_id": "KB-017",
+      "doc_title": "Inventory App \u2014 User Manual (Internal Edition v3.2)",
+      "doc_type": "user_manual",
+      "section_heading": "<intro>",
+      "text": "# Inventory App \u2014 User Manual (v3.2)\n\nThe Inventory App is the home-grown stock-tracking tool used by the\nHelios Operations team. It runs at `inventory.helios.internal` and is\nNOT customer-facing.",
+      "hyq": [
+        "What is the Inventory App used for?",
+        "Where can I access the Inventory App?",
+        "Is the Inventory App customer-facing?",
+        "What team uses the Inventory App?",
+        "What is the URL for the Inventory App?"
+      ],
+      "embedding_rows": [
+        465,
+        466,
+        467,
+        468,
+        469
+      ]
+    },
+    {
+      "chunk_id": "KB-017#1",
+      "doc_id": "KB-017",
+      "doc_title": "Inventory App \u2014 User Manual (Internal Edition v3.2)",
+      "doc_type": "user_manual",
+      "section_heading": "Getting started",
+      "text": "## Getting started\n\n1. Sign in with your Helios SSO at `inventory.helios.internal`. You must\n   be a member of the IDP group `ops-inventory-users` to see anything\n   beyond the login screen \u2014 membership is requested through your\n   manager.\n2. The landing page is **My Locations**. Locations you \"own\" appear\n   first; you can pin/unpin any location with the star icon.\n3. Use the search box (or `\u2318K`) to jump to a SKU, location, or shipment\n   number.",
+      "hyq": [
+        "How do I access the Inventory App?",
+        "What do I need to do to see content beyond the login screen in the Inventory App?",
+        "How can I request access to see more than just the login screen?",
+        "What is the first page I see after logging into the Inventory App?",
+        "How can I quickly navigate to a specific SKU, location, or shipment number in the Inventory App?"
+      ],
+      "embedding_rows": [
+        470,
+        471,
+        472,
+        473,
+        474
+      ]
+    },
+    {
+      "chunk_id": "KB-017#2",
+      "doc_id": "KB-017",
+      "doc_title": "Inventory App \u2014 User Manual (Internal Edition v3.2)",
+      "doc_type": "user_manual",
+      "section_heading": "Screen reference",
+      "text": "## Screen reference\n\n### Stock View\n\nThe default screen for a location. Shows on-hand counts grouped by\n**bin** (the physical shelf identifier). Bins are colour-coded:\n\n| Colour | Meaning |\n| --- | --- |\n| Green | On hand \u2265 reorder point |\n| Yellow | On hand < reorder point but > zero |\n| Red | On hand = 0 |\n| Grey | SKU disabled at this location |\n\nHover any cell to see the last-counted timestamp; clicking opens the\n**Movement Log**.\n\n### Movement Log\n\nA chronological list of every adjustment to a SKU at a location:\nreceipts, picks, transfers, cycle counts, and write-offs. Every row is\nattributed to a user (SSO identity) and a reason code. Reason codes\nthat begin with `Z-` are reserved for admin overrides and trigger an\naudit notification.\n\n### Cycle Count\n\nUsed during the monthly physical count. Two-pane layout \u2014 left pane is\nthe system count, right pane is your physical tally. Discrepancies of\nmore than 5 units (or any non-zero discrepancy for restricted SKUs\nflagged with the lock icon) require a second-person sign-off before\nthey post.\n\n### Shipments\n\nThe Shipments tab shows inbound and outbound moves. Use **Receive** to\npost an inbound shipment; the app expects the shipment number from the\ncarrier label and validates against the purchase order.",
+      "hyq": [
+        "What does the color coding of bins represent in the Stock View screen?",
+        "How do I view the Movement Log for a specific SKU at a location?",
+        "What is the purpose of the Cycle Count screen in the Inventory App?",
+        "How do I post an inbound shipment in the Shipments tab?",
+        "What happens if there is a discrepancy of more than 5 units during Cycle Count?"
+      ],
+      "embedding_rows": [
+        475,
+        476,
+        477,
+        478,
+        479
+      ]
+    },
+    {
+      "chunk_id": "KB-017#3",
+      "doc_id": "KB-017",
+      "doc_title": "Inventory App \u2014 User Manual (Internal Edition v3.2)",
+      "doc_type": "user_manual",
+      "section_heading": "Common settings",
+      "text": "## Common settings\n\n- **Default location**: Profile \u2192 Preferences \u2192 Default Location.\n  Defaults to the location matching your office in BambooHR.\n- **Notification rules**: Profile \u2192 Notifications. You can subscribe\n  to \"Reorder point crossed\" or \"Restricted SKU adjusted\" alerts at any\n  location you own.\n- **Dark mode**: keyboard shortcut `Shift+D`.",
+      "hyq": [
+        "How do I change my default location in the Inventory App?",
+        "Where can I find the notification settings for the Inventory App?",
+        "Can I receive alerts when the reorder point is crossed for a specific location?",
+        "How do I enable dark mode in the Inventory App?",
+        "What is the keyboard shortcut to toggle dark mode in the Inventory App?"
+      ],
+      "embedding_rows": [
+        480,
+        481,
+        482,
+        483,
+        484
+      ]
+    },
+    {
+      "chunk_id": "KB-017#4",
+      "doc_id": "KB-017",
+      "doc_title": "Inventory App \u2014 User Manual (Internal Edition v3.2)",
+      "doc_type": "user_manual",
+      "section_heading": "Known quirks (v3.2)",
+      "text": "## Known quirks (v3.2)\n\n- The CSV export of the Movement Log is capped at 10,000 rows. For\n  larger pulls, use the dataset query in the Analytics Dashboard\n  (KB-010) \u2014 `analytics_models.inventory_movements`.\n- The mobile (responsive) view does not show the Reason Code dropdown\n  on shipments \u2014 use a laptop for any adjustment.\n- Cycle Count occasionally double-counts a SKU if the same bin appears\n  twice in the location's bin map. Workaround: re-run the cycle count\n  for that bin only. Engineering fix tracked as `INV-882`.",
+      "hyq": [
+        "Why is the CSV export of the Movement Log limited to 10,000 rows?",
+        "How do I export more than 10,000 rows from the Movement Log?",
+        "Why doesn't the Reason Code dropdown appear on shipments in the mobile view?",
+        "What can I do if Cycle Count is double-counting a SKU?",
+        "Is there a fix for the Cycle Count double-counting issue?"
+      ],
+      "embedding_rows": [
+        485,
+        486,
+        487,
+        488,
+        489
+      ]
+    },
+    {
+      "chunk_id": "KB-017#5",
+      "doc_id": "KB-017",
+      "doc_title": "Inventory App \u2014 User Manual (Internal Edition v3.2)",
+      "doc_type": "user_manual",
+      "section_heading": "Where to get help",
+      "text": "## Where to get help\n\n- In-app help: `?` icon in the top right opens the help panel.\n- Operations help channel: `#ops-inventory-help` in Slack.\n- IT support: file a ticket under category `software_bug` with system\n  `Inventory App` if the app itself is broken (see KB-010 for the\n  related Analytics dashboard runbook).",
+      "hyq": [
+        "How can I access help while using the Inventory App?",
+        "Where should I go for assistance with operations-related inventory issues?",
+        "What should I do if the Inventory App itself is not working properly?",
+        "How do I file a ticket for IT support for the Inventory App?",
+        "What Slack channel is used for getting help with inventory operations?"
+      ],
+      "embedding_rows": [
+        490,
+        491,
+        492,
+        493,
+        494
+      ]
+    },
+    {
+      "chunk_id": "KB-018#0",
+      "doc_id": "KB-018",
+      "doc_title": "MeshGuard Connect \u2014 Vendor Admin Manual Excerpt (v3.4)",
+      "doc_type": "vendor_manual",
+      "section_heading": "<intro>",
+      "text": "# MeshGuard Connect \u2014 Admin Manual (Chapter 9 Excerpt)\n\nThis is an internal-use excerpt from the MeshGuard Connect 3.4 admin\nmanual. Quoted under our MSA. Do not redistribute outside Helios.",
+      "hyq": [
+        "What is MeshGuard Connect version 3.4 admin manual about?",
+        "Can I redistribute this excerpt outside of Helios?",
+        "What is the purpose of this internal-use excerpt from the MeshGuard Connect admin manual?",
+        "Is this excerpt from the MeshGuard Connect admin manual for public use?",
+        "What is the relationship between this excerpt and the full MeshGuard Connect admin manual?"
+      ],
+      "embedding_rows": [
+        495,
+        496,
+        497,
+        498,
+        499
+      ]
+    },
+    {
+      "chunk_id": "KB-018#1",
+      "doc_id": "KB-018",
+      "doc_title": "MeshGuard Connect \u2014 Vendor Admin Manual Excerpt (v3.4)",
+      "doc_type": "vendor_manual",
+      "section_heading": "Chapter 9 \u2014 Diagnostic Reference",
+      "text": "## Chapter 9 \u2014 Diagnostic Reference\n\n### 9.1 Client error codes\n\n| Code | Meaning | Typical cause | Resolution |\n| --- | --- | --- | --- |\n| `ERR_HANDSHAKE_DRIFT` | Clock skew > 30s vs gateway NTP | Local NTP drift or VM paused | Force `ntpdate` and retry |\n| `ERR_CERT_REVOKED` | Profile certificate revoked | Manual revocation or expiry | Re-issue per KB-002 |\n| `ERR_CERT_UNKNOWN_CA` | Helios root CA missing | New device, BYOD enrolment skipped | Re-run MDM enrolment (KB-004) |\n| `ERR_PROFILE_MISMATCH` | Profile not authorised for this gateway | Trying to use a contractor profile against a vendor gateway | Confirm correct profile in KB-002 |\n| `ERR_NO_ROUTE` | Tunnel established but no route returned | Misconfigured ACL on gateway | Specialist escalation |\n| `ERR_DTLS_NEGOTIATE` | Falling back to TLS | Carrier blocks UDP 4500 | Expected; user can ignore |\n| `ERR_LICENSE_EXHAUSTED` | Concurrent tunnel cap hit | All 800 tunnels in use | Page network on-call |\n\n### 9.2 Gateway-side log fields\n\nThe gateway emits one log line per session event. Fields, in order:\n\n1. `timestamp` \u2014 RFC3339 UTC.\n2. `gateway_id` \u2014 one of `vpn-gw-1`, `vpn-gw-2`, `vpn-gw-3`.\n3. `session_id` \u2014 opaque, used for correlation.\n4. `user_cert_cn` \u2014 the certificate common name (= IDP username).\n5. `event` \u2014 one of `connect`, `disconnect`, `roam`, `keepalive`, `error`.\n6. `client_version` \u2014 e.g., `3.4.7-macos`.\n7. `client_ip` \u2014 public IP of the client (post-NAT).\n8. `error_code` \u2014 populated only on `event=error`.\n\nNote that the per-user *internal* IP is **not** logged at the gateway \u2014\nthe source-NAT IP is what appears. To correlate forensically, join on\n`session_id` against the IDP session log (KB-007 \u00a7\"Operational caveats\").\n\n### 9.3 Recommended client deployment modes\n\nThe vendor recommends one of:\n\n- **`auto`** \u2014 Auto-update on release. Not recommended for fleets > 50.\n  Helios uses this only on the canary group.\n- **`staged-canary`** \u2014 10% canary for 24h, then full fleet. Helios\n  default since 2025-09-20 (KB-012).\n- **`pinned`** \u2014 Pinned to a specific minor version. Use only when\n  troubleshooting a vendor regression.\n\n### 9.4 Tunnel limits and license model\n\nEach concurrent tunnel consumes one license. The license is released\neither by clean disconnect or after a 4-minute idle timeout. A user with\ntwo devices simultaneously connected counts as **two** tunnels, not one.\n\nThe gateway returns `ERR_LICENSE_EXHAUSTED` when the global cap is hit.\nHelios's contracted cap is 800; the 95th percentile observed usage in\n2026-Q1 is 612. See KB-007 for the renewal posture.\n\n### 9.5 Operational warnings (vendor)\n\n> \"The Keep-Alive option in client profile settings must be enabled for\n> any deployment that crosses cellular \u2194 Wi-Fi network boundaries.\n> Failure to enable Keep-Alive on macOS 14.6+ will produce session drops\n> on every network change.\" \u2014 MeshGuard Connect Admin Manual 3.4, \u00a79.5\n\n(This is the warning that Helios's 2025-09 RCA flagged as missing from\nthe QA test matrix \u2014 see KB-012.)",
+      "hyq": [
+        "What does the ERR_CERT_REVOKED error code mean and how can it be resolved?",
+        "How do I troubleshoot a client error with code ERR_NO_ROUTE?",
+        "What are the recommended client deployment modes for MeshGuard Connect?",
+        "How does the license model work for concurrent tunnels and what happens when the cap is hit?",
+        "What is the purpose of the Keep-Alive option in client profile settings and when must it be enabled?"
+      ],
+      "embedding_rows": [
+        500,
+        501,
+        502,
+        503,
+        504
+      ]
+    }
+  ],
+  "hyq_model": "api-llama-4-scout",
+  "embeddings_file": "hyq_embeddings.npy"
+}
