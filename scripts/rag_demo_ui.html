@@ -1,0 +1,640 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>RAG Demo — Naive vs HyQ</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f6f7f4;
+      --surface: #ffffff;
+      --surface-2: #eef4f0;
+      --text: #17201b;
+      --muted: #5b665f;
+      --line: #d8dfd8;
+      --accent: #0f766e;
+      --accent-dark: #0b514c;
+      --warn: #a85400;
+      --error: #a23a3a;
+      --good: #2f6f31;
+      --shadow: 0 12px 28px rgba(23, 32, 27, 0.09);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+    header {
+      border-bottom: 1px solid var(--line);
+      background: var(--surface);
+    }
+    .topbar {
+      max-width: 1240px;
+      margin: 0 auto;
+      padding: 18px 22px;
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 16px;
+    }
+    h1 {
+      margin: 0;
+      font-size: 20px;
+    }
+    .sub {
+      color: var(--muted);
+      font-size: 13px;
+    }
+    main {
+      max-width: 1240px;
+      margin: 0 auto;
+      padding: 22px;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr);
+      gap: 18px;
+    }
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      box-shadow: var(--shadow);
+      padding: 18px 20px;
+    }
+    .card h2 {
+      margin: 0 0 12px;
+      font-size: 15px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--muted);
+    }
+    label { display: block; margin-bottom: 6px; font-size: 13px; color: var(--muted); }
+    select, input[type=text], textarea {
+      width: 100%;
+      padding: 9px 11px;
+      font-size: 14px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: var(--surface);
+      color: var(--text);
+      font-family: inherit;
+    }
+    textarea { min-height: 60px; resize: vertical; }
+    .row { display: flex; gap: 14px; flex-wrap: wrap; }
+    .row > * { flex: 1 1 240px; min-width: 0; }
+    button {
+      padding: 10px 18px;
+      border: 1px solid var(--accent);
+      background: var(--accent);
+      color: white;
+      border-radius: 6px;
+      font-weight: 600;
+      cursor: pointer;
+      font-size: 14px;
+    }
+    button:hover { background: var(--accent-dark); }
+    button.secondary {
+      background: var(--surface);
+      color: var(--accent);
+    }
+    button.secondary:hover { background: var(--surface-2); }
+    .actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px; align-items: center; }
+    .badges { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+    .badge {
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 3px 9px;
+      font-size: 12px;
+      background: var(--surface-2);
+      color: var(--text);
+    }
+    .badge[data-tone=good] { background: #e3f2dc; border-color: #b9d6ae; color: var(--good); }
+    .badge[data-tone=warn] { background: #fbeada; border-color: #e9c89c; color: var(--warn); }
+    .badge[data-tone=error] { background: #f8e0e0; border-color: #e3aeae; color: var(--error); }
+    .results {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      gap: 18px;
+    }
+    @media (max-width: 900px) { .results { grid-template-columns: 1fr; } }
+    .panel-title {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+    .panel-title h3 {
+      margin: 0;
+      font-size: 14px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--muted);
+    }
+    .panel-title .top-score {
+      font-size: 12px;
+      color: var(--muted);
+      font-variant-numeric: tabular-nums;
+    }
+    .hit {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 12px 14px;
+      margin-bottom: 10px;
+      background: var(--surface);
+    }
+    .hit-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      align-items: baseline;
+      flex-wrap: wrap;
+    }
+    .hit-doc {
+      font-weight: 600;
+      font-size: 13px;
+    }
+    .hit-doc .doc-id {
+      color: var(--accent-dark);
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      margin-right: 6px;
+    }
+    .hit-score {
+      font-variant-numeric: tabular-nums;
+      font-size: 13px;
+      color: var(--muted);
+    }
+    .hit-section {
+      color: var(--muted);
+      font-size: 12px;
+      margin-top: 2px;
+    }
+    .hit-question {
+      margin-top: 8px;
+      padding: 8px 10px;
+      background: var(--surface-2);
+      border-left: 3px solid var(--accent);
+      border-radius: 4px;
+      font-size: 12px;
+      font-style: italic;
+      color: var(--text);
+    }
+    .hit-snippet {
+      margin-top: 8px;
+      font-size: 12.5px;
+      color: var(--text);
+      line-height: 1.45;
+    }
+    .hit-chunk {
+      margin-top: 8px;
+      font-size: 12px;
+    }
+    .hit-chunk summary {
+      cursor: pointer;
+      color: var(--accent-dark);
+      font-weight: 600;
+      padding: 4px 0;
+      user-select: none;
+      list-style: none;
+    }
+    .hit-chunk summary::-webkit-details-marker { display: none; }
+    .hit-chunk summary::before {
+      content: "▸ ";
+      display: inline-block;
+      width: 1em;
+    }
+    .hit-chunk[open] summary::before { content: "▾ "; }
+    .hit-chunk summary:hover { color: var(--accent); }
+    .hit-chunk-body {
+      margin-top: 6px;
+      padding: 12px 14px;
+      background: #fafbf8;
+      border: 1px solid var(--line);
+      border-radius: 4px;
+      font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+      font-size: 12.5px;
+      line-height: 1.55;
+      max-height: 360px;
+      overflow-y: auto;
+      color: var(--text);
+    }
+    .hit-chunk-body > :first-child { margin-top: 0; }
+    .hit-chunk-body > :last-child { margin-bottom: 0; }
+    .hit-chunk-body h1,
+    .hit-chunk-body h2,
+    .hit-chunk-body h3,
+    .hit-chunk-body h4 {
+      font-weight: 600;
+      margin: 10px 0 4px;
+      line-height: 1.3;
+    }
+    .hit-chunk-body h1 { font-size: 14.5px; color: var(--accent-dark); }
+    .hit-chunk-body h2 { font-size: 13.5px; color: var(--accent-dark); }
+    .hit-chunk-body h3 { font-size: 13px; color: var(--text); }
+    .hit-chunk-body h4 { font-size: 12.5px; color: var(--muted); }
+    .hit-chunk-body p { margin: 6px 0; }
+    .hit-chunk-body ul, .hit-chunk-body ol { margin: 4px 0 6px; padding-left: 22px; }
+    .hit-chunk-body li { margin: 2px 0; }
+    .hit-chunk-body li > p { margin: 0; }
+    .hit-chunk-body code {
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 11.5px;
+      background: var(--surface-2);
+      padding: 1px 4px;
+      border-radius: 3px;
+    }
+    .hit-chunk-body pre {
+      background: var(--surface-2);
+      border: 1px solid var(--line);
+      border-radius: 4px;
+      padding: 8px 10px;
+      overflow-x: auto;
+      margin: 6px 0;
+    }
+    .hit-chunk-body pre code {
+      background: none;
+      padding: 0;
+      font-size: 11.5px;
+    }
+    .hit-chunk-body blockquote {
+      margin: 6px 0;
+      padding: 2px 10px;
+      border-left: 3px solid var(--accent);
+      color: var(--muted);
+      font-style: italic;
+    }
+    .hit-chunk-body table {
+      border-collapse: collapse;
+      margin: 6px 0;
+      font-size: 11.5px;
+    }
+    .hit-chunk-body th, .hit-chunk-body td {
+      border: 1px solid var(--line);
+      padding: 4px 8px;
+      text-align: left;
+    }
+    .hit-chunk-body th { background: var(--surface-2); font-weight: 600; }
+    .hit-chunk-body strong { font-weight: 600; }
+    .hit-chunk-body a { color: var(--accent); }
+    .hit-chunk-body hr {
+      border: none;
+      border-top: 1px solid var(--line);
+      margin: 10px 0;
+    }
+    .hit.expected {
+      border-color: var(--good);
+      background: #f6fbf3;
+    }
+    .empty {
+      color: var(--muted);
+      font-size: 13px;
+      padding: 14px;
+      border: 1px dashed var(--line);
+      border-radius: 8px;
+      text-align: center;
+    }
+    .diag {
+      font-size: 13px;
+      line-height: 1.55;
+    }
+    .diag p { margin: 0 0 8px; }
+    .diag .what-to-notice {
+      background: var(--surface-2);
+      border-left: 4px solid var(--accent);
+      padding: 10px 12px;
+      border-radius: 4px;
+      margin-top: 10px;
+    }
+    .diag .what-to-notice strong { color: var(--accent-dark); }
+    .index-stats {
+      display: flex;
+      gap: 18px;
+      font-size: 12px;
+      color: var(--muted);
+      font-variant-numeric: tabular-nums;
+    }
+    .index-stats span code { color: var(--text); }
+    footer {
+      max-width: 1240px;
+      margin: 0 auto;
+      padding: 12px 22px 30px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+    .loading {
+      opacity: 0.5;
+      pointer-events: none;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="topbar">
+      <div>
+        <h1>RAG demo — Naive vs HyQ</h1>
+        <div class="sub">Live retrieval against the 18-doc Helios knowledge base. Same query, two modes, side-by-side.</div>
+      </div>
+      <div class="index-stats" id="index-stats">loading index …</div>
+    </div>
+  </header>
+
+  <main>
+    <section class="card">
+      <h2>Ask the knowledge base</h2>
+
+      <div class="row">
+        <div>
+          <label for="preset">Try a preset query</label>
+          <select id="preset">
+            <option value="">— pick one to load —</option>
+            @@PRESET_OPTIONS@@
+          </select>
+        </div>
+      </div>
+
+      <div style="margin-top: 14px;">
+        <label for="query">Query</label>
+        <textarea id="query" placeholder="e.g. how do I verify identity before resetting a password"></textarea>
+      </div>
+
+      <div class="actions">
+        <button id="run-btn">Retrieve</button>
+        <button id="clear-btn" class="secondary">Clear</button>
+        <span id="status" class="sub"></span>
+      </div>
+
+      <div id="preset-meta" class="badges" style="display:none;">
+        <span class="badge" id="preset-category"></span>
+        <span class="badge" id="preset-expected"></span>
+      </div>
+    </section>
+
+    <section id="diag-card" class="card" style="display:none;">
+      <h2>What's interesting about this query</h2>
+      <div class="diag" id="diag-body"></div>
+    </section>
+
+    <section class="results" id="results" style="display:none;">
+      <div class="card">
+        <div class="panel-title">
+          <h3>Naive RAG</h3>
+          <span class="top-score" id="naive-top"></span>
+        </div>
+        <div id="naive-hits"></div>
+      </div>
+      <div class="card">
+        <div class="panel-title">
+          <h3>HyQ</h3>
+          <span class="top-score" id="hyq-top"></span>
+        </div>
+        <div id="hyq-hits"></div>
+      </div>
+    </section>
+
+    <section id="explain-card" class="card" style="display:none;">
+      <h2>Reading the result</h2>
+      <div class="diag" id="explain-body"></div>
+    </section>
+  </main>
+
+  <footer>
+    Naive embeds sliding-window chunks of each document.
+    HyQ embeds LLM-generated questions per section.
+    Both retrieve by cosine similarity against the query embedding.
+    See <code>rag/README.md</code> for the full design.
+  </footer>
+
+  <script>
+    const PRESETS = @@PRESETS_JSON@@;
+    const PRESET_BY_ID = Object.fromEntries(PRESETS.map(p => [p.id, p]));
+    let currentExpected = null;
+
+    const $ = id => document.getElementById(id);
+    const presetSel = $("preset");
+    const queryBox  = $("query");
+    const runBtn    = $("run-btn");
+    const clearBtn  = $("clear-btn");
+    const statusEl  = $("status");
+    const presetMeta = $("preset-meta");
+    const presetCat  = $("preset-category");
+    const presetExp  = $("preset-expected");
+    const diagCard   = $("diag-card");
+    const diagBody   = $("diag-body");
+    const resultsEl  = $("results");
+    const naiveHits  = $("naive-hits");
+    const hyqHits    = $("hyq-hits");
+    const naiveTop   = $("naive-top");
+    const hyqTop     = $("hyq-top");
+    const explainCard = $("explain-card");
+    const explainBody = $("explain-body");
+
+    function setStatus(msg, tone) {
+      statusEl.textContent = msg || "";
+      statusEl.style.color = tone === "error" ? "var(--error)" : "var(--muted)";
+    }
+
+    function renderHit(hit, expectedDoc) {
+      const div = document.createElement("div");
+      const isExpected = expectedDoc && hit.doc_id === expectedDoc;
+      div.className = "hit" + (isExpected ? " expected" : "");
+      const matchedQ = hit.matched_question
+        ? `<div class="hit-question">matched question: "${escapeHtml(hit.matched_question)}"</div>`
+        : "";
+      const fullChunk = (hit.text_html || hit.text)
+        ? `<details class="hit-chunk">
+             <summary>Show full chunk (<code>${escapeHtml(hit.chunk_id)}</code>, ${(hit.text || "").length.toLocaleString()} chars)</summary>
+             <div class="hit-chunk-body">${hit.text_html || renderChunkBody(hit.text)}</div>
+           </details>`
+        : "";
+      div.innerHTML = `
+        <div class="hit-head">
+          <div class="hit-doc">
+            <span class="doc-id">${escapeHtml(hit.doc_id)}</span>
+            ${escapeHtml(hit.doc_title)}
+          </div>
+          <div class="hit-score">cosine = ${hit.score.toFixed(3)}</div>
+        </div>
+        <div class="hit-section">§ ${escapeHtml(hit.section_heading)} · ${escapeHtml(hit.doc_type)}</div>
+        ${matchedQ}
+        <div class="hit-snippet">${escapeHtml(hit.snippet)}</div>
+        ${fullChunk}
+      `;
+      return div;
+    }
+
+    function renderChunkBody(text) {
+      // Lightweight markdown-ish rendering: escape HTML, then promote `##`/`###`
+      // headings to bold lines and preserve line breaks via white-space: pre-wrap
+      // on the container. This is honest about what is actually in the index —
+      // the raw chunk text — while keeping section headings visually distinct.
+      const escaped = escapeHtml(text);
+      const lines = escaped.split("\n").map(line => {
+        const m = line.match(/^(#{1,6})\s+(.*)$/);
+        if (m) {
+          const level = Math.min(m[1].length + 1, 6); // h1->h2, h2->h3, etc.
+          return `<h${level}>${m[2]}</h${level}>`;
+        }
+        return line;
+      });
+      return lines.join("\n");
+    }
+
+    function renderResults(payload) {
+      naiveHits.innerHTML = "";
+      hyqHits.innerHTML = "";
+      const expected = currentExpected;
+
+      if (!payload.naive.hits.length) {
+        naiveHits.appendChild(emptyMessage("No naive results above the threshold."));
+      } else {
+        payload.naive.hits.forEach(h => naiveHits.appendChild(renderHit(h, expected)));
+      }
+      if (!payload.hyq.hits.length) {
+        hyqHits.appendChild(emptyMessage("No HyQ results above the threshold."));
+      } else {
+        payload.hyq.hits.forEach(h => hyqHits.appendChild(renderHit(h, expected)));
+      }
+      naiveTop.textContent = `top score ${payload.naive.top_score.toFixed(3)} · ${payload.naive.matrix_rows} rows`;
+      hyqTop.textContent   = `top score ${payload.hyq.top_score.toFixed(3)} · ${payload.hyq.matrix_rows} rows`;
+      resultsEl.style.display = "grid";
+
+      renderExplanation(payload);
+    }
+
+    function emptyMessage(text) {
+      const d = document.createElement("div");
+      d.className = "empty";
+      d.textContent = text;
+      return d;
+    }
+
+    function renderExplanation(payload) {
+      const expected = currentExpected;
+      if (!expected) {
+        explainCard.style.display = "none";
+        return;
+      }
+      const naiveDocs = payload.naive.hits.map(h => h.doc_id);
+      const hyqDocs   = payload.hyq.hits.map(h => h.doc_id);
+      const naiveRank = naiveDocs.indexOf(expected);
+      const hyqRank   = hyqDocs.indexOf(expected);
+      const naiveStatus = naiveRank === -1
+        ? `<span class="badge" data-tone="error">missed</span>`
+        : `<span class="badge" data-tone="good">rank ${naiveRank + 1}</span>`;
+      const hyqStatus = hyqRank === -1
+        ? `<span class="badge" data-tone="error">missed</span>`
+        : `<span class="badge" data-tone="good">rank ${hyqRank + 1}</span>`;
+      const verdict = (naiveRank, hyqRank) => {
+        if (hyqRank === 0 && naiveRank !== 0) return "HyQ wins this one outright.";
+        if (naiveRank === 0 && hyqRank !== 0) return "Naive wins — the literal-vocabulary signal beat the question matching.";
+        if (hyqRank === 0 && naiveRank === 0) return "Both find the expected doc at rank 1 — easy win.";
+        if (hyqRank === -1 && naiveRank === -1) return "Both modes miss this. Worth digging into why.";
+        if (hyqRank >= 0 && naiveRank === -1) return "HyQ retrieves the expected doc; naive misses entirely.";
+        if (naiveRank >= 0 && hyqRank === -1) return "Naive retrieves the expected doc; HyQ misses. Unusual — vocabulary mismatch in the generated questions.";
+        return `HyQ ranks the expected doc at ${hyqRank + 1}, naive at ${naiveRank + 1}.`;
+      };
+      explainBody.innerHTML = `
+        <p>Expected doc: <strong>${escapeHtml(expected)}</strong> &nbsp;
+           Naive: ${naiveStatus} &nbsp; HyQ: ${hyqStatus}</p>
+        <p><strong>Verdict:</strong> ${verdict(naiveRank, hyqRank)}</p>
+        <p>Compare the cosine scores: naive top = ${payload.naive.top_score.toFixed(3)},
+           HyQ top = ${payload.hyq.top_score.toFixed(3)}. HyQ scores are typically
+           higher because the matrix indexes questions, which sit closer to user
+           queries in embedding space than declarative section bodies do.</p>
+      `;
+      explainCard.style.display = "block";
+    }
+
+    function loadPreset(id) {
+      if (!id) {
+        presetMeta.style.display = "none";
+        diagCard.style.display = "none";
+        currentExpected = null;
+        queryBox.value = "";
+        return;
+      }
+      const p = PRESET_BY_ID[id];
+      queryBox.value = p.query;
+      currentExpected = p.expected_doc;
+      presetCat.textContent = "category: " + p.category;
+      presetExp.textContent = "expected: " + p.expected_doc;
+      presetCat.setAttribute("data-tone", p.category === "both_fail" ? "warn" : p.category === "hyq_wins" ? "good" : "");
+      presetMeta.style.display = "flex";
+      diagBody.innerHTML = `<p>${escapeHtml(p.teaching_note)}</p>
+        <div class="what-to-notice"><strong>What to look for:</strong>
+        is the expected doc <code>${escapeHtml(p.expected_doc)}</code> in either Top-3?
+        For HyQ hits, look at the <em>matched question</em> — it tells you why each
+        chunk was returned.</div>`;
+      diagCard.style.display = "block";
+    }
+
+    async function runRetrieve() {
+      const query = queryBox.value.trim();
+      if (!query) {
+        setStatus("type a query first", "error");
+        return;
+      }
+      runBtn.classList.add("loading");
+      setStatus("retrieving …");
+      try {
+        const res = await fetch("/api/retrieve", {
+          method: "POST",
+          headers: {"Content-Type": "application/json"},
+          body: JSON.stringify({query, top_k: 5}),
+        });
+        const payload = await res.json();
+        if (!res.ok) throw new Error(payload.error || "request failed");
+        renderResults(payload);
+        setStatus(`done · ${payload.naive.hits.length} naive · ${payload.hyq.hits.length} HyQ`);
+      } catch (err) {
+        setStatus(err.message || String(err), "error");
+      } finally {
+        runBtn.classList.remove("loading");
+      }
+    }
+
+    function escapeHtml(s) {
+      return String(s || "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#39;");
+    }
+
+    async function loadIndexStats() {
+      try {
+        const r = await fetch("/api/index-stats");
+        const s = await r.json();
+        $("index-stats").innerHTML = `
+          <span>naive: <code>${s.naive.matrix_shape[0]} × ${s.naive.matrix_shape[1]}</code></span>
+          <span>HyQ: <code>${s.hyq.matrix_shape[0]} × ${s.hyq.matrix_shape[1]}</code></span>
+          <span>embed model: <code>${escapeHtml(s.naive.embed_model)}</code></span>
+        `;
+      } catch (e) {
+        $("index-stats").textContent = "index stats unavailable";
+      }
+    }
+
+    presetSel.addEventListener("change", () => loadPreset(presetSel.value));
+    runBtn.addEventListener("click", runRetrieve);
+    clearBtn.addEventListener("click", () => {
+      queryBox.value = "";
+      presetSel.value = "";
+      loadPreset("");
+      resultsEl.style.display = "none";
+      explainCard.style.display = "none";
+      setStatus("");
+    });
+    queryBox.addEventListener("keydown", e => {
+      if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) runRetrieve();
+    });
+
+    loadIndexStats();
+  </script>
+</body>
+</html>
